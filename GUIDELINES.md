@@ -1,6 +1,6 @@
 # GUIDELINES — Stroes-Rit-Match (RMW)
 
-_Last updated: 2026-08-31_
+_Last updated: 2026-09-01_
 
 ## Project identity
 
@@ -32,7 +32,14 @@ Power BI als reporting-schil, automatische signalering, een serviceabonnement �
 
 ## Current architecture
 
-Nog niet gebouwd (project net gestart). Beoogde PoC-architectuur: een los
+**Fase 1 (projectopzet) is gebouwd (01-09-2026):** Django 5.2 LTS-project `rmw` met
+app `matching` (Python 3.13), SQLite voor ontwikkeling, instellingen via
+omgevingsvariabelen (`.env.example`), en een Docker-basis (`Dockerfile` +
+`docker-compose.yml`, gunicorn + WhiteNoise, healthcheck op `/health/`) die lokaal
+draait. Nog geen matchinglogica, modellen of schermen. Lokale Git-repo aanwezig; de
+GitHub-repo moet nog worden aangemaakt. Zie `docs/changelog.md` (01-09-2026).
+
+Beoogde PoC-architectuur: een los
 Python-script dat de Syntess-exports en de RouteVision-download inleest, per
 monteur/dag een tijdlijn reconstrueert, matcht tegen bekende locaties
 (straatnaam-fallback wanneer postcode niet exact matcht; depot-vóór-werk-regel), en
@@ -40,7 +47,11 @@ een weekoverzicht wegschrijft. Zie `docs/architecture.md`.
 
 ## Application / module overview
 
-Nog geen modules; de PoC is één script.
+- `rmw/` — Django-projectconfiguratie (settings, urls, wsgi/asgi).
+- `matching/` — de applicatie: matchinglogica, modellen en admin (nu nog leeg;
+  gevuld in roadmap-fase 2 t/m 6).
+
+De PoC zelf was één script (`D:\STROES\PoC-demo\rmw_sbtt.py`).
 
 ## Current development principles
 
@@ -68,8 +79,11 @@ RouteVision-data komt voor de PoC uit een handmatige download, niet uit de API.
    resultaat vergelijkbaar met of beter dan de eerdere test op monteur M5 (82%).
    Afwijkingen blijven verklaarbaar op de bredere dataset. Zie `docs/decisions.md`
    (01-09-2026) en `docs/demo.md`.
-2. **Eerstvolgende stap:** de bouw van de volledige app starten, conform de
-   geaccordeerde offerte en de fasering in `docs/roadmap.md` (01-09-2026).
+2. **Gedaan (01-09-2026).** Roadmap-fase 1: Django-project, Docker-basis en lokale
+   Git-repo opgezet (zie `docs/changelog.md`). Open restpunt: de private GitHub-repo
+   onder RogerH72 aanmaken en koppelen.
+3. **Eerstvolgende stap:** roadmap-fase 2 (data-inlezing), pas na expliciete
+   bevestiging van het ontwerp.
 
 **Vervallen:** de eerder voorziene live-PoC-fase met 1-2 monteurs bij de klant (~1
 week, in overleg met Wim) — het akkoord van 31-08-2026 betrof al de volledige

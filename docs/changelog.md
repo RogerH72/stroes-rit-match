@@ -62,3 +62,28 @@ Verduidelijkt dat Nederlandse domeintermen uit het door SBTT ontworpen format
 Nederlands blijven in modelnamen/velden, ook al is de rest van de code Engels — zelfde
 principe als "Totaal Montage" bij ReplayCalcTool. `CLAUDE.md`, `GUIDELINES.md` en
 `docs/decisions.md` bijgewerkt.
+
+## 2026-09-01 — Fase 1 uitgevoerd: Django-project, Docker-basis en Git-repo
+
+Roadmap-fase 1 (projectopzet) gebouwd in een aparte Claude Code-sessie, conform
+`docs/decisions.md` (01-09-2026). Nog geen matchinglogica — alleen het fundament.
+
+- **Django-project** `rmw` met app `matching`, Python 3.13 en Django 5.2 LTS
+  (`requirements.txt`). SQLite voor ontwikkeling; de productiedatabase is bewust nog
+  niet gekozen (buiten scope fase 1). Omgevingsafhankelijke instellingen komen uit
+  omgevingsvariabelen (`RMW_SECRET_KEY`, `RMW_DEBUG`, `RMW_ALLOWED_HOSTS`,
+  `RMW_DB_PATH`, `RMW_INBOX_DIR`), gedocumenteerd in `.env.example`.
+- **Nederlandse UI-instellingen:** `LANGUAGE_CODE = nl-nl`, tijdzone
+  `Europe/Amsterdam`, Django-admin met Nederlandse kop ("RMW — Ritten Match Werkbon").
+- **Docker-basis:** `Dockerfile` (python:3.13-slim, gunicorn, WhiteNoise voor
+  statische bestanden, non-root gebruiker) en `docker-compose.yml` (named volume voor
+  database + inbox, automatische `migrate` bij start, healthcheck op `/health/`).
+  Geverifieerd: `docker compose up --build` draait, admin bereikbaar op poort 8000.
+- **Git:** lokale repo geïnitialiseerd met `.gitignore` en `.gitattributes` die
+  secrets (`.env`), de database en klantdata (Syntess-/RouteVision-exports, `*.xlsx`,
+  `*.csv`) buiten versiebeheer houden. Eerste commit met de volledige projectopzet.
+- **README.md** toegevoegd met start-instructies (lokaal en via Docker).
+
+Nog niet gedaan: de private GitHub-repo onder RogerH72 (`stroes-rit-match`) —
+GitHub CLI is niet geïnstalleerd op de werkplek, dus dit vereist een handmatige
+stap. Eerstvolgende bouwstap: fase 2 (data-inlezing), pas na expliciete bevestiging.

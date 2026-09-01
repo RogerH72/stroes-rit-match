@@ -1,0 +1,13 @@
+# RMW (Rit-Match-Werkbon) — runtime dependencies.
+# Kept deliberately small: the app must run as a light, self-contained container
+# with no recurring licence costs (see GUIDELINES.md).
+
+# Django 5.2 is the current LTS line (extended support until April 2028).
+Django>=5.2,<5.3
+
+# WSGI server used inside the container.
+gunicorn>=23.0,<24.0
+
+# Serves static files (including the Django admin) from the container itself,
+# so no separate web server is needed.
+whitenoise>=6.9,<7.0

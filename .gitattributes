@@ -1,0 +1,7 @@
+# Normalise line endings: LF in the repository, so files copied into the Linux
+# container behave the same regardless of the machine they were committed from.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.pdf binary
+*.xlsx binary

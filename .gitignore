@@ -1,0 +1,60 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# --- Virtual environments ---
+.venv/
+venv/
+env/
+ENV/
+
+# --- Django ---
+*.log
+db.sqlite3
+db.sqlite3-journal
+/staticfiles/
+/media/
+
+# --- Secrets / environment ---
+# Never commit real secrets; only .env.example belongs in the repo.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# --- Client data (Syntess / RouteVision exports, never in version control) ---
+# The app reads these from a server share at runtime; sample or customer files
+# must stay out of the repository (personal data, AVG).
+/data/
+/incoming/
+/exports/
+*.xls
+*.xlsx
+*.xlsm
+*.csv
+
+# --- Docker ---
+.docker/
+
+# --- Editors / OS ---
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Testing / tooling caches ---
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/

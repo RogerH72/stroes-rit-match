@@ -1,0 +1,80 @@
+# Roadmap — Stroes-Rit-Match (RMW)
+
+_Vastgelegd: 2026-09-01_
+
+## Doel van dit document
+
+De bouwvolgorde voor "de eerste werkende versie (basisgedeelte)" zoals vastgelegd in
+het OvO (v1.8, geaccordeerd door Wim Stroes op 31-08-2026) en het onderliggende
+projectvoorstel (27-08-2026). Bij tegenstrijdigheid is de scope-beschrijving in het
+OvO punt 2a leidend (zie `D:\STROES\OvO_Huijskens-Stroes_RMW_basisversie_v1_8.pdf`).
+
+## Uitgangspunt
+
+De bredere technische validatie (2 monteurs, 4 weken) heeft bevestigd dat de
+matching-heuristiek robuust genoeg is (zie `docs/decisions.md`, 01-09-2026). Deze
+roadmap gaat over het omzetten van die gevalideerde logica naar de contractueel
+toegezegde applicatie — niet over het opnieuw bepalen van de matchinglogica zelf.
+
+## Fasering
+
+### 1. Projectopzet
+Django-project + Docker-basis; lokale ontwikkelomgeving; lokale Git-repository +
+gekoppelde GitHub-repo (zie `docs/decisions.md`, 01-09-2026). Uitgevoerd in een
+aparte Claude Code-sessie (niet in Cowork), zie `docs/decisions.md`.
+
+### 2. Data-inlezing
+Bestandsgebaseerde inlezing van de servermap (Syntess-exports + RouteVision-download),
+volgens het al ontworpen trigger-mechanisme: polling elke 30 minuten, stabiliteitscheck
+op bestandsgrootte, bijhouden wat al verwerkt is via de database (geen aparte
+"verwerkt"-map, geen bestanden die worden verplaatst/verwijderd). Zie
+`docs/architecture.md` en `docs/decisions.md` (01-09-2026).
+
+### 3. Reken-/matchmotor
+De gevalideerde matching-heuristiek (uit de PoC en de bredere validatie —
+`D:\STROES\PoC-demo\rmw_sbtt.py`, gegeneraliseerd in
+`D:\STROES\Validatie-W30-W33\geanonimiseerd\validatie_2monteurs_4weken.py`) overzetten
+naar herbruikbare Django-logica: tijdlijnreconstructie per monteur per dag,
+classificatie in soorten (werkbon/klant/leverancier/eigen locatie/reistijd/
+onbekend/onverklaard), en het toepassen van de tolerantietabel per activiteit.
+
+### 4. Koppeltabellen + beheerschermen
+Django-admin voor: bekende locaties (met marge), monteur–voertuig (incl. meerijden),
+personeelsnummer–naam, en relaties (klant/leverancier-onderscheid).
+
+### 5. Uitzonderingen-scherm
+Onbekende of afwijkende adressen in één klik koppelen; bevestigde koppelingen worden
+onthouden, zodat de lijst met uitzonderingen steeds korter wordt.
+
+### 6. Weekoverzicht
+Per monteur, als webpagina én als Excel-export, in de eigen lay-out van SBTT
+(SOORT-codes K/L/C/W/?/O/R) — voortbouwend op het HTML-prototype uit de validatie.
+
+### 7. Oplevering
+Lichte, zelfstandige Docker-container, i.s.m. Stric geplaatst in een bestaande
+Proxmox-/VM-omgeving (of anders een kleine VPS). Bij elke nieuwe versie eerst een
+back-up van de koppeltabellen, zodat een rollback mogelijk is bij problemen (OvO
+punt 3).
+
+### 8. Acceptatie
+Samen testen; Wim test binnen 30 werkdagen na oplevering, anders geldt de oplevering
+als geaccepteerd (OvO 5b). Een korte samenvatting van het gebouwde + een instructie
+voor de beheerschermen en het uitzonderingen-scherm (OvO punt 6).
+
+## Expliciet buiten deze roadmap
+
+Bewust buiten de eerste werkende versie gehouden (apart te offreren als vervolgstap,
+per OvO punt 2a / projectvoorstel §6):
+
+- Een uitgebreider dashboard of managementrapportage.
+- Een directe API-koppeling met Syntess en/of RouteVision (i.p.v. bestandsuitwisseling).
+- Automatische signalering (bijv. een dagelijkse/wekelijkse e-mail met afwijkingen).
+- Een optioneel serviceabonnement voor ondersteuning en kleine aanpassingen.
+- Het snelheidscontrole-meerwerk (zie `docs/decisions.md` — "Meerwerk snelheidscontrole", Deferred).
+
+## Afhankelijkheden van derden
+
+De planning is mede afhankelijk van tijdige medewerking van Stric (VPN,
+Proxmox-omgeving, toegang tot de servermap `\\stroes-1909\atrium`), RVS Solutions
+(leverancier van Syntess) en RouteVision. Vertraging of beperkingen vanuit deze
+partijen zijn niet aan Roger toe te rekenen (OvO punt 4).

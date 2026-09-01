@@ -1,0 +1,37 @@
+# Local container run: `docker compose up --build`, then http://localhost:8000/admin/
+#
+# Deployment to the customer environment (Proxmox/VM via Stric) is roadmap
+# phase 7 and is deliberately not configured here.
+
+services:
+  web:
+    build: .
+    image: rmw:dev
+    ports:
+      - "8000:8000"
+    environment:
+      # Development defaults. For anything beyond local use, set these in a .env
+      # file next to this compose file (see .env.example) — never commit it.
+      RMW_SECRET_KEY: ${RMW_SECRET_KEY:-django-insecure-dev-only-key-change-me-in-any-real-deployment}
+      RMW_DEBUG: ${RMW_DEBUG:-0}
+      RMW_ALLOWED_HOSTS: ${RMW_ALLOWED_HOSTS:-localhost,127.0.0.1,[::1]}
+      RMW_DB_PATH: /app/data/db.sqlite3
+      RMW_INBOX_DIR: /app/data/inbox
+    volumes:
+      # Keeps the SQLite database and the inbox outside the container, so a
+      # rebuild does not lose data.
+      - rmw-data:/app/data
+    # Apply migrations before serving; safe to repeat on every start.
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             gunicorn rmw.wsgi:application --bind 0.0.0.0:8000 --workers 2 --timeout 120 --access-logfile -"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/').read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+
+volumes:
+  rmw-data:

@@ -23,8 +23,12 @@ COPY . .
 RUN RMW_SECRET_KEY=build-time-only RMW_DEBUG=0 python manage.py collectstatic --noinput
 
 # Run as a non-root user; /app/data holds the SQLite file and any mounted volume.
+# /app/data/inbox is the default SERVERMAP_PATH: on the server the share
+# \\stroes-1909\atrium\Autoprint\RUUDS is mounted there. Read-only access is
+# enough — the app never moves, renames or deletes anything on the share.
 RUN useradd --create-home --uid 1000 rmw \
-    && mkdir -p /app/data \
+    && mkdir -p /app/data/inbox \
+    && chmod +x scripts/scheduler.sh \
     && chown -R rmw:rmw /app
 USER rmw
 

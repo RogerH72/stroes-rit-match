@@ -134,11 +134,42 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 
 # RMW-specific settings
+#
+# The three settings below are read from unprefixed environment variables
+# (SERVERMAP_PATH, POLL_INTERVAL_MINUTES, STABILITY_MINUTES) rather than the
+# RMW_* names used above, because the phase 2 build instruction names them that
+# way. Setting and environment variable share one name on purpose, so there is
+# no second spelling to keep in sync.
+
 # Directory that the app watches for the daily Syntess exports and the
 # RouteVision download. On the server this is a mount of the share
-# \\stroes-1909\atrium\Autoprint\RUUDS (see docs/architecture.md). Nothing reads
-# this yet — file ingestion is roadmap phase 2.
-RMW_INBOX_DIR = Path(os.environ.get("RMW_INBOX_DIR", BASE_DIR / "data" / "inbox"))
+# \\stroes-1909\atrium\Autoprint\RUUDS (see docs/architecture.md); locally it
+# points at an ordinary folder. RMW_INBOX_DIR was the phase 1 name and is still
+# accepted, so an existing .env keeps working.
+SERVERMAP_PATH = Path(
+    os.environ.get("SERVERMAP_PATH")
+    or os.environ.get("RMW_INBOX_DIR")
+    or BASE_DIR / "data" / "inbox"
+)
+
+
+def env_int(name: str, default: int, minimum: int = 1) -> int:
+    """Read a positive integer from the environment, falling back on garbage."""
+    try:
+        value = int(os.environ.get(name, "").strip())
+    except ValueError:
+        return default
+    return value if value >= minimum else default
+
+
+# How often the scheduler runs the import check (see scripts/scheduler.sh).
+POLL_INTERVAL_MINUTES = env_int("POLL_INTERVAL_MINUTES", 5)
+
+# How long a file's size must stay unchanged before it counts as complete.
+# Deliberately independent of POLL_INTERVAL_MINUTES: the required number of
+# consecutive unchanged measurements is derived from the two, see
+# matching/ingest/stability.py.
+STABILITY_MINUTES = env_int("STABILITY_MINUTES", 30)
 
 
 # Logging: plain console output, which is what a container should emit.

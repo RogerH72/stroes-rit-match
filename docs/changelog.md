@@ -97,3 +97,69 @@ bevestigd — pushen vereist expliciete goedkeuring, conform de review-disciplin
 `werkwijze-project`). Roadmap-fase 1 (projectopzet) is hiermee volledig afgerond.
 Eerstvolgende stap: fase 2 (data-inlezing), pas te bespreken en te bevestigen
 voordat er een instructie naar Claude Code gaat.
+
+## 2026-09-02 — Fase 2 gebouwd: bestandsdetectie servermap en ruwe data-inlezing
+
+Roadmap-fase 2 (data-inlezing) gebouwd in de Claude Code-sessie. Nog géén
+matchinglogica of tijdlijnreconstructie — dat is fase 3.
+
+- **Bestandsdetectie (polling):** management-command `check_imports` bekijkt de
+  servermap, meet per herkend bestand de bestandsgrootte en leest een bestand pas in
+  zodra die grootte lang genoeg ongewijzigd is. Geen filesystem-events, conform
+  `docs/architecture.md` (onbetrouwbaar op een SMB-share).
+- **Twee losse instellingen, allebei via omgevingsvariabelen:**
+  `POLL_INTERVAL_MINUTES` (standaard 5) en `STABILITY_MINUTES` (standaard 30). Het
+  benodigde aantal opeenvolgende ongewijzigde metingen wordt daaruit afgeleid
+  (30/5 = 6), naar boven afgerond, met een ondergrens van 1 meting voor het geval de
+  stabiliteitsmarge korter is dan het polling-interval. De regel zelf staat als losse,
+  Django-vrije functie in `matching/ingest/stability.py` en is met gewone unittests
+  getest, zonder op een echte timer te wachten.
+- **Servermap instelbaar:** `SERVERMAP_PATH` (productie:
+  `\\stroes-1909\atrium\Autoprint\RUUDS`, lokaal een gewone map). De fase 1-naam
+  `RMW_INBOX_DIR` blijft als alternatief werken.
+- **Ruwe importtabellen, één per bronbestand** (`Uren`, `Rit`, `Relatie`,
+  `WerkbonControle`), 1-op-1 opgeslagen zoals aangeleverd, plus de bijhoudtabel
+  `ImportedFile` (bestandsnaam, laatst gemeten grootte, tijdstip laatste meting,
+  status wachtend/stabiel/verwerkt, tijdstip verwerkt). Wat al verwerkt is, wordt
+  uitsluitend in de database bijgehouden: geen "verwerkt"-map, en bestanden op de
+  servermap worden nooit verplaatst, hernoemd of verwijderd.
+- **Elk bronbestand wordt onafhankelijk gevolgd:** één regel per bestand, zodat een
+  ontbrekend of nog groeiend `Werkbonnen.xlsx` de verwerking van `Uren.xlsx` en de
+  RouteVision-CSV niet blokkeert (`docs/functioneel-ontwerp.md` §3a). Een bestand dat
+  niet gelezen kan worden houdt de andere ook niet tegen: de fout wordt vastgelegd en
+  de volgende ronde probeert het opnieuw.
+- **Fase-status volledigheidscontrole:** `Werkbonnen.xlsx` bevat één regel per
+  fase-overgang. Per werkbon wordt één status afgeleid — "afgerond" zodra een regel
+  Fase `Afgehandeld` of `Gereed` heeft, anders "nog niet gestart". Opgeslagen per
+  (Werkbon, Medewerker, Datum). Reistijd, Werktijd, Titel en "Monteur meegereden"
+  worden bewust niet opgeslagen. De controle zelf is fase 3.
+- **Parser-details uit de voorbeeldbestanden:** de drie Syntess-exports staan op een
+  tabblad `Atrium` (niet het eerste/actieve blad); de RouteVision-CSV is `cp1252` met
+  `;` als scheidingsteken en Nederlandse decimaalkomma's; `Relaties.xlsx` heeft een
+  lange staart lege regels die wordt overgeslagen.
+- **Scheduler in de container:** `scripts/scheduler.sh` draait `check_imports` elke
+  `POLL_INTERVAL_MINUTES`, als aparte service uit hetzelfde image
+  (`docker-compose.yml`). Een simpele loop in plaats van cron/supercronic: geen extra
+  pakket in het image nodig en logging gaat gewoon naar stdout.
+- **Handmatig te draaien** tijdens ontwikkeling en testen:
+  `check_imports --path <map> --force` (direct inlezen), `--dry-run` (alleen tonen),
+  `--reprocess` (al verwerkte bestanden opnieuw inlezen — alleen handmatig; de
+  geplande run herverwerkt nooit uit zichzelf). Geen automatische herverwerking en
+  geen e-mailsignalering, conform `docs/architecture.md`.
+- **Django-admin:** de vier importtabellen zijn read-only zichtbaar (het zijn kopieën
+  van de bronbestanden); `ImportedFile` toont de status per bestand. De echte
+  beheerschermen (koppeltabellen, tolerantietabel) zijn fase 4.
+- **Tests:** 74 tests, groen. De suite maakt zijn eigen miniatuur-exports aan en draait
+  dus ook zonder de voorbeeldbestanden; `matching/tests/test_sample_data.py` draait
+  daarnaast tegen de echte geanonimiseerde exports in `voorbeeld-data/` en wordt
+  overgeslagen als die map ontbreekt. Handmatig end-to-end gecontroleerd tegen de
+  voorbeeldbestanden: 31 urenregels, 92 ritten, 2 relaties, 19 werkbonregels.
+- **Afhankelijkheid toegevoegd:** `openpyxl` voor de drie Excel-bronnen. Bewust geen
+  pandas — te zwaar voor een handvol kolommen in een container die licht moet blijven;
+  de CSV gaat via de standaardbibliotheek.
+
+Openstaand aandachtspunt: de bestandsherkenning is bewust ruim gehouden (trefwoord +
+extensie) omdat de bestandsnaam-conventie van de automatische export nog niet bevestigd
+is met Stric/RVS Solutions/RouteVision (`docs/functioneel-ontwerp.md` §9, punt 1). Zodra
+die bekend is hoeft alleen de patronentabel in `matching/ingest/filenames.py` aangepast
+te worden.

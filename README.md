@@ -11,7 +11,9 @@ messages are English, and all UI text is Dutch (see `docs/decisions.md`,
 
 ## Status
 
-Roadmap phase 1 (project setup). No matching logic yet — see `docs/roadmap.md`.
+Roadmap phase 2 (data ingestion): the app detects the four source files on the
+server share and imports them into raw tables. No matching or timeline logic yet
+— that is phase 3. See `docs/roadmap.md`.
 
 ## Stack
 
@@ -47,17 +49,65 @@ Create an admin user in the running container:
 docker compose exec web python manage.py createsuperuser
 ```
 
+## File detection and import
+
+A scheduler inside the container runs `manage.py check_imports` every
+`POLL_INTERVAL_MINUTES`. It measures every recognised file on the share and reads
+one once its size has stayed unchanged for `STABILITY_MINUTES` — with the
+defaults, six unchanged measurements in a row. Files on the share are only ever
+read: nothing is moved, renamed or deleted, and the database alone records what
+has been processed.
+
+Each of the four sources is tracked separately, so a missing or still-growing
+file for one of them never holds up the others.
+
+Run a check by hand (the manual trigger during development):
+
+```bash
+python manage.py check_imports                              # normal run
+python manage.py check_imports --path voorbeeld-data --force  # import right away
+python manage.py check_imports --dry-run                    # report, write nothing
+python manage.py check_imports --reprocess --force          # re-read processed files
+```
+
+For local development, point `SERVERMAP_PATH` at an ordinary folder (the default
+is `data/inbox`) and drop copies of the sample exports in it.
+
+## Tests
+
+```bash
+python manage.py test matching
+```
+
+The suite writes its own miniature exports, so it runs on a fresh clone. The
+tests in `matching/tests/test_sample_data.py` additionally run against the real
+anonymised exports in `voorbeeld-data/` and are skipped when that folder is
+absent.
+
 ## Configuration
 
 All environment-specific settings come from environment variables; see
 `.env.example` for the full list. `.env` is git-ignored and must never be
 committed, and neither may any customer data (Syntess/RouteVision exports).
 
+Phase 2 adds three:
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `SERVERMAP_PATH` | `data/inbox` | Folder that is watched for the source files. On the server: a mount of `\\stroes-1909\atrium\Autoprint\RUUDS`. |
+| `POLL_INTERVAL_MINUTES` | `5` | How often the share is checked. |
+| `STABILITY_MINUTES` | `30` | How long a file's size must stay unchanged before it is read. |
+
 ## Layout
 
 ```text
 manage.py
-rmw/           Django project (settings, urls, wsgi/asgi)
-matching/      Application: matching logic, models, admin (still empty)
-docs/          Project documentation (Dutch)
+rmw/                    Django project (settings, urls, wsgi/asgi)
+matching/
+  models.py             Raw import tables + import bookkeeping
+  ingest/               File detection, stability rule, parsers
+  management/commands/  check_imports
+  tests/
+scripts/scheduler.sh    Poll loop used by the scheduler container
+docs/                   Project documentation (Dutch)
 ```

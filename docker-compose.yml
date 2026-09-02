@@ -1,7 +1,24 @@
 # Local container run: `docker compose up --build`, then http://localhost:8000/admin/
 #
+# Two services from one image: the web app, and a scheduler that checks the
+# server share every POLL_INTERVAL_MINUTES. Keeping them apart means the web
+# process stays a single process and a failing import never takes the site down.
+#
 # Deployment to the customer environment (Proxmox/VM via Stric) is roadmap
 # phase 7 and is deliberately not configured here.
+
+x-rmw-environment: &rmw-environment
+  # Development defaults. For anything beyond local use, set these in a .env
+  # file next to this compose file (see .env.example) — never commit it.
+  RMW_SECRET_KEY: ${RMW_SECRET_KEY:-django-insecure-dev-only-key-change-me-in-any-real-deployment}
+  RMW_DEBUG: ${RMW_DEBUG:-0}
+  RMW_ALLOWED_HOSTS: ${RMW_ALLOWED_HOSTS:-localhost,127.0.0.1,[::1]}
+  RMW_DB_PATH: /app/data/db.sqlite3
+  # The folder the app watches. On the server this is where the share
+  # \\stroes-1909\atrium\Autoprint\RUUDS is mounted read-only.
+  SERVERMAP_PATH: ${SERVERMAP_PATH:-/app/data/inbox}
+  POLL_INTERVAL_MINUTES: ${POLL_INTERVAL_MINUTES:-5}
+  STABILITY_MINUTES: ${STABILITY_MINUTES:-30}
 
 services:
   web:
@@ -9,14 +26,7 @@ services:
     image: rmw:dev
     ports:
       - "8000:8000"
-    environment:
-      # Development defaults. For anything beyond local use, set these in a .env
-      # file next to this compose file (see .env.example) — never commit it.
-      RMW_SECRET_KEY: ${RMW_SECRET_KEY:-django-insecure-dev-only-key-change-me-in-any-real-deployment}
-      RMW_DEBUG: ${RMW_DEBUG:-0}
-      RMW_ALLOWED_HOSTS: ${RMW_ALLOWED_HOSTS:-localhost,127.0.0.1,[::1]}
-      RMW_DB_PATH: /app/data/db.sqlite3
-      RMW_INBOX_DIR: /app/data/inbox
+    environment: *rmw-environment
     volumes:
       # Keeps the SQLite database and the inbox outside the container, so a
       # rebuild does not lose data.
@@ -31,6 +41,19 @@ services:
       timeout: 5s
       retries: 3
       start_period: 15s
+    restart: unless-stopped
+
+  scheduler:
+    build: .
+    image: rmw:dev
+    environment: *rmw-environment
+    volumes:
+      - rmw-data:/app/data
+    # Waits for the web service so the migrations have run before the first check.
+    depends_on:
+      web:
+        condition: service_started
+    command: ["sh", "scripts/scheduler.sh"]
     restart: unless-stopped
 
 volumes:

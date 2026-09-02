@@ -33,9 +33,11 @@ db.sqlite3-journal
 # --- Client data (Syntess / RouteVision exports, never in version control) ---
 # The app reads these from a server share at runtime; sample or customer files
 # must stay out of the repository (personal data, AVG).
+# /data/inbox is the default SERVERMAP_PATH and the usual local dev share.
 /data/
 /incoming/
 /exports/
+/voorbeeld-data/
 *.xls
 *.xlsx
 *.xlsm

@@ -87,3 +87,13 @@ Roadmap-fase 1 (projectopzet) gebouwd in een aparte Claude Code-sessie, conform
 Nog niet gedaan: de private GitHub-repo onder RogerH72 (`stroes-rit-match`) —
 GitHub CLI is niet geïnstalleerd op de werkplek, dus dit vereist een handmatige
 stap. Eerstvolgende bouwstap: fase 2 (data-inlezing), pas na expliciete bevestiging.
+
+## 2026-09-01 — Fase 1 volledig afgerond: GitHub-repo aangemaakt en gepusht
+
+De private GitHub-repo `github.com/RogerH72/stroes-rit-match` is handmatig
+aangemaakt (leeg, zonder README/.gitignore), lokaal als `origin` gekoppeld, en de
+twee bestaande commits zijn gepusht (`git push -u origin main`, door Roger zelf
+bevestigd — pushen vereist expliciete goedkeuring, conform de review-discipline uit
+`werkwijze-project`). Roadmap-fase 1 (projectopzet) is hiermee volledig afgerond.
+Eerstvolgende stap: fase 2 (data-inlezing), pas te bespreken en te bevestigen
+voordat er een instructie naar Claude Code gaat.

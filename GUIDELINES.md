@@ -37,7 +37,7 @@ app `matching` (Python 3.13), SQLite voor ontwikkeling, instellingen via
 omgevingsvariabelen (`.env.example`), en een Docker-basis (`Dockerfile` +
 `docker-compose.yml`, gunicorn + WhiteNoise, healthcheck op `/health/`) die lokaal
 draait. Nog geen matchinglogica, modellen of schermen. Lokale Git-repo aanwezig; de
-GitHub-repo moet nog worden aangemaakt. Zie `docs/changelog.md` (01-09-2026).
+GitHub-repo aangemaakt en gekoppeld (`github.com/RogerH72/stroes-rit-match`, private). Zie `docs/changelog.md` (01-09-2026).
 
 Beoogde PoC-architectuur: een los
 Python-script dat de Syntess-exports en de RouteVision-download inleest, per
@@ -79,9 +79,10 @@ RouteVision-data komt voor de PoC uit een handmatige download, niet uit de API.
    resultaat vergelijkbaar met of beter dan de eerdere test op monteur M5 (82%).
    Afwijkingen blijven verklaarbaar op de bredere dataset. Zie `docs/decisions.md`
    (01-09-2026) en `docs/demo.md`.
-2. **Gedaan (01-09-2026).** Roadmap-fase 1: Django-project, Docker-basis en lokale
-   Git-repo opgezet (zie `docs/changelog.md`). Open restpunt: de private GitHub-repo
-   onder RogerH72 aanmaken en koppelen.
+2. **Gedaan (01-09-2026).** Roadmap-fase 1 volledig afgerond: Django-project,
+   Docker-basis, lokale Git-repo én de private GitHub-repo
+   (`github.com/RogerH72/stroes-rit-match`) aangemaakt, gekoppeld en gepusht (zie
+   `docs/changelog.md`).
 3. **Eerstvolgende stap:** roadmap-fase 2 (data-inlezing), pas na expliciete
    bevestiging van het ontwerp.
 

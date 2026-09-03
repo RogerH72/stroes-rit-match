@@ -41,6 +41,11 @@ database → `docs/database.md`, enz.). Lees verdere documenten als de taak dat 
   *wat* — vooral bij de matchmotor (de classificatie-prioriteit, de
   meegereden-resolutie) en andere plekken waar een regel niet voor zich spreekt.
   Geen ruis toevoegen bij vanzelfsprekende code.
+- **Commit-attributie (vastgelegd 03-09-2026):** een instructie vanuit de Cowork-
+  sessie naar Claude Code krijgt niet de footer van de Cowork-sessie zelf mee. De
+  sessie die de code daadwerkelijk schrijft en commit, gebruikt zijn eigen
+  attributie (Co-Authored-By + Claude-Session) — die sessie heeft de code
+  geschreven, niet de sessie die de instructie opstelde.
 - PoC eerst: forceer geen productiestack-beslissingen vóór het matchingsconcept
   gevalideerd is op echte data.
 - Herkomst/achtergrond van de opdracht staat in de brainstorm-sessie

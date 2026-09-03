@@ -327,6 +327,21 @@ Draai stap 3 als vast onderdeel van **elke** update — dan kun je 'm nooit
 vergeten. Optioneel eerst kijken wat er openstaat:
 `docker compose run --rm web python manage.py showmigrations`.
 
+**Soms is migreren niet genoeg.** Een migratie die alleen een kolom toevoegt aan
+een importtabel (zoals `WerkbonControle`) vult die kolom niet met terugwerkende
+kracht — bestaande rijen krijgen een lege standaardwaarde totdat het bronbestand
+opnieuw wordt ingelezen. `docs/changelog.md` vermeldt per wijziging of dit nodig
+is; op het moment dat dit draaiboek geschreven is, geldt dit voor de
+Werkbonnen.xlsx-postcode (03-09-2026, zie `docs/decisions.md` en
+`docs/business-rules.md`). Check bij twijfel de laatste `docs/changelog.md`-
+entries vóór het uitrollen. Zo ja, na stap 3:
+
+```bash
+# 4. Bronbestanden herverwerken zodat nieuwe/gewijzigde velden gevuld worden
+docker compose run --rm web python manage.py check_imports --force --reprocess
+docker compose run --rm web python manage.py run_matching --force
+```
+
 ---
 
 ## 10. Go-live checklist

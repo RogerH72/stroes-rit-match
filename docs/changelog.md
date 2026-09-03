@@ -244,3 +244,42 @@ geen GitHub-credentials).
 
 Roadmap-fase 3 is hiermee afgerond. Eerstvolgende stap: roadmap-fase 4
 (verfijning van de beheerschermen) bespreken en bevestigen.
+
+## 2026-09-03 — Werkbonnen.xlsx-postcode gebouwd als matchvangnet
+
+Uitvoering van het besluit hierboven ("Record decision: Werkbonnen.xlsx postcode
+as matching fallback"), gebouwd door de Claude Code-sessie op basis van de
+instructie uit deze Cowork-sessie. Commit `37b4d71`, 149 tests groen (was 143).
+
+- `WerkbonControle` uitgebreid met `postcode`, `titel`, `tijd`, `reistijd`,
+  `werktijd` en `monteur_meegereden`. Alleen `postcode` wordt door de matchmotor
+  gelezen (als vangnet ná de eigen Uren.xlsx-match, vóór de koppeltabel — de
+  depotcheck loopt er nog altijd vóór); `titel` is uitsluitend omschrijvingstekst
+  wanneer dat vangnet raak is. De rest blijft ongebruikt, zoals bedoeld.
+- Nieuwe `WerkbonPostcodes`-klasse in `matching/timeline/engine.py`, analoog aan
+  de bestaande `DagUren`, en `_classify_stop()` uitgebreid met de nieuwe stap in
+  de prioriteitsvolgorde (tussen de oude stap 2 en 3).
+- Parser (`matching/ingest/parsers/werkbonnen.py`) aangepast zodat de gededupliceerde
+  rij per (Werkbon, Medewerker, Datum) ook de waarden van de eerst-geziene rij
+  bewaart, niet alleen het rijnummer.
+- Testresultaat op `voorbeeld-data/`: hervindingspercentage M5 van 73% naar
+  81,8% (9/11) — nagenoeg gelijk aan de 82% die de PoC op dezelfde week haalde.
+  M1 blijft op 0% (verwacht): zijn werkbonnen liggen op de depotpostcode, en de
+  depotregel wint altijd vóórdat het nieuwe vangnet aan de beurt komt. De
+  testondergrens is daarom verhoogd van 0,6 naar 0,75.
+
+Twee operationele punten, meegenomen in `docs/business-rules.md` en
+`DRAAIBOEK.md`:
+
+1. De migratie zelf is puur additief (lege standaardwaarden) — bestaande
+   `WerkbonControle`-rijen krijgen pas een postcode nadat Werkbonnen.xlsx
+   opnieuw is ingelezen. Na elke deploy van deze wijziging (dus ook straks bij
+   de eerste productie-uitrol): `check_imports --force --reprocess` gevolgd
+   door `run_matching --force`, in die volgorde.
+2. De commit is getekend met de attributie van de Claude Code-sessie die de
+   code daadwerkelijk schreef (Claude Opus 5, `session_01AK64on6x58NHXQc7G9otES`),
+   niet met de attributie van deze Cowork-sessie die de instructie opstelde —
+   terecht: een commit hoort de sessie te attribueren die de code schreef. Vanaf
+   nu wordt een instructie naar Claude Code niet meer voorzien van de eigen
+   footer van de opstellende sessie; de uitvoerende sessie gebruikt zijn eigen
+   attributie.

@@ -42,7 +42,15 @@ Gebouwd t/m roadmap-fase 3 (03-09-2026, commit `eea759c`, 143 tests groen — zi
   Werkbonnen.xlsx wordt daarnaast nog steeds ingelezen voor de
   **volledigheidscontrole**: signaleren of er een werkbon bestaat zonder geboekte
   uren, op basis van de laatste/huidige Fase-status. Zie `docs/decisions.md`
-  (03-09-2026) voor de volledige afweging.
+  (03-09-2026) voor de volledige afweging. **Gebouwd en gemeten (03-09-2026,
+  commit `37b4d71`, 149 tests groen):** het hervindingspercentage voor M5 ging op
+  de voorbeeld-data van 73% naar 82% — nagenoeg gelijk aan wat de PoC op diezelfde
+  week haalde. Belangrijk operationeel punt: bestaande `WerkbonControle`-rijen
+  hebben pas een postcode nadat Werkbonnen.xlsx opnieuw is ingelezen (de migratie
+  zelf is puur additief met lege standaardwaarden) — na elke deploy van deze
+  wijziging moet `check_imports --force --reprocess` (zonder `--path`, dan pakt
+  hij de echte servermap) gevolgd door `run_matching --force` gedraaid worden,
+  anders blijft het vangnet stil. Zie `DRAAIBOEK.md`.
 - **Ontbrekend bronbestand blokkeert alleen zijn eigen doel (vastgelegd en gebouwd
   2026-09-02):** elk bronbestand wordt onafhankelijk gevolgd. Ontbreekt
   Werkbonnen.xlsx voor een periode terwijl Uren.xlsx er wel is, dan draait de

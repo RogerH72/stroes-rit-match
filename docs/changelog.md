@@ -335,3 +335,20 @@ aanpassen. Onschadelijk (elke run overschrijft de rij toch), maar
 inconsistent met het bestaande read-only-patroon voor systeem-berekende
 tabellen (`Tijdblok`, de import-tabellen). Besloten: dit gelijktrekken —
 zie het besluit hieronder. Aparte kleine instructie naar Claude Code volgt.
+
+## 2026-09-03 — MatchmotorStatus read-only gemaakt
+
+Uitvoering van het besluit hierboven ("MatchmotorStatus wordt read-only in de
+admin"). Commit `c1ca836`, 176 tests groen (was 173, +4: twee tests die
+bevestigen dat de rij niet met de hand te wijzigen is via het formulier, één
+die expliciet vastlegt dat de knop desondanks blijft werken, één die een
+staff-gebruiker zonder de onderliggende Django-permissie blokkeert).
+
+`has_change_permission()` staat nu op `False`, net als bij `Tijdblok`. Omdat
+de "Matching nu draaien"-knop zichzelf eerder via diezelfde methode
+afschermde, checkt de knop nu rechtstreeks de onderliggende Django-permissie
+(`matching.change_matchmotorstatus`) — de rij wordt namelijk bijgewerkt via
+`save()`, niet via het admin-formulier, dus de knop blijft werken terwijl het
+formulier uitstaat.
+
+Roadmap-fase 4 is hiermee volledig afgerond.

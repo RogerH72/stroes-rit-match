@@ -114,12 +114,18 @@ RouteVision-data komt voor de PoC uit een handmatige download, niet uit de API.
 5. **Gedaan (03-09-2026).** Roadmap-fase 3 (reken-/matchmotor) gebouwd, getest en
    gepusht (`eea759c`), inclusief de koppeltabellen die de motor nodig heeft. Zie
    `docs/changelog.md` en `docs/decisions.md` (03-09-2026).
-6. **Eerstvolgende stap:** roadmap-fase 4 (verfijning van de beheerschermen — de
-   koppeltabellen bestaan al, dit gaat om UX: labels, het
-   uitzonderingen-eenklik-scherm) hier bespreken en bevestigen. Neem bij het
-   configureren van het echte depotadres het aandachtspunt uit
-   `docs/decisions.md` (03-09-2026) mee: een straat-niveau depot claimt elk adres
-   op die straat.
+6. **Gedaan (03-09-2026).** Roadmap-fase 4 (verfijning beheerschermen) gebouwd
+   en gepusht (`989b6d3`): `MatchmotorStatus` (wanneer de matching voor het
+   laatst gedraaid heeft, gelukt of niet, hoeveel dagen), een "Matching nu
+   draaien"-knop in het beheerscherm zodat SBTT-personeel dit zelf kan
+   triggeren zonder serverdoegang, en een overlap-validatie op
+   `MeegeredenKoppeling` (een junior kan niet tegelijk aan twee senioren
+   gekoppeld zijn). 173 tests groen (was 149). Zie `docs/changelog.md` en
+   `docs/decisions.md` (03-09-2026).
+7. **Eerstvolgende stap:** roadmap-fase 5 (uitzonderingenscherm) hier bespreken
+   en bevestigen. Neem bij het configureren van het echte depotadres het
+   aandachtspunt uit `docs/decisions.md` (03-09-2026) mee: een straat-niveau
+   depot claimt elk adres op die straat.
 
 **Vervallen:** de eerder voorziene live-PoC-fase met 1-2 monteurs bij de klant (~1
 week, in overleg met Wim) — het akkoord van 31-08-2026 betrof al de volledige

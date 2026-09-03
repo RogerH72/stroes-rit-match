@@ -71,6 +71,20 @@ Gebouwd t/m roadmap-fase 3 (03-09-2026, commit `eea759c`, 143 tests groen — zi
 - Koppeltabellen `Monteur` en `BekendeLocatie` als bewerkbare Django-admin-modellen,
   incl. `BekendeLocatie.soort` beperkt tot K/L/C als gebruikerskeuze (zie
   `docs/database.md`).
+- **Matching zelf opnieuw draaien, zonder serverdoegang (gebouwd 03-09-2026,
+  fase 4, zie `docs/decisions.md`):** de matching draait niet automatisch op
+  een schema — alleen `check_imports` doet dat. Tot deze build kon alleen jij/
+  Claude Code de matching herberekenen, via de command line. Nu staat er een
+  "Matching nu draaien"-knop in het beheerscherm (`MatchmotorStatus`), zodat
+  SBTT-personeel dit zelf kan triggeren nadat ze een koppeltabel hebben
+  aangepast. Draait synchroon (geen achtergrondtaken-systeem — onnodig op deze
+  schaal, één klant, ruim onder een seconde).
+- **Geen overlappende meegereden-periodes voor dezelfde junior (gebouwd
+  03-09-2026, fase 4):** een junior monteur kan niet tegelijk aan twee
+  senioren gekoppeld zijn in `MeegeredenKoppeling`. Beide grenzen tellen mee
+  (dezelfde dag geldt al als overlap) en een open einddatum telt als
+  onbepaald lang — consistent met hoe `geldt_op()` een koppeling al
+  toepaste.
 
 ## Designed but not implemented
 

@@ -295,3 +295,43 @@ op de PoC-validatie). Onderhoudsafspraak vastgelegd in `CLAUDE.md`: dit
 document wordt bijgewerkt zodra de matchlogica wijzigt, en zodra een
 onderdeel dat er nu nog als "niet klaar" in staat (bijv. het
 uitzonderingenscherm) gereed komt.
+
+## 2026-09-03 — Fase 4 gebouwd: matching-knop en overlap-validatie
+
+Uitvoering van de fase 4-instructie uit deze Cowork-sessie. Commit `989b6d3`,
+173 tests groen (was 149, +24).
+
+- `MatchmotorStatus`: singleton (zelfde patroon als `Instelling`) die
+  bijhoudt wanneer de matching voor het laatst gestart/afgerond is, of dat
+  gelukt is, hoeveel monteur-dagen herberekend zijn, en een eventuele
+  foutmelding. `run_matching_and_record_status()` wikkelt de bestaande
+  `run_matching()` in en wordt zowel door het command-line commando als door
+  de nieuwe knop aangeroepen, zodat de status altijd klopt ongeacht wie 'm
+  triggerde. Een `--dry-run` telt bewust niet mee als een "run" — die
+  schrijft niets weg.
+- "Matching nu draaien"-knop in het beheerscherm (`MatchmotorStatusAdmin`):
+  POST-only, synchroon, herberekent alles (`force=True`, geen filters — voor
+  een gerichte herberekening blijft de command line met
+  `--monteur`/`--van`/`--tot` beschikbaar). Eind-tot-eind getest tegen de
+  ontwikkel-database: 10 monteur-dagen herberekend (146 Tijdblok-rijen) in
+  ~165 ms — de empirische onderbouwing om dit synchroon te laten (geen
+  achtergrondtaken-systeem, onnodig op deze schaal).
+- `MeegeredenKoppeling.clean()` wijst nu twee koppelingen voor dezelfde
+  junior af als hun periodes elkaar overlappen (inclusief grenzen — dezelfde
+  dag telt al als overlap; een open einddatum telt als onbepaald lang),
+  consistent met hoe `geldt_op()` een koppeling al toepaste.
+
+Eén bewuste afwijking van de instructie: de instructie zei "geen ander
+gedrag" bij het ombouwen van het command-line commando naar de nieuwe
+wrapper-functie — letterlijk genomen zou dat een `--dry-run` ook als
+afgeronde run laten registreren, terwijl die niets wegschrijft. De guard
+staat daarom in de wrapper zelf, met een test erbij. Goede, verdedigbare
+inschatting.
+
+Eén openstaand punt: `MatchmotorStatus` staat nu, anders dan `Tijdblok`, nog
+niet expliciet read-only in de admin (alleen toevoegen/verwijderen staat
+uit) — een gebruiker met wijzigrechten zou de statusrij handmatig kunnen
+aanpassen. Onschadelijk (elke run overschrijft de rij toch), maar
+inconsistent met het bestaande read-only-patroon voor systeem-berekende
+tabellen (`Tijdblok`, de import-tabellen). Besloten: dit gelijktrekken —
+zie het besluit hieronder. Aparte kleine instructie naar Claude Code volgt.

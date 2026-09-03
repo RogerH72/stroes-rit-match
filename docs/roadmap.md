@@ -50,6 +50,14 @@ vooral over de admin-schermen zelf verfijnen (labels, filters, gebruiksgemak) en
 invoeren van de echte SBTT-stamgegevens (o.a. het echte depotadres — met het
 aandachtspunt uit `docs/decisions.md`, 03-09-2026, over het straat-niveau
 depotrisico).
+**Gebouwd (03-09-2026), commit `989b6d3`, 173 tests groen:** een
+`MatchmotorStatus`-tabel en een "Matching nu draaien"-knop in het beheerscherm,
+zodat SBTT-personeel de matching zelf opnieuw kan laten draaien na het
+aanpassen van een koppeltabel — zonder serverdoegang (de matching draait niet
+automatisch op een schema, zie `docs/database.md`). Daarnaast een
+overlap-validatie op `MeegeredenKoppeling`. Het invoeren van de échte
+SBTT-stamgegevens (o.a. het depotadres) is een aparte, latere stap — zie
+`docs/decisions.md` (03-09-2026).
 
 ### 5. Uitzonderingen-scherm
 Onbekende of afwijkende adressen in één klik koppelen; bevestigde koppelingen worden

@@ -114,6 +114,14 @@ uitzonderingen-eenklik-scherm), niet de tabellen zelf._
   `check_imports`), o.a. nodig nadat een koppeltabel is aangepast.
   **Bevat geen WB-vs-SYS-signaalveld** — dat onderdeel van de PoC is bewust niet
   gebouwd (zie `docs/decisions.md`, 02-09-2026).
+- **MatchmotorStatus** (gebouwd 03-09-2026, fase 4, zie `docs/decisions.md`) —
+  singleton, zelfde patroon als `Instelling`: wanneer de matching voor het
+  laatst gestart/afgerond is, of dat gelukt is (`succes=None` betekent "nog
+  nooit gedraaid", een ander signaal dan `False`), hoeveel monteur-dagen
+  herberekend zijn, en een eventuele foutmelding. Wordt bijgewerkt door zowel
+  het `run_matching`-commando als de "Matching nu draaien"-knop in het
+  beheerscherm — een `--dry-run` telt bewust niet mee, want die schrijft niets
+  weg.
 
 **Geen aparte tabel, wel een berekening:** de volledigheidscontrole
 (Werkbonnen.xlsx-check, zie `docs/business-rules.md`) heeft geen eigen tabel nodig —

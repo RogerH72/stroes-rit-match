@@ -522,3 +522,20 @@ Werkbonnen.xlsx "geen enkele rol" in de matching speelt en dat Reistijd/Werktijd
 Titel/Monteur meegereden "niet opgeslagen" worden — de kern van dat besluit (deze
 velden worden niet gebruikt om werktijd of aan/vertrektijden te bepalen) blijft
 staan.
+
+## 2026-09-03 — MatchmotorStatus wordt read-only in de admin (Current)
+
+Decision: `MatchmotorStatus` (het statusscherm/de knop uit fase 4) krijgt
+dezelfde read-only-behandeling in de admin als `Tijdblok` en de import-
+tabellen: alleen bekijken, niet handmatig aanpassen. Bij het bouwen was dit
+een openstaande keuze (Claude Code liet wijzigen expliciet aan, "add" en
+"delete" uit) — nu gelijkgetrokken met het bestaande patroon.
+
+Reasoning: `MatchmotorStatus` is systeem-berekende data (elke run overschrijft
+de rij), geen door SBTT beheerde configuratie zoals `Instelling` of de
+koppeltabellen. Een gebruiker die de statusrij handmatig aanpast, kan daarmee
+geen kwaad (de eerstvolgende run overschrijft het toch), maar het is verwarrend
+om iets bewerkbaar te tonen dat feitelijk alleen een uitleesvenster op een proces
+is. Consistent met waarom `Tijdblok` al read-only is: "de manier om de uitkomst
+te veranderen is een koppeltabel aan te passen en de matching opnieuw te
+draaien", niet het resultaat zelf handmatig te bewerken.

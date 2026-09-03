@@ -208,6 +208,11 @@ uitzondering getoond worden, het bevestigingsformulier) zijn nog niet uitgewerkt
 - Eerste scherm buiten de admin — krijgt een minimale gedeelde basispagina
   (header/logo/navy balk, zie `docs/ui-spec.md`) die fase 6 hergebruikt.
 
+**Gebouwd (03-09-2026, commit `b6cf401`, 195 tests groen):** precies zoals hierboven
+ontworpen. `/uitzonderingen/` toont de gegroepeerde lijst, `/uitzonderingen/
+koppelen/<precisie>/<waarde>/` het bevestigingsformulier. Bereikbaar via een link
+op het matchmotor-statusscherm in de admin.
+
 ## 6. Weekoverzicht (roadmap-fase 6)
 
 Het eindresultaat per monteur, beschikbaar als webpagina én als Excel-export, in de

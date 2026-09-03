@@ -64,6 +64,21 @@ depotadres) is een aparte, latere stap — zie `docs/decisions.md`
 Onbekende of afwijkende adressen in één klik koppelen; bevestigde koppelingen worden
 onthouden, zodat de lijst met uitzonderingen steeds korter wordt.
 
+**Gebouwd (03-09-2026), commit `b6cf401`, 195 tests groen (was 176):** het eerste
+scherm buiten de Django-admin, op `/uitzonderingen/`. Groepeert alle onverklaarde
+(SOORT O) stops per uniek adres (postcode, straat als fallback), meest voorkomend
+eerst, met de betrokken monteurs en datums. "Koppelen" opent een formulier
+(gebaseerd op het bestaande `BekendeLocatie`-model, dus met dezelfde validatie),
+waarna de matching direct opnieuw draait en de lijst korter wordt. Geen
+"Negeren"-actie (bewust, zie `docs/decisions.md`, 03-09-2026) en geen
+"is depot"-optie (dat blijft admin-beheer). `Tijdblok` kreeg er twee velden bij
+(`postcode`, `straat`) zodat het scherm dit niet uit de weergavetekst hoeft te
+herleiden — bestaande dagen moesten daarvoor eenmalig opnieuw doorgerekend worden.
+Visuele stijl uit `docs/ui-spec.md` (SBTT's eigen kleuren), herbruikbaar voor fase
+6. Foutherstel (een verkeerde koppeling terugdraaien) blijft bewust admin-werk via
+"Bekende locaties" — vastgelegd als verplicht onderdeel van de opleverinstructie
+aan Wim (`docs/decisions.md`, 03-09-2026).
+
 ### 6. Weekoverzicht
 Per monteur, als webpagina én als Excel-export, in de eigen lay-out van SBTT
 (SOORT-codes K/L/C/W/?/O/R) — voortbouwend op het HTML-prototype uit de validatie.

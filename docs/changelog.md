@@ -352,3 +352,30 @@ afschermde, checkt de knop nu rechtstreeks de onderliggende Django-permissie
 formulier uitstaat.
 
 Roadmap-fase 4 is hiermee volledig afgerond.
+
+## 2026-09-03 — Fase 5 gebouwd: het uitzonderingenscherm
+
+Eerste scherm buiten de Django-admin, op `/uitzonderingen/`. Groepeert alle
+onverklaarde (SOORT O) stops per uniek adres, meest voorkomend eerst, met de
+betrokken monteurs/datums. "Koppelen" opent een formulier op basis van het
+bestaande `BekendeLocatie`-model, waarna de matching direct opnieuw draait.
+Geen "Negeren"-actie, geen "is depot"-optie (dat blijft admin-beheer).
+
+`Tijdblok` kreeg twee nieuwe velden (`postcode`, `straat`) zodat het scherm
+niet uit de weergavetekst hoeft te herleiden — bestaande dagen moesten
+eenmalig opnieuw doorgerekend worden (`run_matching --force`), zelfde
+operationele stap als bij de Werkbonnen.xlsx-uitbreiding eerder deze week.
+
+Visuele stijl komt uit `docs/ui-spec.md` (SBTT's eigen kleuren van
+stroesteam.nl), in een gedeelde basispagina die fase 6 (weekoverzicht)
+hergebruikt. Bereikbaar via een link op het matchmotor-statusscherm.
+
+Commit `b6cf401`, 195 tests groen (was 176). Eén technische aanpassing buiten
+de oorspronkelijke instructie: `rmw/settings.py` valt tijdens `manage.py test`
+terug op gewone static-file-opslag, omdat de normale opslag een
+`collectstatic`-stap vereist die de testrunner nooit uitvoert — dit raakt
+alleen het testen, niet hoe de app in productie draait.
+
+Foutherstel (een verkeerde koppeling terugdraaien via "Bekende locaties" in
+de admin, gevolgd door opnieuw matchen) is vastgelegd als verplicht onderdeel
+van de opleverinstructie aan Wim — zie `docs/decisions.md`, 03-09-2026.

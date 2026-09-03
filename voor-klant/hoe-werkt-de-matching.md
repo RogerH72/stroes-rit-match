@@ -81,13 +81,15 @@ besloten dit als app te gaan bouwen.
 
 Wat er niet automatisch herkend wordt, verdwijnt niet stilletjes — dat blijft
 zichtbaar als "onverklaard" of "onbekend", zodat het in één oogopslag
-opvalt. Een volgende stap in de bouw (nog niet klaar) maakt het mogelijk om
-zo'n onbekend adres met één klik handmatig te koppelen — en die koppeling
-onthoudt de app daarna voor altijd, zodat de lijst met openstaande gevallen
-vanzelf steeds korter wordt.
+opvalt. Zo'n onverklaard adres kan met één klik handmatig gekoppeld worden aan
+een bekende locatie — en die koppeling onthoudt de app daarna voor altijd,
+zodat de lijst met openstaande gevallen vanzelf steeds korter wordt (ook voor
+dagen die daarna nog volgen). Gebeurt dat per ongeluk verkeerd, dan is dat
+altijd terug te draaien — dat hoort bij de instructie die je bij oplevering
+krijgt.
 
 ---
 
 _Onderhoudsafspraak: dit document wordt bijgewerkt zodra de matchlogica
 wijzigt, en zodra een hier genoemd onderdeel dat nu nog "niet klaar" heet
-(zoals het uitzonderingenscherm) daadwerkelijk gereed komt. Zie `CLAUDE.md`._
+daadwerkelijk gereed komt. Zie `CLAUDE.md`._

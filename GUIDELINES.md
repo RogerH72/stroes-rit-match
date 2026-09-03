@@ -122,10 +122,19 @@ RouteVision-data komt voor de PoC uit een handmatige download, niet uit de API.
    serverdoegang, en een overlap-validatie op `MeegeredenKoppeling` (een junior
    kan niet tegelijk aan twee senioren gekoppeld zijn). 176 tests groen (was
    149). Zie `docs/changelog.md` en `docs/decisions.md` (03-09-2026).
-7. **Eerstvolgende stap:** roadmap-fase 5 (uitzonderingenscherm) hier bespreken
-   en bevestigen. Neem bij het configureren van het echte depotadres het
-   aandachtspunt uit `docs/decisions.md` (03-09-2026) mee: een straat-niveau
-   depot claimt elk adres op die straat.
+7. **Gedaan (03-09-2026).** Roadmap-fase 5 (uitzonderingenscherm) gebouwd: het
+   eerste scherm buiten de Django-admin (`/uitzonderingen/`), waar onverklaarde
+   stops per adres gegroepeerd en met één klik gekoppeld kunnen worden aan een
+   bekende locatie — waarna de matching direct opnieuw draait. Visuele stijl
+   (navy/oranje/groen, uit SBTT's eigen site) vastgelegd in `docs/ui-spec.md`
+   en herbruikbaar voor fase 6. 195 tests groen (was 176). Zie
+   `docs/changelog.md` en `docs/decisions.md` (03-09-2026).
+8. **Eerstvolgende stap:** roadmap-fase 6 (weekoverzicht) hier bespreken en
+   bevestigen — bouwt voort op de basispagina/stijl uit fase 5. Neem verder mee:
+   bij het configureren van het echte depotadres voor SBTT het aandachtspunt uit
+   `docs/decisions.md` (03-09-2026) over het straat-niveau depotrisico, en bij
+   de oplevering (fase 7/8) dat de instructie aan Wim expliciet foutherstel via
+   "Bekende locaties" moet uitleggen (`docs/decisions.md`, 03-09-2026).
 
 **Vervallen:** de eerder voorziene live-PoC-fase met 1-2 monteurs bij de klant (~1
 week, in overleg met Wim) — het akkoord van 31-08-2026 betrof al de volledige

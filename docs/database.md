@@ -114,6 +114,11 @@ uitzonderingen-eenklik-scherm), niet de tabellen zelf._
   `check_imports`), o.a. nodig nadat een koppeltabel is aangepast.
   **Bevat geen WB-vs-SYS-signaalveld** — dat onderdeel van de PoC is bewust niet
   gebouwd (zie `docs/decisions.md`, 02-09-2026).
+  **`postcode`/`straat`** (gebouwd 03-09-2026, fase 5) — de genormaliseerde
+  matchsleutels van de stop, apart opgeslagen naast de samengestelde `adres`-tekst
+  (die alleen voor weergave dient). Het uitzonderingenscherm groepeert en telt
+  hierop; bestaande rijen hebben deze velden pas na een `run_matching --force`
+  (zie `docs/decisions.md`, 03-09-2026).
 - **MatchmotorStatus** (gebouwd 03-09-2026, fase 4, zie `docs/decisions.md`) —
   singleton, zelfde patroon als `Instelling`: wanneer de matching voor het
   laatst gestart/afgerond is, of dat gelukt is (`succes=None` betekent "nog

@@ -28,17 +28,21 @@ Gebouwd t/m roadmap-fase 3 (03-09-2026, commit `eea759c`, 143 tests groen — zi
   monteur ingevulde aankomst-/vertrektijd op de werkbon te vergelijken met de
   werkelijkheid (een WB-vs-SYS-signaal) is hiermee bewust niet gebouwd — zie
   `docs/decisions.md` voor een impact-analyse mocht Wim hier ooit op terugkomen.
-- **Databronnen voor de matching (vastgelegd 2026-09-02, gebouwd 2026-09-03):** van
-  de 3 Syntess-exports drijft de matching zelf uitsluitend op **Uren.xlsx** (wie,
-  welke werkbon, welke datum, hoeveel uur, welk adres/klant) en de
-  RouteVision-rit-CSV, aangevuld met **Relaties.xlsx** voor klant/
-  leverancier-stamgegevens. **Werkbonnen.xlsx wordt niet gebruikt voor de matching**
-  — Reistijd/Werktijd daaruit zijn al niet leidend (zie hierboven), en Titel/Fase
-  voegen voor de matching zelf niets toe. Werkbonnen.xlsx wordt wél ingelezen, maar
-  uitsluitend voor een **volledigheidscontrole**: signaleren of er een werkbon
-  bestaat zonder geboekte uren, op basis van de laatste/huidige Fase-status. Dit
-  besluit geeft, zoals verwacht, een lager werkbon-hervindingspercentage dan de PoC
-  (die Werkbonnen-postcodes wél meenam) — zie `docs/decisions.md` (03-09-2026).
+- **Databronnen voor de matching (vastgelegd 2026-09-02, gebouwd 2026-09-03,
+  verfijnd 2026-09-03):** van de 3 Syntess-exports drijft de matching primair op
+  **Uren.xlsx** (wie, welke werkbon, welke datum, hoeveel uur, welk adres/klant) en
+  de RouteVision-rit-CSV, aangevuld met **Relaties.xlsx** voor klant/
+  leverancier-stamgegevens. **Werkbonnen.xlsx speelt nu ook een beperkte rol in de
+  matching**, uitsluitend via de kolom **Postcode**: als vangnet ná de eigen
+  geboekte uren en vóór de koppeltabel, voor het geval het adres in Uren.xlsx niet
+  matcht maar de (vaak preciezere, uit de planning afkomstige) Werkbonnen-postcode
+  wel — precies zoals de PoC dit ook deed. Reistijd/Werktijd/Tijd blijven, ondanks
+  dat ze sinds 03-09-2026 wél worden opgeslagen (zie `docs/decisions.md`),
+  ongebruikt in de matchlogica: structureel onbetrouwbaar, dus geen matchbron.
+  Werkbonnen.xlsx wordt daarnaast nog steeds ingelezen voor de
+  **volledigheidscontrole**: signaleren of er een werkbon bestaat zonder geboekte
+  uren, op basis van de laatste/huidige Fase-status. Zie `docs/decisions.md`
+  (03-09-2026) voor de volledige afweging.
 - **Ontbrekend bronbestand blokkeert alleen zijn eigen doel (vastgelegd en gebouwd
   2026-09-02):** elk bronbestand wordt onafhankelijk gevolgd. Ontbreekt
   Werkbonnen.xlsx voor een periode terwijl Uren.xlsx er wel is, dan draait de

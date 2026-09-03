@@ -480,3 +480,45 @@ gebruiken), geen nieuwe fouten — vastleggen voorkomt dat ze later als verrassi
 als "misschien een bug" opnieuw onderzocht moeten worden. Het depotrisico wordt
 expliciet meegenomen als aandachtspunt bij de fase 4-bespreking (zie
 `GUIDELINES.md`, "Current priorities", punt 6).
+
+## 2026-09-03 — Werkbonnen.xlsx-postcode alsnog als matchvangnet; overige velden voortaan bewaard (Current, verfijnt eerder besluit)
+
+Decision: naar aanleiding van het lagere werkbon-hervindingspercentage dat bij de
+fase 3-bouw aan het licht kwam (zie het besluit hierboven, "Fase 3 gebouwd"), wordt
+het besluit van 02-09-2026 ("Werkbonnen.xlsx is geen input voor de matching") op één
+punt verfijnd:
+
+1. **Postcode uit Werkbonnen.xlsx wordt alsnog een matchbron**, als vangnet ná de
+   bestaande postcode/straat-match op de eigen geboekte uren (Uren.xlsx) en vóór de
+   koppeltabel (K/L/C): als een rit-stop niet matcht op het adres dat de monteur zelf
+   bij zijn uren invulde, wordt alsnog geprobeerd of de postcode uit Werkbonnen.xlsx
+   voor die werkbon/datum matcht. Dit is exact wat de PoC ook deed (`wb_pc` in
+   `rmw_sbtt.py`) en sluit het gat dat het 02-09-besluit had geopend.
+2. **Werktijd, Reistijd, Titel en Tijd uit Werkbonnen.xlsx worden voortaan wél
+   opgeslagen**, maar blijven ongebruikt in de matchlogica zelf (Titel uitgezonderd:
+   die wordt als omschrijvingstekst getoond wanneer de postcode-vangnet-match
+   raak is, puur ter leesbaarheid — geen matchsleutel). Reden: deze velden zijn
+   structureel onbetrouwbaar (bevestigd door Wim, mailwisseling 27/28-08-2026), dus
+   een concrete reden om ze wél te gebruiken is er niet — maar bronbestanden op de
+   servermap worden nooit verwijderd (zie `matching/models.py`/`docs/architecture.md`),
+   dus niets gaat verloren door ze nu alvast mee te lezen in plaats van later een hele
+   nieuwe uitleesronde te bouwen.
+3. **"Monteur meegereden" wordt ook nu al opgeslagen** (ongebruikt, gereserveerd) —
+   niet om te gebruiken vóórdat stand 3 van de meegereden-toggle apart geactiveerd
+   wordt (zie het besluit van 03-09-2026 hierboven), maar omdat deze wijziging toch al
+   een migratie op `WerkbonControle` vereist: nu meenemen voorkomt een tweede migratie
+   op dezelfde tabel zodra stand 3 ooit geactiveerd wordt.
+
+Reasoning: bij het navragen waarom het hervindingspercentage lager uitviel dan de PoC
+bleek de oorzaak concreet: de PoC had een tweede matchbron (Werkbonnen-postcode) die
+deze app niet had. Die postcode komt uit de planning bij de klant, niet uit wat een
+monteur handmatig intypt bij zijn uren, en is dus vaak preciezer juist wanneer de
+Uren.xlsx-match faalt. Het overnemen van alleen dit ene veld verandert niets aan het
+onderliggende besluit dat Werktijd/Reistijd (en het WB-vs-SYS-signaal dat daarop
+gebaseerd zou zijn) niet betrouwbaar genoeg zijn om te gebruiken — dat blijft
+ongewijzigd van kracht. Superseded: het besluit "2026-09-02 — Fase-2 databronnen en
+'monteur meegereden' vastgelegd", uitsluitend voor zover dat beschreef dat
+Werkbonnen.xlsx "geen enkele rol" in de matching speelt en dat Reistijd/Werktijd/
+Titel/Monteur meegereden "niet opgeslagen" worden — de kern van dat besluit (deze
+velden worden niet gebruikt om werktijd of aan/vertrektijden te bepalen) blijft
+staan.

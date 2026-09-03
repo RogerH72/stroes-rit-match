@@ -22,10 +22,20 @@ Voorzien voor fase 2 (ruwe import, één tabel per bronbestand):
   Eindstand, Opmerking.
 - **Relatie** (uit `Relaties.xlsx`): Code, Relatienaam, Postcode, Huisnr, E-mail,
   Telefoon — klant/leverancier-stamgegevens.
-- **WerkbonControle** (uit `Werkbonnen.xlsx`, **uitsluitend voor de
-  volledigheidscontrole, geen input voor de matching zelf** — zie
-  `docs/business-rules.md`): Werkbon, Medewerker, Datum, laatste/huidige Fase-status.
-  Reistijd/Werktijd/Titel/Monteur meegereden uit dit bestand worden niet opgeslagen.
+- **WerkbonControle** (uit `Werkbonnen.xlsx`, **primair voor de
+  volledigheidscontrole** — zie `docs/business-rules.md`): Werkbon, Medewerker,
+  Datum, laatste/huidige Fase-status, Postcode. **Sinds 03-09-2026 (zie
+  `docs/decisions.md`) ook Titel, Tijd, Reistijd en Werktijd.** Van deze velden
+  wordt alleen **Postcode** in de matching zelf gebruikt, als vangnet ná de eigen
+  geboekte uren en vóór de koppeltabel (zie `matching/timeline/engine.py`); Titel
+  is alleen omschrijvingstekst wanneer dat vangnet raak is. Tijd, Reistijd en
+  Werktijd worden bewaard maar blijven ongebruikt in de matchlogica — ze zijn
+  structureel onbetrouwbaar (bevestigd door Wim), maar bronbestanden worden nooit
+  verwijderd van de servermap, dus meelezen nu kost niets en voorkomt een latere
+  nieuwe uitleesronde als er ooit alsnog een reden blijkt. Ook **Monteur
+  meegereden** wordt sinds 03-09-2026 opgeslagen, ongebruikt en gereserveerd voor
+  wanneer stand 3 van de meegereden-toggle ooit apart geactiveerd wordt (zie
+  `docs/decisions.md`, 03-09-2026).
   Opslag blijft op het brongrofste niveau: één rij per (Werkbon, Medewerker, Datum),
   omdat een werkbon over meerdere data kan lopen (bijv. Uitgevoerd op de ene dag,
   Gereed op de volgende) — de fase-status wordt per werkbon over al zijn rijen heen

@@ -35,9 +35,12 @@ worden voor de matching gebruikt:
   monteur/voertuig. Het dagelijks plaatsen van dit bestand in de servermap is een
   taak van SBTT/Stric, niet van de app of van Roger.
 - **Relaties.xlsx**: klant/leverancier-stamgegevens, los van de matching zelf nodig.
-- **Werkbonnen.xlsx**: wordt wél ingelezen, maar uitsluitend voor een
-  **volledigheidscontrole** — signaleren of er een werkbon bestaat zonder geboekte
-  uren (zie §3b). Geen input voor de matching zelf.
+- **Werkbonnen.xlsx**: wordt ingelezen voor een **volledigheidscontrole** —
+  signaleren of er een werkbon bestaat zonder geboekte uren (zie §3b). Sinds
+  03-09-2026 (zie `docs/decisions.md`) levert de kolom Postcode daarnaast een
+  beperkt vangnet voor de matching zelf, voor als het adres in Uren.xlsx niet
+  matcht. De overige kolommen (Titel, Tijd, Reistijd, Werktijd, Monteur
+  meegereden) worden bewaard maar spelen geen rol in de matchlogica.
 
 Servermap (bevestigd): `\\stroes-1909\atrium\Autoprint\RUUDS`. De exacte
 bestandsnaam-conventie van de automatische export is **nog niet bevestigd** met

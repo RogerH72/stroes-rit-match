@@ -36,6 +36,11 @@ database → `docs/database.md`, enz.). Lees verdere documenten als de taak dat 
   koppeltabel, tolerantietabel) blijven ongewijzigd Nederlands in modelnamen/velden
   — net als "Totaal Montage" bij ReplayCalcTool. Alleen generieke code/structuur is
   Engels.
+- **Duidelijk gecommentarieerd (vastgelegd 03-09-2026):** Roger leest de code soms
+  zelf, dus niet-triviale logica krijgt uitleg over het *waarom*, niet alleen het
+  *wat* — vooral bij de matchmotor (de classificatie-prioriteit, de
+  meegereden-resolutie) en andere plekken waar een regel niet voor zich spreekt.
+  Geen ruis toevoegen bij vanzelfsprekende code.
 - PoC eerst: forceer geen productiestack-beslissingen vóór het matchingsconcept
   gevalideerd is op echte data.
 - Herkomst/achtergrond van de opdracht staat in de brainstorm-sessie

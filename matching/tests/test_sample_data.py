@@ -4,6 +4,8 @@ These are structurally representative Syntess/RouteVision exports, so they catch
 things a hand-written fixture cannot — the actual sheet names, the real column
 spelling, the trailing empty rows in Relaties.xlsx.
 
+The matching itself is exercised against them too, at the bottom of this file.
+
 They are skipped when the folder is absent: it holds (anonymised) customer data
 and is currently not in version control, so a fresh clone must still be able to
 run the suite. The rest of matching/tests/ covers the same behaviour with its own
@@ -12,6 +14,7 @@ generated fixtures.
 
 from __future__ import annotations
 
+import datetime as dt
 import unittest
 
 from django.conf import settings
@@ -19,15 +22,22 @@ from django.test import TestCase, override_settings
 
 from matching.ingest.detection import scan_share
 from matching.models import (
+    BekendeLocatie,
     FaseStatus,
     ImportedFile,
     ImportStatus,
+    LocatieType,
+    Monteur,
     Relatie,
     Rit,
+    Soort,
     SourceKind,
+    Tijdblok,
     Uren,
     WerkbonControle,
 )
+from matching.timeline.runner import run_matching
+from matching.timeline.volledigheidscontrole import werkbonnen_zonder_uren
 
 SAMPLE_DIR = settings.BASE_DIR / "voorbeeld-data"
 
@@ -107,3 +117,122 @@ class SampleDataImportTests(TestCase):
     def test_the_sample_files_are_left_untouched(self):
         for record in ImportedFile.objects.all():
             self.assertTrue((SAMPLE_DIR / record.filename).exists())
+
+
+@sample_data_required
+@override_settings(POLL_INTERVAL_MINUTES=5, STABILITY_MINUTES=30)
+class SampleDataMatchingTests(TestCase):
+    """run_matching end-to-end on the real exports, checked against the PoC.
+
+    The koppeltabel content is the same minimum the PoC hardcoded: the two
+    monteurs in this export, and the depot at Randweg / 4104 AC. The point is a
+    sanity check on the whole chain — import, meegereden resolution, day
+    reconstruction, storage — plus a look at how many werkbonnen come back
+    automatically, so a rule that silently stops working does not go unnoticed.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        scan_share(path=SAMPLE_DIR, force=True)
+        cls.m5 = Monteur.objects.create(
+            naam="M5", medewerker_nummer="005", bestuurder_code="M5",
+            kenteken="V-31-JRT",
+        )
+        cls.m1 = Monteur.objects.create(
+            naam="M1", medewerker_nummer="001", bestuurder_code="M1",
+            kenteken="VKV-60-T",
+        )
+        for locatie_type, waarde in (
+            (LocatieType.POSTCODE, "4104 AC"),
+            (LocatieType.STRAAT, "Randweg"),
+        ):
+            BekendeLocatie.objects.create(
+                type=locatie_type,
+                waarde=waarde,
+                soort=Soort.LOCATIE,
+                label="SBTT-Magazijn (Randweg, Culemborg)",
+                is_depot=True,
+            )
+        cls.result = run_matching()
+
+    def test_every_working_day_in_the_export_is_reconstructed(self):
+        # Both monteurs drove Monday through Friday of the sample week.
+        self.assertEqual(len(self.result.dagen), 10)
+        self.assertEqual(
+            sorted({dag.datum for dag in self.result.dagen}),
+            [dt.date(2026, 8, day) for day in range(3, 8)],
+        )
+        self.assertEqual(Tijdblok.objects.count(), self.result.aantal_blokken)
+
+    def test_a_day_is_a_chain_of_rides_and_stops(self):
+        blokken = list(
+            Tijdblok.objects.filter(monteur=self.m5, datum=dt.date(2026, 8, 3))
+        )
+        self.assertEqual([b.volgorde for b in blokken], list(range(1, len(blokken) + 1)))
+        # A day starts and ends with a ride; stops only ever sit in between.
+        self.assertEqual(blokken[0].soort, Soort.REISTIJD)
+        self.assertEqual(blokken[-1].soort, Soort.REISTIJD)
+        for blok in blokken:
+            self.assertLessEqual(blok.start_tijd, blok.eind_tijd)
+
+    def test_the_depot_is_recognised(self):
+        self.assertTrue(
+            Tijdblok.objects.filter(
+                soort=Soort.LOCATIE, omschrijving__startswith="SBTT-Magazijn"
+            ).exists()
+        )
+
+    def test_werkbon_recovery_is_in_the_range_the_poc_found(self):
+        """Roughly what the PoC/validation script got — no wild divergence.
+
+        The PoC reported 82% for M5 on this week and the broader validation 78%
+        and 93% for two other monteurs over four weeks. This app scores a little
+        lower on purpose: the PoC also matched on postcodes from Werkbonnen.xlsx,
+        which is deliberately not a matching source here (docs/business-rules.md).
+        The bound is loose because the exact figure depends on the koppeltabel;
+        it is there to catch a rule that breaks, not to pin a number.
+        """
+        gevonden, totaal = self._werkbon_recovery(self.m5)
+        self.assertGreaterEqual(totaal, 8, "sample data no longer holds M5's week")
+        self.assertGreaterEqual(gevonden / totaal, 0.6)
+
+    def test_m1_shows_the_depot_rule_outranking_a_werkbon(self):
+        """M1 works at Randweg 20 — the depot street, so his stops read as L.
+
+        Not a defect but the validated priority order at work (a stop at the
+        company's own address is a depot visit, not work at the customer who
+        shares that address). Asserted so the behaviour is visible rather than
+        surprising, and so a change to the order shows up here.
+        """
+        gevonden, totaal = self._werkbon_recovery(self.m1)
+        self.assertGreater(totaal, 0)
+        self.assertEqual(gevonden, 0)
+        self.assertTrue(
+            Tijdblok.objects.filter(monteur=self.m1, soort=Soort.LOCATIE).exists()
+        )
+
+    def test_the_completeness_check_runs_on_the_real_werkbonnen(self):
+        resultaat = werkbonnen_zonder_uren()
+        self.assertTrue(resultaat.uitgevoerd)
+        # Whatever it reports must be finished werkbonnen that really have no hours.
+        geboekt = set(Uren.objects.values_list("werkbon", flat=True))
+        for werkbon in resultaat.werkbonnen:
+            self.assertNotIn(werkbon, geboekt)
+
+    def _werkbon_recovery(self, monteur: Monteur) -> tuple[int, int]:
+        """(recovered, total) werkbonnen this monteur booked hours on."""
+        gevonden = totaal = 0
+        for datum in sorted({dag.datum for dag in self.result.dagen}):
+            geboekt = set(
+                Uren.objects.filter(
+                    medewerker=monteur.medewerker_nummer, datum=datum
+                ).values_list("werkbon", flat=True)
+            )
+            teruggevonden = set(
+                Tijdblok.objects.filter(
+                    monteur=monteur, datum=datum, soort=Soort.WERKBON
+                ).values_list("werkbon", flat=True)
+            )
+            totaal += len(geboekt)
+            gevonden += len(geboekt & teruggevonden)
+        return gevonden, totaal

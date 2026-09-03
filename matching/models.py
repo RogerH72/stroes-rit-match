@@ -1,7 +1,13 @@
-"""Raw import models for roadmap phase 2 (data ingestion).
+"""The models of the matching app, in two layers.
 
-One table per source file, stored 1-to-1 as delivered — no matching, no timeline
-reconstruction, no derived values. Field lists follow docs/database.md.
+Phase 2 (data ingestion) — one table per source file, stored 1-to-1 as
+delivered: no matching, no timeline reconstruction, no derived values.
+
+Phase 3 (matching engine) — the koppeltabellen SBTT maintains itself (Monteur,
+BekendeLocatie, Instelling, MeegeredenKoppeling, ToleranceRegel) plus Tijdblok,
+the reconstructed day the engine writes. See the section marker further down.
+
+Field lists follow docs/database.md.
 
 Naming convention (docs/decisions.md, 01-09-2026): Dutch domain terms from the
 format SBTT designed themselves (Werkbon, Monteur, Rit, Medewerker, the Fase
@@ -9,7 +15,10 @@ values) stay Dutch in model and field names; generic technical structure
 (source_file, row_number, status timestamps) is English.
 """
 
+from django.core.exceptions import ValidationError
 from django.db import models
+
+from matching.timeline import normalize
 
 
 class SourceKind(models.TextChoices):
@@ -285,3 +294,378 @@ class WerkbonControle(SourceRow):
 
     def __str__(self) -> str:
         return f"{self.werkbon} {self.datum} ({self.get_fase_status_display()})"
+
+
+# ---------------------------------------------------------------------------
+# Roadmap phase 3 — the koppeltabellen the matching engine needs, and the
+# timeline it produces (docs/database.md, "Voorzien voor fase 3/4").
+#
+# Everything above this line is a 1-to-1 copy of a source file. Everything below
+# is either data SBTT maintains itself (Monteur, BekendeLocatie, Instelling,
+# MeegeredenKoppeling, ToleranceRegel) or the computed result (Tijdblok).
+# ---------------------------------------------------------------------------
+
+
+class Soort(models.TextChoices):
+    """The SOORT-codes of a time block.
+
+    Fixed list from the weekly overview SBTT designed themselves in Excel
+    (docs/functioneel-ontwerp.md §3b) — not ours to extend or rename.
+
+    Only K, L and C are ever chosen by hand (on a BekendeLocatie); W, ?, O and R
+    always follow from the matching itself.
+    """
+
+    KLANT = "K", "Klant"
+    LOCATIE = "L", "Locatie"
+    CREDITEUR = "C", "Crediteur"
+    WERKBON = "W", "Werkbon"
+    ONBEKEND = "?", "Onbekend"
+    ONVERKLAARD = "O", "Onverklaard"
+    REISTIJD = "R", "Reistijd"
+
+
+#: The subset a user may assign to an address by hand; see Soort above.
+HANDMATIGE_SOORTEN = (Soort.KLANT, Soort.LOCATIE, Soort.CREDITEUR)
+
+
+class Monteur(models.Model):
+    """A monteur, and the bridge between the two identification systems.
+
+    Syntess identifies people by personnel number (`Uren.medewerker`,
+    `WerkbonControle.medewerker`), RouteVision by driver code (`Rit.bestuurder`).
+    Without this row the two sources cannot be laid side by side at all, which
+    makes it the first link the matching needs (docs/database.md).
+
+    `bestuurder_code` is optional: a monteur who always rides along with someone
+    else never drives under a code of his own. His day is then reconstructed from
+    another monteur's rides — see `vaste_meerijder` and MeegeredenKoppeling.
+    """
+
+    naam = models.CharField("naam", max_length=128)
+    medewerker_nummer = models.CharField(
+        "personeelsnummer (Syntess)", max_length=32, unique=True, db_index=True
+    )
+    bestuurder_code = models.CharField(
+        "bestuurderscode (RouteVision)",
+        max_length=128,
+        blank=True,
+        help_text=(
+            "Leeg laten voor een monteur die nooit onder een eigen code rijdt "
+            "omdat hij altijd meerijdt."
+        ),
+    )
+    kenteken = models.CharField("kenteken", max_length=32, blank=True)
+    vaste_meerijder = models.ForeignKey(
+        "self",
+        verbose_name="rijdt vast mee met",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="vaste_meerijders",
+        help_text=(
+            "De senior monteur wiens ritten de tijdlijn van deze monteur bepalen. "
+            "Alleen gebruikt wanneer de meegereden-modus op 'Vast' staat."
+        ),
+    )
+    actief = models.BooleanField("actief", default=True)
+
+    class Meta:
+        verbose_name = "monteur"
+        verbose_name_plural = "monteurs"
+        ordering = ("naam",)
+        constraints = [
+            # unique=True would trip over every second monteur without a driver
+            # code, so uniqueness only applies once a code is filled in.
+            models.UniqueConstraint(
+                fields=["bestuurder_code"],
+                condition=~models.Q(bestuurder_code=""),
+                name="unique_bestuurder_code_when_set",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.naam} ({self.medewerker_nummer})"
+
+
+class LocatieType(models.TextChoices):
+    """What a BekendeLocatie is recognised by."""
+
+    POSTCODE = "postcode", "Postcode"
+    STRAAT = "straat", "Straatnaam"
+
+
+class BekendeLocatie(models.Model):
+    """Koppeltabel: a postcode or street that is known to be K, L or C.
+
+    Replaces the demo file (`locaties_demo.csv`) the PoC read. `waarde` is stored
+    normalised — a postcode without its space, a street name lowercased and
+    without house number — so a hand-typed value is compared exactly the way the
+    matching compares a RouteVision address (matching/timeline/normalize.py).
+
+    `is_depot` marks the company's own depot/magazijn. A depot visit is
+    recognised before anything else, so a stop there is never read as work for
+    the customer who happens to share that address (docs/business-rules.md:
+    "een depotbezoek vóór het werk wordt herkend").
+    """
+
+    type = models.CharField(
+        "herkenning", max_length=16, choices=LocatieType.choices, db_index=True
+    )
+    waarde = models.CharField(
+        "waarde",
+        max_length=255,
+        help_text="Postcode (4104 AC) of straatnaam (Randweg) — huisnummer weglaten.",
+    )
+    soort = models.CharField(
+        "SOORT",
+        max_length=1,
+        choices=[(soort.value, soort.label) for soort in HANDMATIGE_SOORTEN],
+    )
+    label = models.CharField("omschrijving", max_length=255)
+    is_depot = models.BooleanField(
+        "is depot",
+        default=False,
+        help_text="Eigen magazijn/zaak: wordt vóór alle andere regels herkend.",
+    )
+
+    class Meta:
+        verbose_name = "bekende locatie"
+        verbose_name_plural = "bekende locaties"
+        ordering = ("type", "waarde")
+        unique_together = (("type", "waarde"),)
+
+    def __str__(self) -> str:
+        return f"{self.waarde} ({self.get_soort_display()}) - {self.label}"
+
+    def clean(self):
+        self.waarde = self.normalised_waarde()
+        if not self.waarde:
+            raise ValidationError({"waarde": "Vul een postcode of straatnaam in."})
+
+    def save(self, *args, **kwargs):
+        # Normalised on every write, not only through the admin form: a value
+        # that skipped normalisation would silently never match anything.
+        self.waarde = self.normalised_waarde()
+        super().save(*args, **kwargs)
+
+    def normalised_waarde(self) -> str:
+        if self.type == LocatieType.POSTCODE:
+            return normalize.postcode(self.waarde)
+        return normalize.street(self.waarde)
+
+
+class MeegeredenModus(models.TextChoices):
+    """How a monteur who rides along gets his ride data assigned.
+
+    Three modes, one global setting (docs/decisions.md, 03-09-2026). SYNTESS is a
+    reserved choice with no logic behind it: Syntess does not fill its "Monteur
+    meegereden" column reliably yet, so `WerkbonControle` deliberately does not
+    even store that column. Enabling it is a separate, later decision.
+    """
+
+    VAST = "VAST", "Vast — permanent aan één senior gekoppeld"
+    PERIODE = "PERIODE", "Periode — koppeltabel met geldigheidsperiode"
+    SYNTESS = "SYNTESS", "Uit Syntess (nog niet beschikbaar)"
+
+
+#: Primary key of the one Instelling row. A module constant because a nested
+#: Meta class cannot read a class attribute of the model it belongs to.
+INSTELLING_SINGLETON_PK = 1
+
+
+class Instelling(models.Model):
+    """App-wide configuration — exactly one row.
+
+    Settings that hold for the whole app rather than per record. Read it with
+    `Instelling.load()`, which creates the single row on first use so no caller
+    has to handle an empty table.
+    """
+
+    #: The one and only row.
+    SINGLETON_PK = INSTELLING_SINGLETON_PK
+
+    meegereden_modus = models.CharField(
+        "meegereden-modus",
+        max_length=16,
+        choices=MeegeredenModus.choices,
+        default=MeegeredenModus.VAST,
+    )
+
+    class Meta:
+        verbose_name = "instelling"
+        verbose_name_plural = "instellingen"
+        constraints = [
+            # save() pins the primary key, and this makes that a guarantee rather
+            # than a convention: a second row can never be inserted, not even by
+            # a fixture or a hand-written query.
+            models.CheckConstraint(
+                condition=models.Q(id=INSTELLING_SINGLETON_PK),
+                name="instelling_is_singleton",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return "Instellingen"
+
+    @classmethod
+    def load(cls) -> "Instelling":
+        """The singleton row, created with its defaults if it does not exist yet."""
+        instelling, _ = cls.objects.get_or_create(pk=cls.SINGLETON_PK)
+        return instelling
+
+    def clean(self):
+        self._check_meegereden_modus()
+
+    def save(self, *args, **kwargs):
+        # Pinning the primary key is what makes this a singleton: a second row
+        # can only ever overwrite the first one.
+        self.pk = self.SINGLETON_PK
+        # save() bypasses clean(), so the disabled mode is rejected here as well:
+        # otherwise a script or a fixture could store a mode that has no logic
+        # behind it, and the matching would silently fall back to something else.
+        self._check_meegereden_modus()
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError(
+            "De instellingen kunnen niet verwijderd worden; pas ze aan in plaats "
+            "daarvan."
+        )
+
+    def _check_meegereden_modus(self):
+        if self.meegereden_modus == MeegeredenModus.SYNTESS:
+            raise ValidationError(
+                {
+                    "meegereden_modus": (
+                        "De stand 'Uit Syntess' staat uit: Syntess vult de kolom "
+                        "'Monteur meegereden' nog niet betrouwbaar. Kies 'Vast' of "
+                        "'Periode'."
+                    )
+                }
+            )
+
+
+class MeegeredenKoppeling(models.Model):
+    """Koppeltabel: which senior a junior rode along with, and between which dates.
+
+    Only consulted when `Instelling.meegereden_modus` is PERIODE. An empty
+    `datum_tot` means open-ended: the koppeling still applies.
+    """
+
+    junior = models.ForeignKey(
+        Monteur,
+        verbose_name="monteur die meerijdt",
+        on_delete=models.CASCADE,
+        related_name="meegereden_als_junior",
+    )
+    senior = models.ForeignKey(
+        Monteur,
+        verbose_name="rijdt mee met",
+        on_delete=models.CASCADE,
+        related_name="meegereden_als_senior",
+    )
+    datum_van = models.DateField("geldig van")
+    datum_tot = models.DateField(
+        "geldig tot en met",
+        null=True,
+        blank=True,
+        help_text="Leeg laten wanneer de koppeling nog loopt.",
+    )
+
+    class Meta:
+        verbose_name = "meegereden-koppeling"
+        verbose_name_plural = "meegereden-koppelingen"
+        ordering = ("junior", "-datum_van")
+        constraints = [
+            models.CheckConstraint(
+                condition=~models.Q(junior=models.F("senior")),
+                name="meegereden_junior_is_not_senior",
+            )
+        ]
+
+    def __str__(self) -> str:
+        tot = self.datum_tot.isoformat() if self.datum_tot else "heden"
+        return f"{self.junior} rijdt mee met {self.senior} ({self.datum_van} - {tot})"
+
+    def clean(self):
+        if self.junior_id and self.junior_id == self.senior_id:
+            raise ValidationError(
+                {"senior": "Een monteur kan niet met zichzelf meerijden."}
+            )
+        if self.datum_van and self.datum_tot and self.datum_tot < self.datum_van:
+            raise ValidationError({"datum_tot": "De einddatum ligt vóór de begindatum."})
+
+    def geldt_op(self, datum) -> bool:
+        """Whether this koppeling covers `datum`."""
+        if datum < self.datum_van:
+            return False
+        return self.datum_tot is None or datum <= self.datum_tot
+
+
+class ToleranceRegel(models.Model):
+    """Tolerantietabel: from how many minutes an unexplained stop counts as one.
+
+    Replaces the PoC's hardcoded DREMPEL of 15 minutes. `activiteit` is a free
+    key with one seeded row, "algemeen", which every lookup falls back on. The
+    per-activity values still have to be confirmed with the customer
+    (docs/functioneel-ontwerp.md §9, point 2), so the table starts with only that
+    default.
+    """
+
+    #: The row every lookup falls back on.
+    ALGEMEEN = "algemeen"
+
+    activiteit = models.CharField("activiteit", max_length=128, unique=True)
+    drempel_minuten = models.PositiveIntegerField("drempel (minuten)", default=15)
+
+    class Meta:
+        verbose_name = "tolerantieregel"
+        verbose_name_plural = "tolerantietabel"
+        ordering = ("activiteit",)
+
+    def __str__(self) -> str:
+        return f"{self.activiteit}: {self.drempel_minuten} min"
+
+
+class Tijdblok(models.Model):
+    """One block of a reconstructed day — the result of the matching.
+
+    Stored rather than recomputed per page view, so phase 5 (uitzonderingen) and
+    phase 6 (weekoverzicht) build on stable data. Recomputing is explicit, via
+    `python manage.py run_matching --force`, which is what you run after changing
+    a koppeltabel (docs/database.md).
+
+    `werkbon` is free text on purpose: there is no Werkbon entity anywhere in
+    this app — phase 2 stores werkbon numbers as plain values too.
+
+    No WB-vs-SYS signal field: that part of the PoC is deliberately not built
+    (docs/decisions.md, 02-09-2026).
+    """
+
+    monteur = models.ForeignKey(
+        Monteur, on_delete=models.CASCADE, related_name="tijdblokken"
+    )
+    datum = models.DateField("datum", db_index=True)
+    volgorde = models.PositiveIntegerField("volgorde")
+
+    soort = models.CharField("SOORT", max_length=1, choices=Soort.choices)
+    start_tijd = models.DateTimeField("starttijd")
+    eind_tijd = models.DateTimeField("eindtijd")
+    duur_minuten = models.PositiveIntegerField("duur (minuten)")
+
+    omschrijving = models.CharField("omschrijving", max_length=255, blank=True)
+    adres = models.CharField("adres", max_length=512, blank=True)
+    werkbon = models.CharField("werkbon", max_length=32, blank=True, db_index=True)
+
+    berekend_op = models.DateTimeField("berekend op", auto_now=True)
+
+    class Meta:
+        verbose_name = "tijdblok"
+        verbose_name_plural = "tijdblokken"
+        ordering = ("datum", "monteur", "volgorde")
+        unique_together = (("monteur", "datum", "volgorde"),)
+        indexes = [models.Index(fields=["monteur", "datum"])]
+
+    def __str__(self) -> str:
+        return f"{self.datum} {self.monteur.naam} #{self.volgorde} {self.soort}"

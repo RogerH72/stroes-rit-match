@@ -8,6 +8,9 @@ when they happen to be present.
 
 The shapes here mirror the real exports: sheet "Atrium" for the Syntess
 workbooks, cp1252 + semicolons + decimal commas for the RouteVision CSV.
+
+The second half of this module builds database rows directly, for the phase 3
+matching tests: those are about the shape of a day, not about parsing.
 """
 
 from __future__ import annotations
@@ -15,11 +18,23 @@ from __future__ import annotations
 import csv
 import datetime as dt
 import io
+from decimal import Decimal
 from pathlib import Path
 
 import openpyxl
+from django.utils import timezone
 
 from matching.ingest.parsers.base import CSV_DELIMITER, CSV_ENCODING, SHEET_NAME
+from matching.models import (
+    BekendeLocatie,
+    ImportedFile,
+    ImportStatus,
+    Monteur,
+    Rit,
+    SourceKind,
+    Uren,
+    WerkbonControle,
+)
 
 UREN_COLUMNS = [
     "Medewerker",
@@ -358,3 +373,132 @@ def all_source_files(directory: Path) -> dict[str, Path]:
         "relatie": relaties_file(directory),
         "rit": ritten_file(directory),
     }
+
+
+# --- Database rows for the phase 3 matching tests ---------------------------
+#
+# The matching engine reads rows, not files, so these tests build the rows
+# straight away instead of going through a generated export first: what a test
+# is about is the shape of a day, and writing a whole workbook to express three
+# rides would bury that.
+
+
+def import_bestand(source_kind: str = SourceKind.RIT) -> ImportedFile:
+    """A minimal ImportedFile to hang imported rows off."""
+    return ImportedFile.objects.create(
+        filename=f"test-{source_kind}-{ImportedFile.objects.count()}.dat",
+        source_kind=source_kind,
+        size_bytes=1,
+        last_measured_at=timezone.now(),
+        status=ImportStatus.VERWERKT,
+    )
+
+
+def rit(
+    bestuurder: str,
+    datum: dt.date,
+    vertrek: str,
+    aankomst: str,
+    *,
+    vertrekadres: str = "",
+    vertrekplaats: str = "",
+    aankomstadres: str = "",
+    aankomstplaats: str = "",
+    source_file: ImportedFile | None = None,
+    kenteken: str = "V-31-JRT",
+) -> Rit:
+    """One ride. `vertrek`/`aankomst` are HH:MM clock times on `datum`."""
+    source_file = source_file or import_bestand(SourceKind.RIT)
+    return Rit.objects.create(
+        source_file=source_file,
+        row_number=Rit.objects.count() + 2,
+        kenteken=kenteken,
+        bestuurder=bestuurder,
+        vertrekdatum=datum,
+        vertrektijd=dt.time.fromisoformat(vertrek),
+        vertrekadres=vertrekadres,
+        vertrekplaats=vertrekplaats,
+        aankomstdatum=datum,
+        aankomsttijd=dt.time.fromisoformat(aankomst),
+        aankomstadres=aankomstadres,
+        aankomstplaats=aankomstplaats,
+    )
+
+
+def urenregel(
+    medewerker: str,
+    datum: dt.date,
+    werkbon: str,
+    *,
+    adres: str = "",
+    postcode: str = "",
+    plaats: str = "",
+    aantal: str = "1",
+    opdrachtgever: str = "",
+    source_file: ImportedFile | None = None,
+) -> Uren:
+    """One booked-hours line."""
+    source_file = source_file or import_bestand(SourceKind.UREN)
+    return Uren.objects.create(
+        source_file=source_file,
+        row_number=Uren.objects.count() + 2,
+        medewerker=medewerker,
+        werkbon=werkbon,
+        datum=datum,
+        aantal=Decimal(aantal),
+        postcode=postcode,
+        plaats=plaats,
+        adres=adres,
+        project_opdrachtgever_naam=opdrachtgever,
+    )
+
+
+def werkbon_controle(
+    werkbon: str,
+    medewerker: str,
+    datum: dt.date,
+    fase_status: str,
+    *,
+    source_file: ImportedFile | None = None,
+) -> WerkbonControle:
+    """One resolved Werkbon/medewerker/date row for the completeness check."""
+    source_file = source_file or import_bestand(SourceKind.WERKBON_CONTROLE)
+    return WerkbonControle.objects.create(
+        source_file=source_file,
+        row_number=WerkbonControle.objects.count() + 2,
+        werkbon=werkbon,
+        medewerker=medewerker,
+        datum=datum,
+        fase_status=fase_status,
+    )
+
+
+def monteur(
+    naam: str,
+    medewerker_nummer: str,
+    bestuurder_code: str = "",
+    **kwargs,
+) -> Monteur:
+    return Monteur.objects.create(
+        naam=naam,
+        medewerker_nummer=medewerker_nummer,
+        bestuurder_code=bestuurder_code,
+        **kwargs,
+    )
+
+
+def bekende_locatie(
+    type: str,
+    waarde: str,
+    soort: str,
+    label: str = "",
+    *,
+    is_depot: bool = False,
+) -> BekendeLocatie:
+    return BekendeLocatie.objects.create(
+        type=type,
+        waarde=waarde,
+        soort=soort,
+        label=label or waarde,
+        is_depot=is_depot,
+    )

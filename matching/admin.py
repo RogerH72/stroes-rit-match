@@ -1,6 +1,18 @@
 from django.contrib import admin
 
-from matching.models import ImportedFile, Relatie, Rit, Uren, WerkbonControle
+from matching.models import (
+    BekendeLocatie,
+    ImportedFile,
+    Instelling,
+    MeegeredenKoppeling,
+    Monteur,
+    Relatie,
+    Rit,
+    Tijdblok,
+    ToleranceRegel,
+    Uren,
+    WerkbonControle,
+)
 
 # Admin UI text is Dutch (project convention: UI in Dutch, code in English).
 admin.site.site_header = "RMW — Ritten Match Werkbon"
@@ -9,8 +21,8 @@ admin.site.index_title = "Beheer"
 
 # The raw import tables are registered read-only: they are a 1-to-1 copy of the
 # source files, so editing a row here would only make the database disagree with
-# the share. The koppeltabellen and the tolerantietabel — the screens that are
-# actually meant to be edited — are roadmap phase 4.
+# the share. The koppeltabellen and the tolerantietabel further down *are*
+# editable — that is the data SBTT maintains itself.
 
 
 class ReadOnlyImportAdmin(admin.ModelAdmin):
@@ -86,4 +98,96 @@ class WerkbonControleAdmin(ReadOnlyImportAdmin):
     list_display = ("werkbon", "medewerker", "datum", "fase_status")
     list_filter = ("fase_status", "datum", "medewerker")
     search_fields = ("werkbon",)
+    date_hierarchy = "datum"
+
+
+# --- The koppeltabellen (roadmap phase 3/4) ---------------------------------
+#
+# These are editable on purpose: unlike the import tables above, this is data
+# SBTT maintains itself. Plain admin screens for now — the polished
+# one-click uitzonderingen flow is phase 5.
+
+
+@admin.register(Monteur)
+class MonteurAdmin(admin.ModelAdmin):
+    list_display = (
+        "naam",
+        "medewerker_nummer",
+        "bestuurder_code",
+        "kenteken",
+        "vaste_meerijder",
+        "actief",
+    )
+    list_filter = ("actief",)
+    search_fields = ("naam", "medewerker_nummer", "bestuurder_code", "kenteken")
+    ordering = ("naam",)
+
+
+@admin.register(BekendeLocatie)
+class BekendeLocatieAdmin(admin.ModelAdmin):
+    list_display = ("waarde", "type", "soort", "label", "is_depot")
+    list_filter = ("type", "soort", "is_depot")
+    search_fields = ("waarde", "label")
+
+
+@admin.register(Instelling)
+class InstellingAdmin(admin.ModelAdmin):
+    """One row, so adding and deleting are turned off — there is only editing."""
+
+    list_display = ("__str__", "meegereden_modus")
+
+    def has_add_permission(self, request):
+        return Instelling.objects.exists() is False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def changelist_view(self, request, extra_context=None):
+        # Make sure the single row exists, so the list is never empty and the
+        # user lands on something he can open.
+        Instelling.load()
+        return super().changelist_view(request, extra_context)
+
+
+@admin.register(MeegeredenKoppeling)
+class MeegeredenKoppelingAdmin(admin.ModelAdmin):
+    list_display = ("junior", "senior", "datum_van", "datum_tot")
+    list_filter = ("junior", "senior")
+    search_fields = ("junior__naam", "senior__naam")
+    autocomplete_fields = ("junior", "senior")
+
+
+@admin.register(ToleranceRegel)
+class ToleranceRegelAdmin(admin.ModelAdmin):
+    list_display = ("activiteit", "drempel_minuten")
+    search_fields = ("activiteit",)
+
+
+@admin.register(Tijdblok)
+class TijdblokAdmin(admin.ModelAdmin):
+    """The computed timeline: read-only, because run_matching owns these rows.
+
+    Editing a block by hand would be overwritten by the next run; the way to
+    change the outcome is to correct a koppeltabel and run the matching again.
+    """
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    list_display = (
+        "datum",
+        "monteur",
+        "volgorde",
+        "soort",
+        "start_tijd",
+        "eind_tijd",
+        "duur_minuten",
+        "werkbon",
+        "omschrijving",
+    )
+    list_filter = ("soort", "datum", "monteur")
+    search_fields = ("werkbon", "omschrijving", "adres")
     date_hierarchy = "datum"

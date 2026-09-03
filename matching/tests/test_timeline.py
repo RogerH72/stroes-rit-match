@@ -1,0 +1,498 @@
+"""Tests for the matching engine: how a day is rebuilt and how stops are classified.
+
+Every fixture here is built by hand, small enough to reason about, and states the
+one rule it is about — see matching/tests/factories.py. The real sample exports
+are covered separately by matching/tests/test_sample_data.py.
+"""
+
+from __future__ import annotations
+
+import datetime as dt
+
+from django.core.exceptions import ValidationError
+from django.test import TestCase
+
+from matching.models import (
+    BekendeLocatie,
+    Instelling,
+    LocatieType,
+    MeegeredenKoppeling,
+    MeegeredenModus,
+    Soort,
+    ToleranceRegel,
+)
+from matching.tests import factories
+from matching.timeline import normalize
+from matching.timeline.engine import build_day, drempel_minuten, home_streets_for
+from matching.timeline.meegereden import resolve_bronmonteur
+
+DAG = dt.date(2026, 8, 3)
+
+# Two addresses used throughout: the depot, and a customer with work booked on it.
+DEPOT_ADRES = "Randweg 1b"
+DEPOT_PLAATS = "4104 AC Culemborg"
+KLANT_ADRES = "Lingedijk 65"
+KLANT_PLAATS = "4196 HB Tricht"
+THUIS_ADRES = "J. Bosschaartstraat 22"
+THUIS_PLAATS = "4112 LN Beusichem"
+
+
+class NormalizeTests(TestCase):
+    """The address keys everything else compares on."""
+
+    def test_street_drops_the_house_number_and_lowercases(self):
+        self.assertEqual(normalize.street("Randweg 6A"), "randweg")
+        self.assertEqual(normalize.street("J. Bosschaartstraat 22"), "j. bosschaartstraat")
+
+    def test_postcode_loses_its_space_and_its_town(self):
+        self.assertEqual(normalize.postcode("4104 AC Culemborg"), "4104AC")
+        self.assertEqual(normalize.postcode("4104AC"), "4104AC")
+
+    def test_a_value_without_a_postcode_yields_no_key(self):
+        self.assertEqual(normalize.postcode("Culemborg"), "")
+        self.assertEqual(normalize.postcode(None), "")
+
+
+class BekendeLocatieTests(TestCase):
+    """A koppeltabel row has to be stored the way the matching looks it up."""
+
+    def test_a_typed_in_value_is_normalised_on_save(self):
+        locatie = factories.bekende_locatie(
+            LocatieType.STRAAT, "Randweg 6A", Soort.LOCATIE, "Magazijn"
+        )
+        locatie.refresh_from_db()
+        self.assertEqual(locatie.waarde, "randweg")
+
+    def test_a_postcode_is_stored_without_its_space(self):
+        locatie = factories.bekende_locatie(
+            LocatieType.POSTCODE, "4104 ac", Soort.LOCATIE, "Magazijn"
+        )
+        locatie.refresh_from_db()
+        self.assertEqual(locatie.waarde, "4104AC")
+
+
+class HomeStreetTests(TestCase):
+    """Where a monteur lives is detected from his rides, not configured."""
+
+    def test_the_first_departure_and_last_arrival_of_a_day_count_as_home(self):
+        monteur = factories.monteur("M5", "005", "M5")
+        factories.rit(
+            "M5", DAG, "06:17", "06:27",
+            vertrekadres=THUIS_ADRES, vertrekplaats=THUIS_PLAATS,
+            aankomstadres=KLANT_ADRES, aankomstplaats=KLANT_PLAATS,
+        )
+        factories.rit(
+            "M5", DAG, "16:00", "16:30",
+            vertrekadres=KLANT_ADRES, vertrekplaats=KLANT_PLAATS,
+            aankomstadres=THUIS_ADRES, aankomstplaats=THUIS_PLAATS,
+        )
+        self.assertEqual(home_streets_for(monteur), {"j. bosschaartstraat"})
+
+    def test_a_monteur_without_a_driver_code_has_no_home_streets(self):
+        junior = factories.monteur("Junior", "009")
+        self.assertEqual(home_streets_for(junior), set())
+
+    def test_upto_date_limits_the_detection_window(self):
+        monteur = factories.monteur("M5", "005", "M5")
+        factories.rit(
+            "M5", DAG, "06:17", "06:27",
+            vertrekadres=THUIS_ADRES, aankomstadres=KLANT_ADRES,
+        )
+        factories.rit(
+            "M5", DAG + dt.timedelta(days=1), "06:17", "06:27",
+            vertrekadres="Vakantieweg 1", aankomstadres=KLANT_ADRES,
+        )
+        streets = home_streets_for(monteur, upto_date=DAG)
+        self.assertIn("j. bosschaartstraat", streets)
+        self.assertNotIn("vakantieweg", streets)
+
+
+class ClassificatieTests(TestCase):
+    """The priority order of §3b: depot, werkbon, koppeltabel, thuis, onverklaard."""
+
+    def setUp(self):
+        self.monteur = factories.monteur("M5", "005", "M5")
+        self.depot = factories.bekende_locatie(
+            LocatieType.STRAAT, "Randweg", Soort.LOCATIE, "SBTT-Magazijn",
+            is_depot=True,
+        )
+
+    def _day_with_one_stop(self, *, stop_adres, stop_plaats, stop_minuten=60):
+        """A day of two rides, so there is exactly one stop between them."""
+        aankomst = dt.time(8, 0)
+        vertrek = (
+            dt.datetime.combine(DAG, aankomst) + dt.timedelta(minutes=stop_minuten)
+        ).time()
+        factories.rit(
+            "M5", DAG, "07:30", aankomst.strftime("%H:%M"),
+            vertrekadres=THUIS_ADRES, vertrekplaats=THUIS_PLAATS,
+            aankomstadres=stop_adres, aankomstplaats=stop_plaats,
+        )
+        factories.rit(
+            "M5", DAG, vertrek.strftime("%H:%M"), "17:00",
+            vertrekadres=stop_adres, vertrekplaats=stop_plaats,
+            aankomstadres=THUIS_ADRES, aankomstplaats=THUIS_PLAATS,
+        )
+        return build_day(self.monteur, DAG)
+
+    def _stop(self, tijdlijn):
+        """The single non-reistijd block of a day built by _day_with_one_stop."""
+        stops = [b for b in tijdlijn.blokken if b.soort != Soort.REISTIJD]
+        self.assertEqual(len(stops), 1, "expected exactly one stop")
+        return stops[0]
+
+    def test_the_depot_wins_from_a_werkbon_at_the_same_address(self):
+        # The company's own address is also a customer address in the real data;
+        # a stop there must read as a depot visit, not as work at that customer.
+        factories.urenregel(
+            "005", DAG, "WB261206",
+            adres="Randweg 6A", postcode="4104 AC", plaats="CULEMBORG",
+        )
+        stop = self._stop(
+            self._day_with_one_stop(stop_adres=DEPOT_ADRES, stop_plaats=DEPOT_PLAATS)
+        )
+        self.assertEqual(stop.soort, Soort.LOCATIE)
+        self.assertEqual(stop.omschrijving, "SBTT-Magazijn")
+        self.assertEqual(stop.werkbon, "")
+
+    def test_a_werkbon_wins_from_the_rest_of_the_koppeltabel(self):
+        factories.bekende_locatie(
+            LocatieType.STRAAT, "Lingedijk", Soort.KLANT, "Oude klantnotitie"
+        )
+        factories.urenregel(
+            "005", DAG, "WB260908",
+            adres=KLANT_ADRES, postcode="4196 HB", plaats="TRICHT",
+            opdrachtgever="Gijs van Velzen",
+        )
+        stop = self._stop(
+            self._day_with_one_stop(stop_adres=KLANT_ADRES, stop_plaats=KLANT_PLAATS)
+        )
+        self.assertEqual(stop.soort, Soort.WERKBON)
+        self.assertEqual(stop.werkbon, "WB260908")
+        self.assertEqual(stop.omschrijving, "WB260908 · Gijs van Velzen")
+
+    def test_a_werkbon_matches_on_postcode_when_the_street_differs(self):
+        # docs/business-rules.md: an exact postcode match is not enough on its
+        # own, but it is still the first thing tried.
+        factories.urenregel(
+            "005", DAG, "WB260908",
+            adres="Heel andere straat 1", postcode="4196 HB", plaats="TRICHT",
+        )
+        stop = self._stop(
+            self._day_with_one_stop(stop_adres=KLANT_ADRES, stop_plaats=KLANT_PLAATS)
+        )
+        self.assertEqual(stop.soort, Soort.WERKBON)
+
+    def test_a_werkbon_matches_on_street_when_the_postcode_differs(self):
+        factories.urenregel(
+            "005", DAG, "WB260908",
+            adres="Lingedijk 67", postcode="9999 ZZ", plaats="ELDERS",
+        )
+        stop = self._stop(
+            self._day_with_one_stop(stop_adres=KLANT_ADRES, stop_plaats=KLANT_PLAATS)
+        )
+        self.assertEqual(stop.soort, Soort.WERKBON)
+
+    def test_hours_booked_at_the_depot_do_not_turn_depot_stops_into_werkbonnen(self):
+        # The depot street is left out of the street index on purpose; without
+        # that, every visit to the magazijn would match this row.
+        factories.urenregel(
+            "005", DAG, "WB261206",
+            adres="Randweg 6A", postcode="9999 ZZ", plaats="ELDERS",
+        )
+        stop = self._stop(
+            self._day_with_one_stop(stop_adres="Randweg 20", stop_plaats=DEPOT_PLAATS)
+        )
+        self.assertEqual(stop.soort, Soort.LOCATIE)
+
+    def test_the_koppeltabel_labels_a_stop_that_has_no_werkbon(self):
+        factories.bekende_locatie(
+            LocatieType.STRAAT, "Lingedijk", Soort.CREDITEUR, "Groothandel"
+        )
+        stop = self._stop(
+            self._day_with_one_stop(stop_adres=KLANT_ADRES, stop_plaats=KLANT_PLAATS)
+        )
+        self.assertEqual(stop.soort, Soort.CREDITEUR)
+        self.assertEqual(stop.omschrijving, "Groothandel")
+
+    def test_a_street_entry_wins_from_a_postcode_entry(self):
+        factories.bekende_locatie(
+            LocatieType.POSTCODE, "4196 HB", Soort.KLANT, "Via postcode"
+        )
+        factories.bekende_locatie(
+            LocatieType.STRAAT, "Lingedijk", Soort.CREDITEUR, "Via straat"
+        )
+        stop = self._stop(
+            self._day_with_one_stop(stop_adres=KLANT_ADRES, stop_plaats=KLANT_PLAATS)
+        )
+        self.assertEqual(stop.omschrijving, "Via straat")
+
+    def test_an_unexplained_stop_above_the_threshold_is_onverklaard(self):
+        tijdlijn = self._day_with_one_stop(
+            stop_adres=KLANT_ADRES, stop_plaats=KLANT_PLAATS, stop_minuten=45
+        )
+        stop = self._stop(tijdlijn)
+        self.assertEqual(stop.soort, Soort.ONVERKLAARD)
+        self.assertEqual(stop.duur_minuten, 45)
+
+    def test_an_unexplained_stop_below_the_threshold_is_onbekend(self):
+        stop = self._stop(
+            self._day_with_one_stop(
+                stop_adres=KLANT_ADRES, stop_plaats=KLANT_PLAATS, stop_minuten=5
+            )
+        )
+        self.assertEqual(stop.soort, Soort.ONBEKEND)
+
+    def test_a_stop_shorter_than_a_minute_is_dropped(self):
+        factories.rit(
+            "M5", DAG, "07:30", "08:00",
+            vertrekadres=THUIS_ADRES, aankomstadres=KLANT_ADRES,
+            aankomstplaats=KLANT_PLAATS,
+        )
+        factories.rit(
+            "M5", DAG, "08:00", "08:30",
+            vertrekadres=KLANT_ADRES, aankomstadres=THUIS_ADRES,
+        )
+        tijdlijn = build_day(self.monteur, DAG)
+        self.assertEqual([b.soort for b in tijdlijn.blokken], [Soort.REISTIJD] * 2)
+
+    def test_a_stop_at_home_is_not_reported_at_all(self):
+        # A day that goes home in between: the two customer stops are reported,
+        # the one at home is dropped — it is a day edge, not work.
+        factories.bekende_locatie(
+            LocatieType.STRAAT, "Lingedijk", Soort.KLANT, "Klant zonder werkbon"
+        )
+        for vertrek, aankomst, van, naar in [
+            ("07:00", "07:30", THUIS_ADRES, KLANT_ADRES),
+            ("09:00", "09:30", KLANT_ADRES, THUIS_ADRES),
+            ("12:00", "12:30", THUIS_ADRES, KLANT_ADRES),
+            ("16:00", "16:30", KLANT_ADRES, THUIS_ADRES),
+        ]:
+            factories.rit(
+                "M5", DAG, vertrek, aankomst,
+                vertrekadres=van,
+                vertrekplaats=THUIS_PLAATS if van == THUIS_ADRES else KLANT_PLAATS,
+                aankomstadres=naar,
+                aankomstplaats=THUIS_PLAATS if naar == THUIS_ADRES else KLANT_PLAATS,
+            )
+        tijdlijn = build_day(self.monteur, DAG)
+        self.assertEqual(
+            [b.soort for b in tijdlijn.blokken],
+            [
+                Soort.REISTIJD,
+                Soort.KLANT,  # stop at the customer
+                Soort.REISTIJD,
+                # the stop at home between 09:30 and 12:00 is not a block
+                Soort.REISTIJD,
+                Soort.KLANT,
+                Soort.REISTIJD,
+            ],
+        )
+
+    def test_every_ride_becomes_a_reistijd_block(self):
+        tijdlijn = self._day_with_one_stop(
+            stop_adres=KLANT_ADRES, stop_plaats=KLANT_PLAATS
+        )
+        reistijd = [b for b in tijdlijn.blokken if b.soort == Soort.REISTIJD]
+        self.assertEqual(len(reistijd), 2)
+        self.assertEqual(reistijd[0].duur_minuten, 30)
+        self.assertEqual([b.volgorde for b in tijdlijn.blokken], [1, 2, 3])
+
+    def test_a_home_to_home_hop_is_dropped_from_the_day(self):
+        # Moving the van around in the evening is not work, and leaving the hop
+        # in would put a bogus stop between it and the real rides.
+        factories.rit(
+            "M5", DAG, "07:30", "08:00",
+            vertrekadres=THUIS_ADRES, vertrekplaats=THUIS_PLAATS,
+            aankomstadres=KLANT_ADRES, aankomstplaats=KLANT_PLAATS,
+        )
+        factories.rit(
+            "M5", DAG, "16:00", "16:30",
+            vertrekadres=KLANT_ADRES, vertrekplaats=KLANT_PLAATS,
+            aankomstadres=THUIS_ADRES, aankomstplaats=THUIS_PLAATS,
+        )
+        factories.rit(
+            "M5", DAG, "19:00", "19:05",
+            vertrekadres="J. Bosschaartstraat 22", vertrekplaats=THUIS_PLAATS,
+            aankomstadres="J. Bosschaartstraat 40", aankomstplaats=THUIS_PLAATS,
+        )
+        tijdlijn = build_day(self.monteur, DAG)
+        self.assertEqual(len(tijdlijn.blokken), 3)  # 2 rides + 1 stop, not 3 + 2
+
+    def test_a_day_without_rides_yields_nothing(self):
+        self.assertIsNone(build_day(self.monteur, DAG))
+
+
+class TolerantieTests(TestCase):
+    """The threshold comes from the tolerantietabel, not from a constant."""
+
+    def test_the_seeded_algemeen_rule_is_the_default(self):
+        self.assertEqual(drempel_minuten(), 15)
+
+    def test_an_unknown_activity_falls_back_on_algemeen(self):
+        self.assertEqual(drempel_minuten("montage"), 15)
+
+    def test_a_specific_rule_wins_from_the_fallback(self):
+        ToleranceRegel.objects.create(activiteit="montage", drempel_minuten=45)
+        self.assertEqual(drempel_minuten("montage"), 45)
+        self.assertEqual(drempel_minuten(), 15)
+
+    def test_changing_the_algemeen_rule_changes_the_classification(self):
+        monteur = factories.monteur("M5", "005", "M5")
+        factories.rit(
+            "M5", DAG, "07:30", "08:00",
+            vertrekadres=THUIS_ADRES, aankomstadres=KLANT_ADRES,
+            aankomstplaats=KLANT_PLAATS,
+        )
+        factories.rit(
+            "M5", DAG, "08:20", "09:00",
+            vertrekadres=KLANT_ADRES, vertrekplaats=KLANT_PLAATS,
+            aankomstadres=THUIS_ADRES,
+        )
+        # 20 minutes: onverklaard at the default of 15...
+        stop = [b for b in build_day(monteur, DAG).blokken if b.soort != Soort.REISTIJD]
+        self.assertEqual(stop[0].soort, Soort.ONVERKLAARD)
+
+        # ...and merely unknown once SBTT raises the tolerance.
+        ToleranceRegel.objects.filter(activiteit=ToleranceRegel.ALGEMEEN).update(
+            drempel_minuten=30
+        )
+        stop = [b for b in build_day(monteur, DAG).blokken if b.soort != Soort.REISTIJD]
+        self.assertEqual(stop[0].soort, Soort.ONBEKEND)
+
+
+class InstellingTests(TestCase):
+    """One row, and one mode that must stay unreachable."""
+
+    def test_load_creates_the_single_row_with_the_vast_default(self):
+        instelling = Instelling.load()
+        self.assertEqual(instelling.pk, Instelling.SINGLETON_PK)
+        self.assertEqual(instelling.meegereden_modus, MeegeredenModus.VAST)
+        self.assertEqual(Instelling.objects.count(), 1)
+
+    def test_saving_a_second_row_overwrites_the_first_one(self):
+        Instelling.load()
+        Instelling(meegereden_modus=MeegeredenModus.PERIODE).save()
+        self.assertEqual(Instelling.objects.count(), 1)
+        self.assertEqual(Instelling.load().meegereden_modus, MeegeredenModus.PERIODE)
+
+    def test_the_syntess_mode_cannot_be_saved(self):
+        # Syntess does not fill "Monteur meegereden" reliably, so the mode is
+        # reserved but disabled (docs/decisions.md, 03-09-2026). save() rejects
+        # it too, not only the admin form.
+        instelling = Instelling.load()
+        instelling.meegereden_modus = MeegeredenModus.SYNTESS
+        with self.assertRaises(ValidationError):
+            instelling.save()
+        with self.assertRaises(ValidationError):
+            instelling.clean()
+        self.assertEqual(Instelling.load().meegereden_modus, MeegeredenModus.VAST)
+
+
+class MeegeredenTests(TestCase):
+    """Whose rides describe a junior's day, per mode."""
+
+    def setUp(self):
+        self.senior = factories.monteur("Senior", "002", "M2")
+        self.junior = factories.monteur("Junior", "009")
+        factories.rit(
+            "M2", DAG, "07:30", "08:00",
+            vertrekadres=THUIS_ADRES, vertrekplaats=THUIS_PLAATS,
+            aankomstadres=KLANT_ADRES, aankomstplaats=KLANT_PLAATS,
+        )
+        factories.rit(
+            "M2", DAG, "16:00", "16:30",
+            vertrekadres=KLANT_ADRES, vertrekplaats=KLANT_PLAATS,
+            aankomstadres=THUIS_ADRES, aankomstplaats=THUIS_PLAATS,
+        )
+
+    def test_without_a_koppeling_a_monteur_is_his_own_source(self):
+        self.assertEqual(resolve_bronmonteur(self.senior, DAG), self.senior)
+
+    def test_vast_mode_uses_the_permanently_linked_senior(self):
+        self.junior.vaste_meerijder = self.senior
+        self.junior.save()
+        self.assertEqual(resolve_bronmonteur(self.junior, DAG), self.senior)
+
+    def test_vast_mode_ignores_a_period_koppeling(self):
+        # The mode decides which koppeling is consulted; a leftover row from the
+        # other mode must not leak into this one.
+        MeegeredenKoppeling.objects.create(
+            junior=self.junior, senior=self.senior, datum_van=DAG
+        )
+        self.assertEqual(resolve_bronmonteur(self.junior, DAG), self.junior)
+
+    def test_periode_mode_uses_a_koppeling_covering_the_date(self):
+        Instelling.objects.update_or_create(
+            pk=Instelling.SINGLETON_PK,
+            defaults={"meegereden_modus": MeegeredenModus.PERIODE},
+        )
+        MeegeredenKoppeling.objects.create(
+            junior=self.junior,
+            senior=self.senior,
+            datum_van=DAG,
+            datum_tot=DAG + dt.timedelta(days=7),
+        )
+        self.assertEqual(resolve_bronmonteur(self.junior, DAG), self.senior)
+
+    def test_periode_mode_ignores_a_koppeling_outside_its_period(self):
+        Instelling.objects.update_or_create(
+            pk=Instelling.SINGLETON_PK,
+            defaults={"meegereden_modus": MeegeredenModus.PERIODE},
+        )
+        MeegeredenKoppeling.objects.create(
+            junior=self.junior,
+            senior=self.senior,
+            datum_van=DAG - dt.timedelta(days=30),
+            datum_tot=DAG - dt.timedelta(days=1),
+        )
+        self.assertEqual(resolve_bronmonteur(self.junior, DAG), self.junior)
+
+    def test_an_open_ended_koppeling_keeps_applying(self):
+        Instelling.objects.update_or_create(
+            pk=Instelling.SINGLETON_PK,
+            defaults={"meegereden_modus": MeegeredenModus.PERIODE},
+        )
+        MeegeredenKoppeling.objects.create(
+            junior=self.junior,
+            senior=self.senior,
+            datum_van=DAG - dt.timedelta(days=30),
+            datum_tot=None,
+        )
+        self.assertEqual(resolve_bronmonteur(self.junior, DAG), self.senior)
+
+    def test_a_junior_day_matches_his_own_hours_on_the_senior_rides(self):
+        # The point of the whole construction: the senior's rides, the junior's
+        # werkbonnen.
+        self.junior.vaste_meerijder = self.senior
+        self.junior.save()
+        factories.urenregel(
+            "009", DAG, "WB260908",
+            adres=KLANT_ADRES, postcode="4196 HB", plaats="TRICHT",
+        )
+        # The senior booked nothing that day, so this can only come from the junior.
+        tijdlijn = build_day(self.junior, DAG)
+        self.assertTrue(tijdlijn.meegereden)
+        self.assertEqual(tijdlijn.bronmonteur, self.senior)
+        werkbonnen = [b.werkbon for b in tijdlijn.blokken if b.soort == Soort.WERKBON]
+        self.assertEqual(werkbonnen, ["WB260908"])
+
+    def test_a_monteur_who_never_drives_and_has_no_koppeling_has_no_day(self):
+        self.assertIsNone(build_day(self.junior, DAG))
+
+    def test_a_koppeling_to_yourself_is_rejected(self):
+        koppeling = MeegeredenKoppeling(
+            junior=self.senior, senior=self.senior, datum_van=DAG
+        )
+        with self.assertRaises(ValidationError):
+            koppeling.clean()
+
+    def test_an_end_date_before_the_start_date_is_rejected(self):
+        koppeling = MeegeredenKoppeling(
+            junior=self.junior,
+            senior=self.senior,
+            datum_van=DAG,
+            datum_tot=DAG - dt.timedelta(days=1),
+        )
+        with self.assertRaises(ValidationError):
+            koppeling.clean()

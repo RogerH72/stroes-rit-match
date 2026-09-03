@@ -566,3 +566,49 @@ waarschuwingskleur buiten het SBTT-palet, omdat oranje op dit scherm al de
 actieknop-kleur is — anders zouden waarschuwing en actieknop visueel door
 elkaar lopen. Volledige uitwerking (tabel met exacte hex-waardes,
 typografie, componenten): zie `docs/ui-spec.md`.
+
+## 2026-09-03 — Uitzonderingenscherm (fase 5) concreet ontworpen (Current)
+
+Decision: het uitzonderingenscherm toont één rij per uniek onverklaard adres
+(postcode, straat als er geen postcode is) — niet één rij per losse
+onverklaarde stop. Elke rij toont hoe vaak dat adres voorkomt en welke
+monteur(en)/datum(s) het betreft, gesorteerd op frequentie (meest voorkomend
+eerst). Reden: één koppeling lost in één keer alle onverklaarde stops op dat
+adres op (nu én toekomstig, na een herberekening) — dat is het "de lijst
+wordt vanzelf korter"-effect dat al in `voor-klant/hoe-werkt-de-matching.md`
+staat.
+
+`Tijdblok` krijgt twee nieuwe velden: `postcode` en `straat`, apart
+opgeslagen op het moment dat een tijdblok ontstaat (naast de al bestaande
+samengestelde `adres`-tekst, die blijft voor de weergave). Reden: zonder
+deze velden zou het scherm de postcode/straat opnieuw uit de samengestelde
+adrestekst moeten interpreteren ("Randweg 6a, 4104 AC Culemborg" uit elkaar
+halen) — dat werkt vandaag, maar breekt stilzwijgend zodra het adresformaat
+ooit verandert. Net als bij de Werkbonnen.xlsx-velden (besluit van
+03-09-2026 hierboven) is de keuze: één keer goed opslaan in plaats van later
+kwetsbaar herleiden. Kost een migratie en het eenmalig herverwerken van
+bestaande dagen (`run_matching --force`, zelfde bekende stap als eerder).
+
+Het bevestigingsformulier ("Koppelen") hergebruikt het bestaande
+`BekendeLocatie`-model en zijn validatie rechtstreeks: adres-precisie
+(straat of postcode — straat als voorkeursoptie, want straat wint ook al bij
+de matching zelf voor K/L/C), SOORT (kan op het model toch alleen K/L/C
+zijn) en een omschrijving/label. `is_depot` wordt in dit formulier niet
+aangeboden — een depot blijft iets dat via de admin beheerd wordt, niet iets
+dat per ongeluk vanuit dit scherm ontstaat.
+
+Na bevestigen wordt de matching direct herdraaid (eerder al besloten) en
+toont het scherm de bijgewerkte, kortere lijst.
+
+Geen "Negeren"-actie in deze fase — alleen "Koppelen". Een eenmalige,
+niet-koppelbare uitschieter blijft gewoon in de lijst staan; een aparte,
+blijvende registratie van genegeerde adressen (nodig om te voorkomen dat zo'n
+stop na elke herberekening terugkeert) is meer bouwwerk dan nu de moeite
+waard is. Kan later alsnog toegevoegd worden.
+
+Rechten: dezelfde permissie als het aanmaken van een bekende locatie in de
+admin (`matching.add_bekendelocatie`) — geen apart rechtensysteem.
+
+Dit is het eerste scherm buiten de Django-admin, dus er komt een minimale
+gedeelde basispagina (header met het RMW-logo en de navy balk uit
+`docs/ui-spec.md`) die fase 6 (weekoverzicht) hergebruikt.

@@ -190,6 +190,24 @@ basisstijl (kleuren, typografie, componenten) staat in `docs/ui-spec.md`, gebase
 op SBTT's eigen huisstijl (stroesteam.nl). Verdere schermdetails (welke gegevens per
 uitzondering getoond worden, het bevestigingsformulier) zijn nog niet uitgewerkt.
 
+**Concreet ontworpen (03-09-2026, zie `docs/decisions.md`, "Uitzonderingenscherm
+(fase 5) concreet ontworpen"):**
+
+- Eén rij per uniek onverklaard adres (niet per losse stop), met een teller en de
+  betrokken monteur(en)/datum(s), gesorteerd op hoe vaak het voorkomt.
+- `Tijdblok` krijgt twee nieuwe velden (`postcode`, `straat`), apart opgeslagen bij
+  het matchen — in plaats van deze later kwetsbaar te herleiden uit de samengestelde
+  adrestekst.
+- Het koppel-formulier hergebruikt het bestaande `BekendeLocatie`-model: adres-
+  precisie (straat of postcode, straat als voorkeur), SOORT (K/L/C), omschrijving.
+  Geen `is_depot`-optie — een depot blijft admin-beheer.
+- Na bevestigen wordt de matching direct herdraaid en toont het scherm de
+  bijgewerkte lijst.
+- Geen "Negeren"-actie in deze fase, alleen "Koppelen".
+- Rechten: dezelfde permissie als een bekende locatie aanmaken in de admin.
+- Eerste scherm buiten de admin — krijgt een minimale gedeelde basispagina
+  (header/logo/navy balk, zie `docs/ui-spec.md`) die fase 6 hergebruikt.
+
 ## 6. Weekoverzicht (roadmap-fase 6)
 
 Het eindresultaat per monteur, beschikbaar als webpagina én als Excel-export, in de

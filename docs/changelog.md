@@ -163,3 +163,38 @@ extensie) omdat de bestandsnaam-conventie van de automatische export nog niet be
 is met Stric/RVS Solutions/RouteVision (`docs/functioneel-ontwerp.md` §9, punt 1). Zodra
 die bekend is hoeft alleen de patronentabel in `matching/ingest/filenames.py` aangepast
 te worden.
+
+## 2026-09-03 — Fase 2 restpunten afgerond: push, superuser, Docker-build gecontroleerd
+
+De drie restpunten uit `GUIDELINES.md` (punt 4, 02-09-2026) zijn afgehandeld —
+zuiver operationeel, geen ontwerpvraag.
+
+- **Documentatie eerst gecommit.** De 7 documentatiebestanden met de fase 2-updates
+  van 02-09-2026 (`GUIDELINES.md`, `docs/architecture.md`, `docs/business-rules.md`,
+  `docs/database.md`, `docs/decisions.md`, `docs/functioneel-ontwerp.md`,
+  `docs/roadmap.md`) stonden nog los; die zijn gereviewd (alle 7 diffs bevatten
+  precies de verwachte fase 2-updates, niets onverwachts) en in commit `9796dd0`
+  vastgelegd.
+- **Gepusht.** `git push` naar `origin/main`: 4 commits gepubliceerd
+  (`61fd4aa`..`9796dd0`), werkboom schoon, branch in sync met origin.
+- **Lokale Django-superuser opnieuw aangemaakt.** De oude `db.sqlite3` was tijdens
+  het testen verwijderd. `createsuperuser` vereist een TTY en kon niet via de
+  Claude Code-tools draaien (`EOFError` op de eerste prompt); Roger heeft de
+  gebruiker zelf aangemaakt in een los terminalvenster en de login op
+  `http://127.0.0.1:8000/admin/` bevestigd.
+- **Docker-build gecontroleerd.** Docker Desktop stond niet aan en is gestart.
+  `docker compose up --build`: beide services (`web`, `scheduler`) gebouwd naar
+  `rmw:dev`, geen fouten — de nieuwe `scripts/`-map en `openpyxl` zitten er goed in.
+  Migraties (`matching.0001_initial`) toegepast bij het opstarten. Healthcheck op
+  `/health/` groen (container-status `healthy`). `/` redirect correct naar
+  `/admin/login/` (200). Scheduler draait en meldt netjes "Server share
+  `/app/data/inbox` is not available; nothing to check" zonder te crashen — het
+  bedoelde gedrag bij een ontbrekend/nog niet gemount bronpad. Tijdelijk een
+  wegwerp-superuser aangemaakt in de container om de admin-index en alle vijf
+  changelists (`importedfile`, `relatie`, `rit`, `uren`, `werkboncontrole`) te
+  verifiëren (allemaal 200), daarna weer verwijderd (0 users) en `docker compose
+  down` gedraaid.
+
+Roadmap-fase 2 is hiermee volledig afgerond, inclusief de operationele afronding.
+Eerstvolgende stap: roadmap-fase 3 (reken-/matchmotor) bespreken en bevestigen,
+pas daarna een instructie naar de Claude Code-sessie.

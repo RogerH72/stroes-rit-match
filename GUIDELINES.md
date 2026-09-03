@@ -1,6 +1,6 @@
 # GUIDELINES — Stroes-Rit-Match (RMW)
 
-_Last updated: 2026-09-02_
+_Last updated: 2026-09-03_
 
 ## Project identity
 
@@ -40,12 +40,13 @@ draait. Lokale Git-repo aanwezig; de GitHub-repo aangemaakt en gekoppeld
 (`github.com/RogerH72/stroes-rit-match`, private). Zie `docs/changelog.md`
 (01-09-2026).
 
-**Fase 2 (data-inlezing) is gebouwd (02-09-2026), gecommit maar nog niet gepusht:**
+**Fase 2 (data-inlezing) is gebouwd (02-09-2026) en volledig afgerond (03-09-2026):**
 bestandsdetectie met polling (5 min) + stabiliteitscheck (30 min, los instelbaar), de
 vier ruwe importmodellen (Uren, Rit, Relatie, WerkbonControle) en de
-`ImportedFile`-bijhoudtabel. 74 tests groen. De Docker-image-build is nog niet
-gecontroleerd (Docker Desktop stond niet aan). Zie `docs/changelog.md` en
-`docs/decisions.md` (02-09-2026).
+`ImportedFile`-bijhoudtabel. 74 tests groen. Gepusht naar GitHub, lokale
+Django-superuser werkt, en de Docker-build is gecontroleerd: build, migraties,
+healthcheck en admin allemaal groen. Zie `docs/changelog.md` en `docs/decisions.md`
+(02-09-2026 en 03-09-2026).
 
 Beoogde PoC-architectuur: een los
 Python-script dat de Syntess-exports en de RouteVision-download inleest, per
@@ -91,14 +92,14 @@ RouteVision-data komt voor de PoC uit een handmatige download, niet uit de API.
    Docker-basis, lokale Git-repo én de private GitHub-repo
    (`github.com/RogerH72/stroes-rit-match`) aangemaakt, gekoppeld en gepusht (zie
    `docs/changelog.md`).
-3. **Gedaan (02-09-2026).** Roadmap-fase 2 (data-inlezing) gebouwd en gecommit (nog
-   niet gepusht). Zie `docs/changelog.md` en `docs/decisions.md`.
-4. **Eerstvolgende stap (bevestigd 02-09-2026): eerst de restpunten van fase 2
-   afhandelen, dan pas fase 3 bespreken.** Restpunten (in de Claude Code-sessie,
-   geen ontwerpvraag): `git push`, een lokale Django-superuser opnieuw aanmaken (de
-   oude db.sqlite3 is verwijderd tijdens het testen), en de Docker-build één keer
-   controleren nu Docker Desktop weer aan kan staan. Pas daarna: instructie voor
-   roadmap-fase 3 (reken-/matchmotor) hier bespreken en bevestigen.
+3. **Gedaan (02-09-2026).** Roadmap-fase 2 (data-inlezing) gebouwd en gecommit.
+   Zie `docs/changelog.md` en `docs/decisions.md`.
+4. **Gedaan (03-09-2026).** Restpunten van fase 2 afgehandeld: `git push` (4 commits
+   naar `origin/main`), lokale Django-superuser opnieuw aangemaakt en login bevestigd,
+   en de Docker-build gecontroleerd (build, migraties, healthcheck, admin — allemaal
+   groen). Zie `docs/changelog.md` (03-09-2026).
+5. **Eerstvolgende stap:** roadmap-fase 3 (reken-/matchmotor) hier bespreken en
+   bevestigen, pas daarna een instructie naar de Claude Code-sessie.
 
 **Vervallen:** de eerder voorziene live-PoC-fase met 1-2 monteurs bij de klant (~1
 week, in overleg met Wim) — het akkoord van 31-08-2026 betrof al de volledige

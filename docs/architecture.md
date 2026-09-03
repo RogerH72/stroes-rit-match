@@ -2,15 +2,15 @@
 
 ## Current implementation
 
-**Fase 2 (data-inlezing) is gebouwd (02-09-2026), gecommit maar nog niet gepusht.**
+**Fase 2 (data-inlezing) is gebouwd (02-09-2026) en volledig afgerond (03-09-2026).**
 Bestandsdetectie (`matching/ingest/`, polling + stabiliteitscheck zoals hieronder
 beschreven) en de vier ruwe importmodellen (Uren, Rit, Relatie, WerkbonControle) plus
 `ImportedFile`-bijhoudtabel zijn gebouwd en getest (74 tests groen, plus een
 handmatige eind-tot-eind-run tegen de echte voorbeeldbestanden). Zie
 `docs/changelog.md` voor de volledige technische samenvatting en `docs/decisions.md`
-voor de openstaande/besliste punten die daarbij naar boven kwamen. Nog niet
-gecontroleerd: de Docker-image-build met de nieuwe `scripts/`-map en `openpyxl` (lokaal
-was Docker Desktop niet actief tijdens het bouwen).
+voor de openstaande/besliste punten die daarbij naar boven kwamen. De Docker-image-
+build met de nieuwe `scripts/`-map en `openpyxl` is gecontroleerd (03-09-2026): build,
+migraties, healthcheck en admin (in de container) allemaal groen.
 
 ## Target architecture
 

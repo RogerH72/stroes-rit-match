@@ -612,3 +612,36 @@ admin (`matching.add_bekendelocatie`) — geen apart rechtensysteem.
 Dit is het eerste scherm buiten de Django-admin, dus er komt een minimale
 gedeelde basispagina (header met het RMW-logo en de navy balk uit
 `docs/ui-spec.md`) die fase 6 (weekoverzicht) hergebruikt.
+
+## 2026-09-03 — Foutherstel bij het uitzonderingenscherm — verplicht onderdeel van de opleverinstructie (Current)
+
+Decision: de gebruikersinstructie die bij oplevering aan Wim wordt meegegeven
+(roadmap-fase 7/8, zie `docs/functioneel-ontwerp.md` §7) moet expliciet
+uitleggen hoe een per ongeluk verkeerd gelegde koppeling in het
+uitzonderingenscherm hersteld kan worden — niet alleen hoe je een adres
+koppelt.
+
+Aanleiding: het uitzonderingenscherm (fase 5, zie het ontwerp-besluit
+hierboven) biedt bewust alleen "koppelen" aan, geen "verwijderen" — fouten
+herstellen blijft admin-werk via "Bekende locaties". Zonder een expliciete
+instructie zou een gebruiker die per ongeluk een verkeerde koppeling maakt,
+niet weten hoe dat terug te draaien is.
+
+Wat die instructie moet dekken (nu vastgelegd zodat het bij de daadwerkelijke
+oplevering niet vergeten wordt — de tekst zelf wordt pas geschreven als het
+scherm gebouwd en getest is):
+
+1. Een koppeling wijzigen of verwijderen kan altijd via "Bekende locaties" in
+   de admin — dat scherm is, anders dan bijvoorbeeld de tijdblokken of de
+   matchmotor-status, gewoon volledig bewerkbaar.
+2. De correctie wordt pas zichtbaar nadat de matching opnieuw is gedraaid
+   (de knop "Matching nu draaien" uit fase 4) — het aanpassen van de
+   koppeling zelf heeft geen direct effect op wat al berekend is.
+3. Verwijderen is altijd veilig: een dag wordt bij elke herberekening
+   helemaal opnieuw beoordeeld aan de hand van de op dat moment geldende
+   koppeltabel, dus er is geen risico op een "kapotte" verwijzing.
+
+Bewust niet nu al uitgeschreven als kant-en-klare instructietekst: het
+uitzonderingenscherm is op het moment van dit besluit nog niet gebouwd (de
+bouwinstructie is net verstuurd), en een instructietekst schrijven voor een
+scherm dat tijdens de bouw nog kan afwijken zou voorbarig zijn.

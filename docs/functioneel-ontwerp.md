@@ -224,6 +224,16 @@ anders geldt de oplevering automatisch als geaccepteerd. Bij oplevering hoort ee
 korte samenvatting van het gebouwde plus een instructie voor de beheerschermen en het
 uitzonderingenscherm.
 
+Vastgelegd (03-09-2026, zie `docs/decisions.md`, "Foutherstel bij het
+uitzonderingenscherm — verplicht onderdeel van de opleverinstructie"): die instructie
+moet expliciet uitleggen hoe een per ongeluk verkeerd gelegde koppeling hersteld
+wordt — niet alleen hoe je een adres koppelt. Kort samengevat, voor die latere
+instructie: een koppeling wijzigen of verwijderen kan altijd via "Bekende locaties"
+in de admin (dat scherm is, anders dan bijvoorbeeld de tijdblokken, gewoon
+bewerkbaar); de correctie wordt pas zichtbaar nadat de matching opnieuw is
+gedraaid (de knop "Matching nu draaien", fase 4); en verwijderen is altijd veilig,
+omdat een dag bij elke herberekening helemaal opnieuw beoordeeld wordt.
+
 ## 8. Wat bewust buiten scope valt
 
 Apart te offreren als vervolgstap, niet onderdeel van deze eerste werkende versie:

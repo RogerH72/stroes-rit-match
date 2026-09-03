@@ -16,17 +16,46 @@ Nog geen (project net gestart).
   adres-afwijkingen (bv. werkbonadres ≠ busadres) worden als aandachtspunt getoond,
   niet automatisch gematcht.
 - **Werktijd bepalen uit ritgegevens (leidend), niet uit de Werktijd/Reistijd-velden
-  van de werkbon** — bevestigd door Wim (mailwisseling 27/28-08-2026), omdat monteurs
-  die velden niet consequent invullen: werktijd begint zodra de monteur bij een
-  klantadres stopt, en eindigt zodra hij daar wegrijdt. Tussentijdse bezoeken aan een
-  leverancier of de eigen zaak beëindigen de werkdag niet, zolang de monteur diezelfde
-  dag nog terugkeert naar de klant — pas het laatste vertrek bij de klant die dag geldt
-  als einde werktijd.
-- **"Monteur meegereden"** — twee oplossingsrichtingen afgesproken met Wim, geen keuze
-  gemaakt: (A) een junior monteur in de beheerschermen ("Instellingen") hard koppelen
-  aan een senior monteur, zodat de junior dezelfde rittijden krijgt toegewezen als de
-  senior; (B) testen of Syntess "Monteur meegereden" automatisch kan invullen in de
-  Werkbonnen-export, wat de nettere oplossing zou zijn maar nog niet is getest.
+  van de werkbon** — bevestigd door Wim (mailwisseling 27/28-08-2026, herbevestigd
+  02-09-2026), omdat monteurs die velden niet consequent invullen en er geen
+  betrouwbare kloktijden op de werkbon beschikbaar zijn: werktijd begint zodra de
+  monteur bij een klantadres stopt, en eindigt zodra hij daar wegrijdt. Tussentijdse
+  bezoeken aan een leverancier of de eigen zaak beëindigen de werkdag niet, zolang de
+  monteur diezelfde dag nog terugkeert naar de klant — pas het laatste vertrek bij de
+  klant die dag geldt als einde werktijd. Het oorspronkelijke wensdoel om de door de
+  monteur ingevulde aankomst-/vertrektijd op de werkbon te vergelijken met de
+  werkelijkheid (een WB-vs-SYS-signaal) is hiermee bewust niet gebouwd — zie
+  `docs/decisions.md` voor een impact-analyse mocht Wim hier ooit op terugkomen.
+- **Databronnen voor de matching (vastgelegd 2026-09-02, na inspectie van de
+  voorbeeld-databestanden in `voorbeeld-data/`):** van de 3 Syntess-exports drijft de
+  matching zelf uitsluitend op **Uren.xlsx** (wie, welke werkbon, welke datum, hoeveel
+  uur, welk adres/klant) en de RouteVision-rit-CSV, aangevuld met **Relaties.xlsx**
+  voor klant/leverancier-stamgegevens. **Werkbonnen.xlsx wordt niet gebruikt voor de
+  matching** — Reistijd/Werktijd daaruit zijn al niet leidend (zie hierboven), en
+  Titel/Fase voegen voor de matching zelf niets toe. Werkbonnen.xlsx wordt wél
+  ingelezen, maar uitsluitend voor een **volledigheidscontrole**: signaleren of er een
+  werkbon bestaat zonder geboekte uren. Daarbij wordt de **laatste/huidige Fase-status**
+  van de werkbon gebruikt (niet de volledige historie van fase-overgangen) om onderscheid
+  te maken tussen "nog niet gestart" (Fase bijv. Uitgevoerd/Gestopt — verwacht, geen
+  signaal) en "afgerond zonder geboekte uren" (Fase Afgehandeld/Gereed zonder
+  Uren-regels — wél een afwijking om te tonen). Een monteur die uren boekt op een
+  werkbonnummer dat niet in de Werkbonnen-export voorkomt wordt logisch onmogelijk
+  geacht (Syntess borgt die referentie zelf), dus dat scenario hoeft niet apart
+  gedetecteerd te worden.
+- **Ontbrekend bronbestand blokkeert alleen zijn eigen doel (vastgelegd
+  2026-09-02):** elk bronbestand wordt onafhankelijk gevolgd. Ontbreekt
+  Werkbonnen.xlsx voor een periode terwijl Uren.xlsx er wel is, dan draait de matching/
+  tijdlijnreconstructie gewoon door (die leunt niet op Werkbonnen.xlsx) — alleen de
+  volledigheidscontrole wordt voor die periode overgeslagen (status "niet uitgevoerd,
+  bronbestand ontbrak"), niet het hele weekoverzicht geblokkeerd.
+- **"Monteur meegereden" (besluit definitief, 2026-09-02):** het Syntess-veld
+  "Monteur meegereden" in de Werkbonnen-export wordt in de praktijk nog niet gevuld —
+  dit ligt bij Ruud/RVS Solutions en heeft geen ETA. Daarom wordt **optie A** gebouwd
+  als de werkende oplossing: in de beheerschermen ("Instellingen") kan een junior
+  monteur hard gekoppeld worden aan een senior monteur, waarna de junior automatisch
+  dezelfde rittijden krijgt toegewezen als de senior. Mocht Syntess het veld later
+  betrouwbaar gaan vullen, dan is dat een nieuw, apart besluit — er wordt nu niet op
+  gewacht.
 - Tolerantietabel per activiteit (drempel voor onverklaarde stops is instelbaar) —
   exacte waarden nog te bevestigen met de klant (bron: `20260424 RMW-Overzicht
   ....xlsx` in de brainstorm-sessie).

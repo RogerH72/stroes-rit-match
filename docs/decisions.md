@@ -30,9 +30,10 @@ beschreef als (alleen) een PoC-fase.
 ## 2026-09-01 — Trigger-mechanisme servermap: polling + database-tracking, geen verwerkt-map (Current)
 
 Decision: de productie-app detecteert nieuwe bestanden op de servermap via polling
-(elke 30 min, vanuit een ingebakken scheduler in de Docker-container), met een
-stabiliteitscheck (bestandsgrootte twee checks op rij ongewijzigd) voordat een bestand
-als compleet geldt. Wat al verwerkt is, wordt bijgehouden via de database
+(vanuit een ingebakken scheduler in de Docker-container), met een stabiliteitscheck
+(bestandsgrootte een aantal checks op rij ongewijzigd) voordat een bestand als
+compleet geldt. **Het exacte polling-interval en de stabiliteitsmarge zijn op
+2026-09-02 losgekoppeld — zie het besluit hieronder.** Wat al verwerkt is, wordt bijgehouden via de database
 (matchresultaten per dag/monteur) — er komt geen aparte "verwerkt"-map op de servermap
 en er worden geen bronbestanden verplaatst of verwijderd. Herverwerken van een dag kan
 alleen handmatig, via een knop in het beheerscherm.
@@ -178,3 +179,191 @@ Reasoning: bij het aanmaken van het project is deze stap eerst overgeslagen. Dit
 is expliciet in PoC-fase (1-2 monteurs, ~1 week), dus hoort het volgens de eigen
 standaard wél te bestaan. Superseded: het eerdere besluit om `docs/demo.md` niet aan te
 maken.
+
+## 2026-09-02 — Fase-2 databronnen en "monteur meegereden" vastgelegd, na inspectie voorbeelddata (Current)
+
+Decision: de voorbeeld-databestanden in `voorbeeld-data/` (geanonimiseerde
+Syntess-exports Relaties/Uren/Werkbonnen + een RouteVision-rit-CSV, peildatum
+26-08-2026) zijn ingelezen en de structuur is gebruikt om twee openstaande punten af
+te ronden. (1) De matching drijft op **Uren.xlsx** (wie, welke werkbon, welke datum,
+hoeveel uur, welk adres/klant) en de RouteVision-rit-CSV, aangevuld met
+**Relaties.xlsx** voor klant/leverancier-stamgegevens. **Werkbonnen.xlsx wordt niet
+gebruikt voor de matching** (Reistijd/Werktijd/Titel/Fase/Monteur meegereden voegen
+daar niets aan toe), maar wordt wél ingelezen voor een **volledigheidscontrole**:
+signaleren of een werkbon bestaat zonder geboekte uren. Daarbij telt de
+laatste/huidige Fase-status: "nog niet gestart" (geen signaal) versus "afgerond
+zonder geboekte uren" (wél een afwijking). (2) **"Monteur meegereden"**: het
+Syntess-veld hiervoor staat al in de Werkbonnen-export, maar wordt in de praktijk nog
+niet gevuld (ligt bij Ruud/RVS Solutions, geen ETA) — dus wordt optie A gebouwd: in
+de beheerschermen ("Instellingen") een junior monteur hard koppelen aan een senior
+monteur, waarna de junior automatisch dezelfde rittijden krijgt toegewezen.
+
+Reasoning: zonder de echte kolomstructuur te zien dreigde het datamodel voor
+roadmap-fase 2 te worden gebaseerd op aannames. Bij inspectie bleek de Werkbonnen-
+export een 1-op-meerdere relatie te hebben met Fase-overgangen (elke werkbon
+meerdere rijen, één per statuswijziging) — structureel, niet een eigenaardigheid van
+dit specifieke exportmoment. Omdat Reistijd/Werktijd uit Werkbonnen al niet leidend
+zijn (zie het besluit over werktijd uit ritgegevens hierboven), en Fase niet nodig is
+om te bepalen wélke uren-boekingen matchbaar zijn (dat is een dagelijks feit, los van
+de voortgang van de hele werkbon), bleef er geen valide reden over om Werkbonnen.xlsx
+als matching-input te gebruiken — wel als controle-input, om werkbonnen te signaleren
+die überhaupt niet zijn terugverwerkt naar geboekte uren. Voor "monteur meegereden"
+gold al langer twee opties (zie eerdere vastlegging in `docs/business-rules.md`);
+omdat optie B (Syntess vult het veld zelf) in de praktijk nog niet werkt, is optie A
+nu het besluit, niet langer "geen keuze gemaakt".
+
+Ook is bij deze gelegenheid directe toegang tot `D:\PROJECTS\stroes-rit-match`
+gekoppeld aan de Cowork-ontwerpsessie (voorheen alleen los-gekopieerde bestanden in
+project knowledge). Documentatie-updates (`docs/*.md`) worden vanaf nu direct in de
+canonieke map bijgewerkt vanuit die sessie — geen tussenstap meer via de Claude
+Code-sessie voor pure documentatiewijzigingen (die blijft wel de route voor
+daadwerkelijke code/Django/Docker-wijzigingen).
+
+## 2026-09-02 — WB-vs-SYS-tijdsignaal: geen apart doel, al opgelost via "ritgegevens leidend"; actiepunt kloktijden afgerond (Current)
+
+Decision: het oorspronkelijke wensdoel (a) uit het bronbestand van de klant
+(`20260424 RMW-Overzicht RouteVision & Werkbon koppelen.xlsx`, tabblad "Omschrijving"):
+"de aankomst- en vertrektijd die Monteur heeft ingevuld op de Werkbon en of deze
+overeenkomt met de werkelijkheid" — wordt niet als apart signaal (WB-tijd vs SYS-tijd)
+gebouwd. Werkbonnen.xlsx blijft zoals al vastgelegd: alleen voor de
+volledigheidscontrole, geen input voor de matching. Het openstaande actiepunt uit de
+brainstorm-sessie ("navragen bij Wim/Syntess-accountmanager of echte begin-/
+eindtijden per werkbon beschikbaar te maken zijn") is hiermee afgerond: Wim heeft
+expliciet geantwoord dat dit geen haalbare weg is ("Het zou een forse uitdaging
+worden om de monteurs 'begin- en eindtijd' te laten invullen. We moeten hier niet
+oprekenen.") en gevraagd om de Ritgegevens leidend te maken — (1) werktijd begint
+zodra de monteur bij een klant stopt, (2) werktijd stopt zodra hij wegrijdt.
+
+Reasoning: bij het doornemen van de brainstorm-sessie (op initiatief van Roger, vóór
+de bouw van fase 2) leek er een gemiste functie van Werkbonnen.xlsx te zijn: een
+WB-vs-SYS-tijdsignaal uit een vroege PoC-demo-verkenning, die teruggaat op
+bovengenoemd wensdoel (a) uit het originele klantbestand. Bij nadere inspectie bleek
+dit doel niet uitvoerbaar met de echte Syntess-data (geen aankomst-/vertrektijd-
+velden die de monteur invult, alleen Reistijd/Werktijd-duur die maar ~45% gevuld is)
+— en al eerder (mailwisseling 27/28-08-2026) én nu opnieuw expliciet door Wim
+losgelaten ten gunste van "ritgegevens leidend", wat al exact de vastgelegde regel is
+in `docs/business-rules.md`. Er was dus geen gemiste functie: de vroege
+brainstorm-verkenning van wensdoel (a) is inmiddels achterhaald door deze latere,
+explicietere beslissing. Geen wijziging nodig in `docs/business-rules.md`,
+`docs/database.md` of `docs/functioneel-ontwerp.md` — die weerspiegelden dit al
+correct.
+
+## 2026-09-02 — Robuustheid bestandsdetectie: ontbrekend bronbestand blokkeert alleen zijn eigen doel (Current)
+
+Decision: elk bronbestand (Uren, Rit, Relatie, WerkbonControle) wordt in de
+ImportBestand-bijhoudtabel onafhankelijk gevolgd. Als Werkbonnen.xlsx voor een
+periode ontbreekt terwijl Uren.xlsx er wel is, draait de matching/
+tijdlijnreconstructie gewoon door — die leunt niet op Werkbonnen.xlsx (zie de
+databronnen-beslissing hierboven). Alleen de volledigheidscontrole wordt voor die
+periode overgeslagen, met status "niet uitgevoerd, bronbestand ontbrak". Het
+weekoverzicht wordt dus niet geblokkeerd door een ontbrekend Werkbonnen-bestand.
+
+Reasoning: Roger vroeg expliciet naar dit scenario voordat de bouw van fase 2 wordt
+geïnstrueerd. Omdat Werkbonnen.xlsx al geen matching-input is (zie hierboven), is er
+geen inhoudelijke reden om de matching te laten wachten op of falen door een
+ontbrekend Werkbonnen-bestand — dat zou een onnodige, kunstmatige afhankelijkheid
+tussen twee losstaande doelen (matching vs. volledigheidscontrole) introduceren.
+
+## 2026-09-02 — Impact-analyse (geen besluit): als Wim de WB-vs-SYS-tijdvergelijking alsnog wil
+
+Decision: geen — dit is een vastgelegde impact-analyse voor toekomstig gebruik, geen
+wijziging van de huidige scope. Mocht Wim later alsnog de vergelijking "ingevulde
+werkbon-tijd vs. GPS-werkelijkheid" willen (zie het besluit hierboven over waarom dit
+nu niet gebouwd wordt), dan raakt dat vier plekken, telkens als toevoeging, niet als
+herontwerp: (1) fase 2 — de WerkbonControle-tabel uitbreiden met het Tijd-veld (en
+eventueel Reistijd/Werktijd) uit Werkbonnen.xlsx, een bestand dat al wordt ingelezen;
+(2) fase 3 — een extra vergelijkingsstap: de tijdlijnreconstructie berekent de
+daadwerkelijke aankomsttijd (SYS-tijd) al uit de ritgegevens, die wordt dan ook naast
+de Werkbon.Tijd gelegd; (3) fase 4 — een aparte drempelwaarde voor dit signaal in de
+tolerantietabel; (4) fase 6 — een extra kolom in het weekoverzicht.
+
+Reasoning: Roger vroeg dit uit voorzorg na de eerdere verwarring over het
+WB-vs-SYS-signaal, om te weten hoeveel werk een eventuele omkeer van Wim zou
+betekenen. Omdat fase 2 (ruwe import) losstaat van fase 3 (matchlogica) en fase 6
+(output), is de impact beperkt tot optelbare aanpassingen — geen reden om nu al
+anders te bouwen dan vastgelegd.
+
+
+## 2026-09-02 — Polling-interval en stabiliteitsmarge losgekoppeld, beide instelbaar (Current)
+
+Decision: het polling-interval (hoe vaak de servermap wordt gecontroleerd) en de
+stabiliteitsmarge (hoe lang een bestandsgrootte ongewijzigd moet blijven voordat een
+bestand als compleet geldt) zijn twee losse instellingen, elk apart configureerbaar
+(bv. via env-var), niet één hardcoded getal. Startwaarden: polling elke 5 minuten,
+stabiliteitsmarge 30 minuten (dus 6 opeenvolgende checks op rij bij dit interval).
+
+Reasoning: het besluit van 2026-09-01 ("Trigger-mechanisme servermap") ging uit van
+één interval van 30 minuten voor zowel polling als stabiliteitscheck. Bij nader
+inzien zijn dit twee verschillende doelen: de stabiliteitsmarge (30 minuten) is een
+inhoudelijke garantie tegen het inlezen van een half weggeschreven bestand, en hoeft
+niet te veranderen. Het polling-interval bepaalt alleen hoe snel de app een compleet
+bestand signaleert nadat het klaar staat; dat mag korter (5 minuten) zonder de
+stabiliteitsgarantie aan te tasten, en blijft zo ook makkelijk bij te stellen zonder
+de stabiliteitslogica te raken. Beide instelbaar maken voorkomt dat een toekomstige
+wijziging in code hoeft te worden aangepast.
+
+Impact op eerdere vastlegging: verfijnt (zonder te herroepen) het 2026-09-01-besluit
+"Trigger-mechanisme servermap: polling + database-tracking, geen verwerkt-map" — de
+kern van dat besluit (polling i.p.v. filesystem-events, database-tracking, geen
+verwerkt-map, alleen handmatig herverwerken) blijft onveranderd van kracht.
+
+
+## 2026-09-02 — Roadmap-fase 2 (data-inlezing) gebouwd (Current)
+
+Decision/vastlegging: fase 2 is gebouwd in de Claude Code-sessie, getest (74 tests
+groen) en in twee commits vastgelegd (nog niet gepusht naar GitHub). Gebouwd:
+bestandsdetectie met polling (5 min, instelbaar) + stabiliteitscheck (30 min,
+instelbaar, los van elkaar), de vier ruwe importmodellen (Uren, Rit, Relatie,
+WerkbonControle) en de `ImportedFile`-bijhoudtabel, plus handmatige triggers
+(`--force`/`--dry-run`/`--reprocess`/`--path`). Zie `docs/changelog.md` voor de
+volledige technische samenvatting.
+
+Bijzonderheden/openstaande punten uit de bouw:
+- De scheduler is gebouwd als een aparte compose-service met een simpele loop
+  (`scripts/scheduler.sh`) in plaats van cron/supercronic — een gelijkwaardige
+  invulling van hetzelfde ontwerp (`docs/architecture.md` noemde cron/supercronic
+  als voorbeeld, niet als eis).
+- De bijhoudtabel is in code `ImportedFile` genoemd (Engels) in plaats van
+  `ImportBestand` (zoals in `docs/database.md`) — toegestaan binnen de taalconventie
+  omdat het een generieke technische tabel is, geen SBTT-domeinterm. Functioneel
+  hetzelfde ding.
+- `db.sqlite3` (lokaal, gitignored) is verwijderd om een schone eind-tot-eind-test te
+  draaien. Bevatte alleen fase-1-opzet (nog geen modellen); als daar een lokale
+  Django-superuser in stond, moet die opnieuw aangemaakt worden (`createsuperuser`).
+- De Docker-image-build is nog niet gecontroleerd (Docker Desktop stond niet aan
+  tijdens het bouwen) — wel gevalideerd dat `docker compose config` klopt en beide
+  services de juiste env meekrijgen.
+
+Reasoning: dit zijn implementatiekeuzes binnen het al vastgelegde ontwerp
+(`docs/architecture.md`), geen scope- of ontwerpwijziging, dus geen aparte
+bevestiging per punt nodig — hier alleen vastgelegd zodat een volgende sessie niet
+opnieuw hoeft te ontdekken waarom code en documentnamen op dit punt uiteenlopen.
+
+## 2026-09-02 — Volledigheidscontrole beoordeelt de werkbon als geheel, niet per datum (Current)
+
+Decision: de volledigheidscontrole (fase 3, "bestaat er een werkbon zonder geboekte
+uren") kijkt naar de werkbon als geheel — "is deze werkbon ooit afgerond zonder dat
+er ooit uren op zijn geboekt" — niet per specifieke datum van een fase-overgang.
+
+Reasoning: een werkbon kan over meerdere data lopen (bijv. Fase Uitgevoerd op 6
+augustus, Gereed op 7 augustus). Tijdens de bouw van fase 2 werd zichtbaar dat de
+opgeslagen fase-status per datumregel de eindstatus van de hele werkbon is (met
+terugwerkende kracht op elke datumregel gezet) — dit riep de vraag op of de controle
+per datum of per werkbon moet oordelen. Per werkbon is gekozen omdat dat het
+oorspronkelijke doel is (zie `docs/functioneel-ontwerp.md` §3b) en per-datum-oordelen
+onnodig complex zou zijn zonder functionele meerwaarde. De ruwe opslag blijft wel per
+(Werkbon, Medewerker, Datum) — dit besluit raakt alleen hoe de fase-3-controle die
+opslag straks leest, niet hoe fase 2 importeert.
+
+## 2026-09-02 — AVG-beleid: geen klantdata (ook niet geanonimiseerd) in git (Current)
+
+Decision: de geanonimiseerde voorbeeld-databestanden (`voorbeeld-data/`) worden nooit
+naar de git-repository gecommit, ook niet ter ontwikkelgemak. De map is gitignored;
+testen draaien op zelf-gegenereerde synthetische fixtures en slaan de test tegen de
+echte voorbeeldbestanden over als die map ontbreekt.
+
+Reasoning: ook geanonimiseerde klantdata in een git-historie (die op GitHub komt te
+staan, zie `docs/decisions.md` 01-09-2026) is een AVG-afweging die niet impliciet
+door een code-tool gemaakt mag worden. Bij de bouw van fase 2 werd dit expliciet als
+zodanig herkend en aan Roger voorgelegd in plaats van zelf besloten — hier bevestigd
+als vast beleid voor de rest van het project.

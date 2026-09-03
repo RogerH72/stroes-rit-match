@@ -1,6 +1,6 @@
 # GUIDELINES — Stroes-Rit-Match (RMW)
 
-_Last updated: 2026-09-01_
+_Last updated: 2026-09-02_
 
 ## Project identity
 
@@ -36,8 +36,16 @@ Power BI als reporting-schil, automatische signalering, een serviceabonnement �
 app `matching` (Python 3.13), SQLite voor ontwikkeling, instellingen via
 omgevingsvariabelen (`.env.example`), en een Docker-basis (`Dockerfile` +
 `docker-compose.yml`, gunicorn + WhiteNoise, healthcheck op `/health/`) die lokaal
-draait. Nog geen matchinglogica, modellen of schermen. Lokale Git-repo aanwezig; de
-GitHub-repo aangemaakt en gekoppeld (`github.com/RogerH72/stroes-rit-match`, private). Zie `docs/changelog.md` (01-09-2026).
+draait. Lokale Git-repo aanwezig; de GitHub-repo aangemaakt en gekoppeld
+(`github.com/RogerH72/stroes-rit-match`, private). Zie `docs/changelog.md`
+(01-09-2026).
+
+**Fase 2 (data-inlezing) is gebouwd (02-09-2026), gecommit maar nog niet gepusht:**
+bestandsdetectie met polling (5 min) + stabiliteitscheck (30 min, los instelbaar), de
+vier ruwe importmodellen (Uren, Rit, Relatie, WerkbonControle) en de
+`ImportedFile`-bijhoudtabel. 74 tests groen. De Docker-image-build is nog niet
+gecontroleerd (Docker Desktop stond niet aan). Zie `docs/changelog.md` en
+`docs/decisions.md` (02-09-2026).
 
 Beoogde PoC-architectuur: een los
 Python-script dat de Syntess-exports en de RouteVision-download inleest, per
@@ -83,8 +91,14 @@ RouteVision-data komt voor de PoC uit een handmatige download, niet uit de API.
    Docker-basis, lokale Git-repo én de private GitHub-repo
    (`github.com/RogerH72/stroes-rit-match`) aangemaakt, gekoppeld en gepusht (zie
    `docs/changelog.md`).
-3. **Eerstvolgende stap:** roadmap-fase 2 (data-inlezing), pas na expliciete
-   bevestiging van het ontwerp.
+3. **Gedaan (02-09-2026).** Roadmap-fase 2 (data-inlezing) gebouwd en gecommit (nog
+   niet gepusht). Zie `docs/changelog.md` en `docs/decisions.md`.
+4. **Eerstvolgende stap (bevestigd 02-09-2026): eerst de restpunten van fase 2
+   afhandelen, dan pas fase 3 bespreken.** Restpunten (in de Claude Code-sessie,
+   geen ontwerpvraag): `git push`, een lokale Django-superuser opnieuw aanmaken (de
+   oude db.sqlite3 is verwijderd tijdens het testen), en de Docker-build één keer
+   controleren nu Docker Desktop weer aan kan staan. Pas daarna: instructie voor
+   roadmap-fase 3 (reken-/matchmotor) hier bespreken en bevestigen.
 
 **Vervallen:** de eerder voorziene live-PoC-fase met 1-2 monteurs bij de klant (~1
 week, in overleg met Wim) — het akkoord van 31-08-2026 betrof al de volledige

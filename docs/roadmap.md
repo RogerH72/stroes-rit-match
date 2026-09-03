@@ -25,10 +25,11 @@ aparte Claude Code-sessie (niet in Cowork), zie `docs/decisions.md`.
 
 ### 2. Data-inlezing
 Bestandsgebaseerde inlezing van de servermap (Syntess-exports + RouteVision-download),
-volgens het al ontworpen trigger-mechanisme: polling elke 30 minuten, stabiliteitscheck
-op bestandsgrootte, bijhouden wat al verwerkt is via de database (geen aparte
-"verwerkt"-map, geen bestanden die worden verplaatst/verwijderd). Zie
-`docs/architecture.md` en `docs/decisions.md` (01-09-2026).
+volgens het al ontworpen trigger-mechanisme: polling elke 5 minuten, stabiliteitscheck
+van 30 minuten op bestandsgrootte (beide los instelbaar), bijhouden wat al verwerkt is
+via de database (geen aparte "verwerkt"-map, geen bestanden die worden verplaatst/
+verwijderd). **Gebouwd (02-09-2026), zie `docs/changelog.md`.** Zie
+`docs/architecture.md` en `docs/decisions.md`.
 
 ### 3. Reken-/matchmotor
 De gevalideerde matching-heuristiek (uit de PoC en de bredere validatie —

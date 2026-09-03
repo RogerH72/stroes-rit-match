@@ -1,12 +1,13 @@
 # Functioneel Ontwerp — Stroes-Rit-Match (RMW)
 
-_Vastgelegd: 2026-09-02_
-
-Dit document beschrijft hoe RMW straks functioneel werkt — niet hoe het technisch
-gebouwd wordt (zie `docs/architecture.md`) en niet in de precieze, terse regel-vorm van
-`docs/business-rules.md`. Het is bedoeld als leesbaar naslagwerk: wat doet de app, voor
-wie, en wat gebeurt er stap voor stap. Waar een onderdeel nog niet is uitontworpen,
-staat dat expliciet vermeld — er wordt hier niets verzonnen.
+_Vastgelegd: 2026-09-02. Bijgewerkt 2026-09-02 na inspectie van de
+voorbeeld-databestanden (§2/§3b) en na een robuustheidscheck van de bestandsdetectie
+(§3a) — zie `docs/decisions.md`. Dit document beschrijft hoe RMW straks functioneel
+werkt — niet hoe het technisch gebouwd wordt (zie `docs/architecture.md`) en niet in
+de precieze, terse regel-vorm van `docs/business-rules.md`. Het is bedoeld als
+leesbaar naslagwerk: wat doet de app, voor wie, en wat gebeurt er stap voor stap.
+Waar een onderdeel nog niet is uitontworpen, staat dat expliciet vermeld — er wordt
+hier niets verzonnen._
 
 ## 1. Wat de app doet
 
@@ -23,18 +24,23 @@ bestaand, handmatig Access-programma.
 ## 2. Databronnen
 
 De app leest uitsluitend bestanden die op een servermap verschijnen — geen directe
-koppeling (API) met Syntess of RouteVision in deze versie:
+koppeling (API) met Syntess of RouteVision in deze versie. Er zijn 3 dagelijkse
+Syntess Excel-exports plus de RouteVision-download, maar niet alle 3 Syntess-exports
+worden voor de matching gebruikt:
 
-- **3 dagelijkse Syntess Excel-exports.** De exacte inhoud/structuur van elke export
-  staat niet in dit document uitgewerkt (zie `docs/business-rules.md` /
-  `docs/database.md` voor wat daar al over bekend is); functioneel gaat het om
-  werkbon-, klant/leverancier- en relatiegegevens.
-- **RouteVision-download** (rit-, tijd- en locatiegegevens per monteur/voertuig). Het
-  dagelijks plaatsen van dit bestand in de servermap is een taak van SBTT/Stric, niet
-  van de app of van Roger.
+- **Uren.xlsx** (hoofdbron): wie, welke werkbon, welke datum, hoeveel uur, en op welk
+  adres/bij welke klant. Dit is de eenheid die tegen de RouteVision-rit van die dag
+  wordt gelegd.
+- **RouteVision-download** (hoofdbron): rit-, tijd- en locatiegegevens per
+  monteur/voertuig. Het dagelijks plaatsen van dit bestand in de servermap is een
+  taak van SBTT/Stric, niet van de app of van Roger.
+- **Relaties.xlsx**: klant/leverancier-stamgegevens, los van de matching zelf nodig.
+- **Werkbonnen.xlsx**: wordt wél ingelezen, maar uitsluitend voor een
+  **volledigheidscontrole** — signaleren of er een werkbon bestaat zonder geboekte
+  uren (zie §3b). Geen input voor de matching zelf.
 
 Servermap (bevestigd): `\\stroes-1909\atrium\Autoprint\RUUDS`. De exacte
-bestandsnaam-conventie van de automatische export is nog niet bevestigd met
+bestandsnaam-conventie van de automatische export is **nog niet bevestigd** met
 Stric/RVS Solutions/RouteVision — dit moet nog rond zijn vóór de bestandsherkenning
 definitief wordt vastgelegd.
 
@@ -42,70 +48,108 @@ definitief wordt vastgelegd.
 
 ### 3a. Bestandsdetectie (roadmap-fase 2, eerstvolgende bouwstap)
 
-De app controleert de servermap elke 30 minuten (polling, geen filesystem-events —
+De app controleert de servermap elke 5 minuten (polling, geen filesystem-events —
 onbetrouwbaar op een netwerkshare). Een bestand wordt pas verwerkt als de
-bestandsgrootte over twee metingen op rij (dus 30 minuten) ongewijzigd is gebleven —
-dit voorkomt dat een nog niet volledig weggeschreven bestand wordt ingelezen.
+bestandsgrootte gedurende 30 minuten ongewijzigd is gebleven — bij een
+polling-interval van 5 minuten dus 6 metingen op rij. Polling-interval en
+stabiliteitsmarge zijn twee losse, elk apart instelbare instellingen (vastgelegd
+2026-09-02): dit voorkomt dat een nog niet volledig weggeschreven bestand wordt
+ingelezen, terwijl afwijkingen sneller worden gesignaleerd dan wanneer beide aan
+elkaar vastzitten.
 
-Wat er is verwerkt, wordt uitsluitend bijgehouden via de database (de matchresultaten
-zelf) — er komt geen aparte "verwerkt"-map en bestanden worden nooit verplaatst of
-verwijderd op de servermap. Ontbreken bestanden aan het eind van de dag, dan wordt dat
-gelogd en getoond via een statusveld ("laatste succesvolle run") in het beheerscherm —
-er gaat geen automatische e-mail uit. Herverwerken van een dag kan alleen handmatig via
-een knop in het beheerscherm; het weekoverzicht verandert nooit stilletjes vanzelf.
+Wat er is verwerkt, wordt uitsluitend bijgehouden via de database — er komt geen
+aparte "verwerkt"-map en bestanden worden nooit verplaatst of verwijderd op de
+servermap. Ontbreken bestanden aan het eind van de dag, dan wordt dat gelogd en
+getoond via een statusveld ("laatste succesvolle run") in het beheerscherm — er gaat
+geen automatische e-mail uit. Herverwerken van een dag kan alleen handmatig via een
+knop in het beheerscherm; het weekoverzicht verandert nooit stilletjes vanzelf.
+
+**Elk bronbestand wordt onafhankelijk gevolgd (vastgelegd 2026-09-02):** de matching/
+tijdlijnreconstructie (§3b) draait door zodra Uren + Ritten (+ Relaties) compleet en
+stabiel zijn — ongeacht of Werkbonnen.xlsx voor die periode aanwezig is, want dat
+bestand is geen input voor de matching. Ontbreekt Werkbonnen.xlsx, dan wordt alleen
+de volledigheidscontrole voor die periode niet uitgevoerd (status "controle niet
+uitgevoerd, bronbestand ontbrak") — dat blokkeert het weekoverzicht niet. Een
+ontbrekend bestand voor het ene doel mag een ander doel dus niet blokkeren.
 
 ### 3b. Tijdlijnreconstructie + matching (roadmap-fase 3)
 
 Per monteur per dag wordt uit de RouteVision-ritgegevens een tijdlijn opgebouwd.
-Belangrijk uitgangspunt: de werktijd wordt afgeleid uit de ritgegevens (wanneer
-stopt/vertrekt de monteur bij een klantadres), niet uit de Werktijd/Reistijd-velden die
-de monteur zelf in de werkbon invult — omdat die niet consequent worden ingevuld.
+Belangrijk uitgangspunt: **de werktijd wordt afgeleid uit de ritgegevens** (wanneer
+stopt/vertrekt de monteur bij een klantadres), **niet** uit de Werktijd/Reistijd-velden
+die de monteur zelf in de werkbon invult — omdat die niet consequent worden ingevuld.
 Werktijd begint zodra de monteur bij een klantadres stopt en eindigt zodra hij daar
 wegrijdt; een tussentijds bezoek aan een leverancier of de eigen zaak beëindigt de
 werkdag niet zolang de monteur diezelfde dag nog terugkeert naar de klant — pas het
 laatste vertrek bij de klant die dag telt als einde werktijd.
 
-Voor het matchen van locaties geldt: een exacte postcode-match is niet voldoende, er is
-een straatnaam-fallback nodig. Een bezoek aan het depot vóór het werk wordt herkend als
-zodanig. Bekende adres-afwijkingen (bijvoorbeeld werkbonadres wijkt af van busadres)
-worden getoond als aandachtspunt, niet automatisch weggematcht.
+Voor het matchen van locaties geldt: een exacte postcode-match is niet voldoende, er
+is een straatnaam-fallback nodig. Een bezoek aan het depot vóór het werk wordt
+herkend als zodanig. Bekende adres-afwijkingen (bijvoorbeeld werkbonadres wijkt af van
+busadres) worden getoond als aandachtspunt, niet automatisch weggematcht.
 
 Elk tijdblok in de tijdlijn krijgt een SOORT-code:
 
-| Code | Betekenis   |
-| ---- | ----------- |
-| K    | Klant       |
-| L    | Locatie     |
-| C    | Crediteur   |
-| W    | Werkbon     |
-| ?    | Onbekend    |
-| O    | Onverklaard |
-| R    | Reistijd    |
+| Code | Betekenis |
+|---|---|
+| K | Klant |
+| L | Locatie |
+| C | Crediteur |
+| W | Werkbon |
+| ? | Onbekend |
+| O | Onverklaard |
+| R | Reistijd |
 
 Deze indeling is exact het eindresultaat dat de klant zelf al in Excel had ontworpen.
 
-Afwijkingen worden beoordeeld tegen een tolerantietabel per activiteit (instelbare
-drempel voor wat nog telt als een "onverklaarde" stop). De exacte drempelwaarden liggen
-nog niet vast — die moeten nog met de klant worden bevestigd.
+Afwijkingen worden beoordeeld tegen een **tolerantietabel per activiteit** (instelbare
+drempel voor wat nog telt als een "onverklaarde" stop). De exacte drempelwaarden
+liggen nog niet vast — die moeten nog met de klant worden bevestigd.
 
-**Nog geen keuze gemaakt — "monteur meegereden":** wanneer een junior monteur meerijdt
-met een senior, zijn er twee opties besproken met Wim, maar nog niet gekozen: (A) de
-junior in de beheerschermen hard koppelen aan de senior, zodat hij automatisch dezelfde
-rittijden krijgt toegewezen, of (B) onderzoeken of Syntess dit zelf al automatisch kan
-aangeven in de Werkbonnen-export (functioneel de nettere oplossing, technisch nog niet
-getest).
+**Werkbonnen.xlsx als volledigheidscontrole (vastgelegd 2026-09-02):** los van de
+matching wordt gecontroleerd of er een werkbon bestaat zonder geboekte uren in
+Uren.xlsx. Daarbij telt de laatste/huidige Fase-status van de werkbon: "nog niet
+gestart" (bijv. Fase Uitgevoerd/Gestopt zonder uren) is verwacht en levert geen
+signaal op; "afgerond zonder geboekte uren" (Fase Afgehandeld/Gereed zonder uren) is
+wél een afwijking die getoond wordt. Het omgekeerde scenario — uren geboekt op een
+werkbonnummer dat niet in Werkbonnen.xlsx voorkomt — wordt logisch onmogelijk geacht
+(Syntess borgt die referentie zelf) en hoeft niet apart gedetecteerd te worden.
 
-**Nog te bevestigen — klant/leverancier-onderscheid:** dit was een open datavraag, maar
-wordt mogelijk bij de bron opgelost doordat RVS Solutions dit onderscheid zelf aan de
-Relaties-export toevoegt — dan hoeft de app het niet meer zelf af te leiden. Te
-bevestigen zodra die aangepaste export er is.
+**Controlegranulariteit: per werkbon als geheel, niet per losse datum (vastgelegd
+2026-09-02, na een vraag vanuit de bouw):** een werkbon kan over meerdere data lopen
+(bijv. Fase Uitgevoerd op 6 augustus, Gereed op 7 augustus). De opslag houdt deze
+datumregels apart (fase 2, zie `docs/database.md`), maar de volledigheidscontrole
+zelf (fase 3) beoordeelt de werkbon als geheel: "is deze werkbon ooit afgerond zonder
+dat er ooit uren op zijn geboekt", niet "klopte de status op déze specifieke datum
+met de uren van diezelfde datum". Dat laatste zou onnodig complex zijn en voegt niets
+toe aan het doel van de controle.
+
+**Monteur meegereden (besluit definitief, 2026-09-02):** het Syntess-veld "Monteur
+meegereden" wordt in de praktijk nog niet gevuld (ligt bij Ruud/RVS Solutions, geen
+ETA). Daarom wordt **optie A** gebouwd: in de beheerschermen ("Instellingen") wordt
+een junior monteur hard gekoppeld aan een senior monteur, waarna de junior automatisch
+dezelfde rittijden krijgt toegewezen als de senior.
+
+**Werkbon-tijdregistratie (WB-vs-SYS-signaal) — bewust niet gebouwd (vastgelegd
+2026-09-02):** het originele wensdoel van de klant om de door de monteur ingevulde
+aankomst-/vertrektijd op de werkbon te vergelijken met de werkelijkheid is niet
+uitvoerbaar (die kloktijden bestaan niet in de Syntess-data) en is door Wim expliciet
+losgelaten ten gunste van "ritgegevens leidend" (zie hierboven). Zie
+`docs/decisions.md` voor een impact-analyse voor het geval Wim hier ooit op
+terugkomt — geen herontwerp, wel enkele optelbare aanpassingen in fase 2/3/4/6.
+
+**Nog te bevestigen — klant/leverancier-onderscheid:** dit was een open datavraag,
+maar wordt mogelijk bij de bron opgelost doordat RVS Solutions dit onderscheid zelf
+aan de Relaties-export toevoegt — dan hoeft de app het niet meer zelf af te leiden.
+Te bevestigen zodra die aangepaste export er is.
 
 ## 4. Beheerschermen (roadmap-fase 4)
 
 Via Django-admin worden de koppeltabellen onderhouden:
 
 - Bekende locaties (met marge/tolerantie).
-- Monteur–voertuig (inclusief de "meegereden"-koppeling, zodra daarvoor gekozen is).
+- Monteur–voertuig, inclusief de "meegereden"-koppeling (junior hard gekoppeld aan
+  senior monteur, zie §3b).
 - Personeelsnummer–naam.
 - Klant/leverancier-relaties (mogelijk overbodig zodra RVS Solutions dit oplost, zie
   hierboven).
@@ -118,23 +162,24 @@ De precieze schermindeling is nog niet uitgewerkt.
 
 Onbekende of afwijkende adressen kunnen in één klik gekoppeld worden aan een bekende
 locatie. Eenmaal bevestigde koppelingen worden onthouden (opgeslagen in de
-"bekende-locaties"-koppeltabel), zodat de lijst met openstaande uitzonderingen elke week
-vanzelf korter wordt. Verdere schermdetails zijn nog niet uitgewerkt.
+"bekende-locaties"-koppeltabel), zodat de lijst met openstaande uitzonderingen elke
+week vanzelf korter wordt. Verdere schermdetails zijn nog niet uitgewerkt.
 
 ## 6. Weekoverzicht (roadmap-fase 6)
 
 Het eindresultaat per monteur, beschikbaar als webpagina én als Excel-export, in de
-layout die de klant zelf al in Excel had ontworpen (met de SOORT-codes uit §3b). Bouwt
-voort op het HTML-prototype uit de eerdere validatie.
+layout die de klant zelf al in Excel had ontworpen (met de SOORT-codes uit §3b).
+Bouwt voort op het HTML-prototype uit de eerdere validatie.
 
 ## 7. Oplevering en acceptatie (roadmap-fase 7 en 8)
 
 Oplevering als lichte, zelfstandige Docker-container, samen met Stric geplaatst in een
-bestaande Proxmox-/VM-omgeving (of anders een kleine VPS). Vóór elke nieuwe versie wordt
-een back-up van de koppeltabellen gemaakt, zodat een rollback mogelijk is. Daarna testen
-Roger en Wim samen; Wim heeft 30 werkdagen na oplevering om te testen, anders geldt de
-oplevering automatisch als geaccepteerd. Bij oplevering hoort een korte samenvatting van
-het gebouwde plus een instructie voor de beheerschermen en het uitzonderingenscherm.
+bestaande Proxmox-/VM-omgeving (of anders een kleine VPS). Vóór elke nieuwe versie
+wordt een back-up van de koppeltabellen gemaakt, zodat een rollback mogelijk is.
+Daarna testen Roger en Wim samen; Wim heeft 30 werkdagen na oplevering om te testen,
+anders geldt de oplevering automatisch als geaccepteerd. Bij oplevering hoort een
+korte samenvatting van het gebouwde plus een instructie voor de beheerschermen en het
+uitzonderingenscherm.
 
 ## 8. Wat bewust buiten scope valt
 
@@ -145,21 +190,29 @@ Apart te offreren als vervolgstap, niet onderdeel van deze eerste werkende versi
   bestandsuitwisseling).
 - Automatische signalering (bijv. een dagelijkse/wekelijkse e-mail met afwijkingen).
 - Een optioneel serviceabonnement voor ondersteuning en kleine aanpassingen.
-- Het snelheidscontrole-meerwerk (RouteVision-snelheid vs. maximumsnelheid per locatie)
-  — nog geen besluit; raakt bovendien AVG/medewerkersmonitoring en vereist een
-  juridisch/HR-traject naast de techniek.
+- Het snelheidscontrole-meerwerk (RouteVision-snelheid vs. maximumsnelheid per
+  locatie) — nog geen besluit; raakt bovendien AVG/medewerkersmonitoring en vereist
+  een juridisch/HR-traject naast de techniek.
 
 ## 9. Openstaande beslissingen — overzicht
 
 Verzameld uit de secties hierboven, zodat ze niet uit het oog raken:
 
-- Bestandsnaam-conventie van de automatische Syntess/RouteVision-export (§2) — te
-  bevestigen met Stric/RVS Solutions/RouteVision.
-- Exacte drempelwaarden van de tolerantietabel per activiteit (§3b) — te bevestigen met
-  de klant.
-- Oplossingsrichting voor "monteur meegereden": optie A (hard koppelen) of optie B
-  (Syntess-export) (§3b).
-- Klant/leverancier-onderscheid: blijft dit een koppeltabel in de app, of lost RVS
-  Solutions dit op in de Relaties-export (§3b/§4)?
-- Snelheidscontrole-meerwerk: wel of niet oppakken, en zo ja, hoe met de
-  AVG/medewerkersmonitoring-vraag om te gaan (§8).
+1. Bestandsnaam-conventie van de automatische Syntess/RouteVision-export (§2) — te
+   bevestigen met Stric/RVS Solutions/RouteVision.
+2. Exacte drempelwaarden van de tolerantietabel per activiteit (§3b) — te bevestigen
+   met de klant.
+3. Klant/leverancier-onderscheid: blijft dit een koppeltabel in de app, of lost RVS
+   Solutions dit op in de Relaties-export (§3b/§4)?
+4. Snelheidscontrole-meerwerk: wel of niet oppakken, en zo ja, hoe met de
+   AVG/medewerkersmonitoring-vraag om te gaan (§8).
+
+_Opgelost op 2026-09-02: "monteur meegereden" (optie A, zie §3b), de databronnen voor
+de matching (Uren.xlsx + RouteVision leidend, Werkbonnen.xlsx alleen als
+volledigheidscontrole, zie §2/§3b), het WB-vs-SYS-tijdsignaal (bewust niet gebouwd,
+zie §3b), de onafhankelijke bestandsstatus per bron (zie §3a), het polling-/
+stabiliteitsinterval (los instelbaar, zie §3a), de controlegranulariteit van de
+volledigheidscontrole (per werkbon, zie §3b), en het AVG-beleid dat (ook
+geanonimiseerde) klantdata nooit in git komt (zie `docs/decisions.md`) — zie
+`docs/decisions.md` voor de volledige onderbouwing. Roadmap-fase 2 is gebouwd
+(02-09-2026)._

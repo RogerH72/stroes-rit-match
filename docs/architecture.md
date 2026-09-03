@@ -2,7 +2,15 @@
 
 ## Current implementation
 
-Nog niet gebouwd (project gestart 31-08-2026).
+**Fase 2 (data-inlezing) is gebouwd (02-09-2026), gecommit maar nog niet gepusht.**
+Bestandsdetectie (`matching/ingest/`, polling + stabiliteitscheck zoals hieronder
+beschreven) en de vier ruwe importmodellen (Uren, Rit, Relatie, WerkbonControle) plus
+`ImportedFile`-bijhoudtabel zijn gebouwd en getest (74 tests groen, plus een
+handmatige eind-tot-eind-run tegen de echte voorbeeldbestanden). Zie
+`docs/changelog.md` voor de volledige technische samenvatting en `docs/decisions.md`
+voor de openstaande/besliste punten die daarbij naar boven kwamen. Nog niet
+gecontroleerd: de Docker-image-build met de nieuwe `scripts/`-map en `openpyxl` (lokaal
+was Docker Desktop niet actief tijdens het bouwen).
 
 ## Target architecture
 
@@ -30,14 +38,19 @@ Vastgelegd in een ontwerpgesprek (01-09-2026), vooruitlopend op de bouw:
 - **Detectie: polling, geen filesystem-events.** De servermap (`\\stroes-1909\atrium`)
   is een netwerkshare; event-gebaseerd bestandswatchen (inotify e.d.) is onbetrouwbaar
   op netwerk-/SMB-mounts. Een geplande, periodieke check is daarom het uitgangspunt.
-- **Scheduler ingebakken in de Docker-container** (bv. cron/supercronic) die een Django
-  management-command aanroept — zelfstandig, geen afhankelijkheid van Stric voor de
-  planning zelf (Stric is alleen nodig voor de omgeving en leesrechten, zie de OvO).
-- **Interval:** elke 30 minuten.
-- **Volledigheid/stabiliteit:** een bestand telt pas mee als de bestandsgrootte over
-  twee opeenvolgende checks (dus 30 minuten) ongewijzigd is — beschermt tegen het
-  inlezen van een half weggeschreven bestand, ongeacht of de bron direct naar de
-  definitieve naam schrijft of niet.
+- **Scheduler ingebakken in de Docker-container.** Gebouwd als een aparte
+  compose-service uit hetzelfde image (`scripts/scheduler.sh`, een eenvoudige loop
+  die `check_imports` elke `POLL_INTERVAL_MINUTES` aanroept) in plaats van
+  cron/supercronic — geen extra pakket in het image nodig, logging gaat naar stdout.
+  Zelfstandig, geen afhankelijkheid van Stric voor de planning zelf (Stric is alleen
+  nodig voor de omgeving en leesrechten, zie de OvO).
+- **Polling-interval:** elke 5 minuten (instelbaar via configuratie/env-var).
+- **Stabiliteitsmarge:** een bestand telt pas mee als de bestandsgrootte gedurende 30
+  minuten ongewijzigd blijft — bij een polling-interval van 5 minuten dus 6
+  opeenvolgende checks op rij. De marge is los van het polling-interval instelbaar
+  (eigen configuratie/env-var), zodat beide onafhankelijk kunnen worden bijgesteld
+  (vastgelegd 2026-09-02). Beschermt tegen het inlezen van een half weggeschreven
+  bestand, ongeacht of de bron direct naar de definitieve naam schrijft of niet.
 - **Bij ontbrekende/onvolledige bestanden einde dag:** loggen + een statusveld
   ("laatste succesvolle run") in het beheerscherm. Geen automatische e-mail — dat valt
   buiten scope (zie de OvO, punt 2a: geen automatische signalering).

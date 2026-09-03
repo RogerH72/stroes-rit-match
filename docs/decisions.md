@@ -539,3 +539,30 @@ om iets bewerkbaar te tonen dat feitelijk alleen een uitleesvenster op een proce
 is. Consistent met waarom `Tijdblok` al read-only is: "de manier om de uitkomst
 te veranderen is een koppeltabel aan te passen en de matching opnieuw te
 draaien", niet het resultaat zelf handmatig te bewerken.
+
+## 2026-09-03 — Lichte visuele stijl vastgelegd voor fase 5 (Current)
+
+Decision: het uitzonderingenscherm (fase 5) wordt gebouwd als onderdeel van de
+uiteindelijke webapplicatie, buiten de Django-admin om — niet als extra
+admin-scherm. Reden: dit is een scherm dat SBTT-medewerkers vaak zullen
+gebruiken, en dat verdient eigen ontwerpaandacht in plaats van de generieke
+admin-uitstraling.
+
+Bijbehorend besluit: nu al een lichte visuele basisstijl vastleggen in
+`docs/ui-spec.md`, in plaats van dit tot fase 6 uit te stellen — het
+uitzonderingenscherm zet zo het sjabloon voor het weekoverzicht (fase 6),
+zodat beide er als één samenhangende applicatie uitzien in plaats van
+achteraf te moeten harmoniseren.
+
+De kleuren komen rechtstreeks uit de CSS van `https://stroesteam.nl/` (SBTT
+zelf: Bouw/Techniek/Klimaat) — navy `#133B78`, oranje `#FF6B24`, groen
+`#80BB45`. `https://www.stroes.nl/` bleek bij inspectie een ander bedrijf te
+zijn (vastgoedverhuur, "Stroes Onroerend Goed") en is niet gebruikt. Het
+bestaande RMW-logo (`D:\STROES\ChatGPT Image 31 aug 2026, 18_09_13.png`)
+wordt als beeldmerk gebruikt zoals het is; de kleuren in dat logo zelf zijn
+expliciet niet de bron voor het kleurenschema. Voor SOORT O ("onverklaard",
+de kern van dit scherm) is bewust gekozen voor een aparte amber/rode
+waarschuwingskleur buiten het SBTT-palet, omdat oranje op dit scherm al de
+actieknop-kleur is — anders zouden waarschuwing en actieknop visueel door
+elkaar lopen. Volledige uitwerking (tabel met exacte hex-waardes,
+typografie, componenten): zie `docs/ui-spec.md`.

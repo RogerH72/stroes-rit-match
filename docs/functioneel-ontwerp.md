@@ -179,7 +179,16 @@ De precieze schermindeling is nog niet uitgewerkt.
 Onbekende of afwijkende adressen kunnen in één klik gekoppeld worden aan een bekende
 locatie. Eenmaal bevestigde koppelingen worden onthouden (opgeslagen in de
 "bekende-locaties"-koppeltabel), zodat de lijst met openstaande uitzonderingen elke
-week vanzelf korter wordt. Verdere schermdetails zijn nog niet uitgewerkt.
+week vanzelf korter wordt.
+
+Besloten (03-09-2026, zie `docs/decisions.md`, "Lichte visuele stijl vastgelegd voor
+fase 5"): dit scherm wordt gebouwd als onderdeel van de uiteindelijke webapplicatie,
+buiten de Django-admin om — in tegenstelling tot de beheerschermen in §4, die wel
+contractueel vastliggen als Django-admin. Reden: dit is een scherm dat SBTT-
+medewerkers vaak zullen gebruiken en dat eigen ontwerpaandacht verdient. De visuele
+basisstijl (kleuren, typografie, componenten) staat in `docs/ui-spec.md`, gebaseerd
+op SBTT's eigen huisstijl (stroesteam.nl). Verdere schermdetails (welke gegevens per
+uitzondering getoond worden, het bevestigingsformulier) zijn nog niet uitgewerkt.
 
 ## 6. Weekoverzicht (roadmap-fase 6)
 

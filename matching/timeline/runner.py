@@ -7,6 +7,10 @@ Recomputing is always explicit. A stored Tijdblok is what phase 5 and 6 build
 on, so a day that already has one is left alone unless `--force` is given, in
 which case that day is deleted and inserted again — the same idempotent
 delete-and-reinsert `check_imports --reprocess` uses for a re-imported file.
+
+Callers should use `run_matching_and_record_status()` rather than
+`run_matching()` directly, so the MatchmotorStatus row the admin shows keeps up
+with reality.
 """
 
 from __future__ import annotations
@@ -15,8 +19,9 @@ import datetime as dt
 from dataclasses import dataclass, field
 
 from django.db import transaction
+from django.utils import timezone
 
-from matching.models import Monteur, Rit, Tijdblok
+from matching.models import MatchmotorStatus, Monteur, Rit, Tijdblok
 from matching.timeline.engine import (
     DagTijdlijn,
     Koppeltabellen,
@@ -90,6 +95,48 @@ def run_matching(
                 _store(tijdlijn)
             result.dagen.append(tijdlijn)
 
+    return result
+
+
+def run_matching_and_record_status(**kwargs) -> MatchResult:
+    """run_matching(), recording the outcome on the MatchmotorStatus singleton.
+
+    Both trigger paths — the `run_matching` command and the admin's "matching nu
+    draaien" button — go through here rather than calling `run_matching()`
+    directly. The matching is never scheduled, so "when did this last run and did
+    it work" has no other source of truth; having one wrapper own that
+    bookkeeping keeps the two paths from drifting apart.
+
+    A failed run is recorded and then re-raised: the caller still sees the
+    exception (the command still fails loudly, the admin still shows the error),
+    it is only no longer invisible afterwards.
+
+    A dry run is not recorded at all. It writes no Tijdblok rows, so calling it
+    "de laatste run" would make the status claim work that never happened.
+    """
+    if kwargs.get("dry_run"):
+        return run_matching(**kwargs)
+
+    status = MatchmotorStatus.load()
+    # Stamped before the work starts, so a run that dies halfway still leaves
+    # evidence that it was attempted.
+    status.laatste_run_gestart_op = timezone.now()
+    status.save()
+
+    try:
+        result = run_matching(**kwargs)
+    except Exception as exc:
+        status.laatste_run_afgerond_op = timezone.now()
+        status.succes = False
+        status.foutmelding = str(exc)
+        status.save()
+        raise
+
+    status.laatste_run_afgerond_op = timezone.now()
+    status.succes = True
+    status.dagen_verwerkt = len(result.dagen)
+    status.foutmelding = ""
+    status.save()
     return result
 
 

@@ -18,7 +18,7 @@ from django.core.management.base import BaseCommand, CommandError
 
 from matching.models import Soort
 from matching.timeline.normalize import minutes_to_hhmm
-from matching.timeline.runner import run_matching
+from matching.timeline.runner import run_matching_and_record_status
 
 
 def _date(value: str) -> dt.date:
@@ -66,7 +66,7 @@ class Command(BaseCommand):
         if van and tot and tot < van:
             raise CommandError("--tot ligt vóór --van.")
 
-        result = run_matching(
+        result = run_matching_and_record_status(
             medewerker_nummer=options["monteur"],
             van=van,
             tot=tot,

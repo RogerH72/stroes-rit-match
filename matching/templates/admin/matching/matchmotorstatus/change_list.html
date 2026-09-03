@@ -1,0 +1,22 @@
+{% extends "admin/change_list.html" %}
+{% comment %}
+The status list plus the button that triggers a run. A form rather than a link,
+because the endpoint is POST-only: rewriting every Tijdblok is not something a
+refreshed tab or a link preview should be able to set off.
+{% endcomment %}
+
+{% block content %}
+  <div class="module" style="padding: 12px 14px; margin-bottom: 16px;">
+    <form method="post" action="{% url 'admin:matching_matchmotorstatus_run' %}">
+      {% csrf_token %}
+      <button type="submit" class="default">Matching nu draaien</button>
+      <p class="help" style="margin: 8px 0 0;">
+        Herberekent de tijdlijn van alle actieve monteurs, voor alle dagen met
+        ritdata. Doe dit nadat je een koppeltabel hebt aangepast — bijvoorbeeld
+        een bekende locatie of de tolerantietabel. Dit kan even duren; wacht tot
+        de pagina opnieuw is geladen.
+      </p>
+    </form>
+  </div>
+  {{ block.super }}
+{% endblock %}

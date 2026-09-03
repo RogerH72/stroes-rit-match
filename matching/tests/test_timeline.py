@@ -579,3 +579,88 @@ class MeegeredenTests(TestCase):
         )
         with self.assertRaises(ValidationError):
             koppeling.clean()
+
+
+class MeegeredenOverlapTests(TestCase):
+    """A junior rides along with one senior at a time.
+
+    Two koppelingen covering the same day would make the resolution arbitrary:
+    matching/timeline/meegereden.py picks the most recently started one, which is
+    a tie-breaker for bad data, not an intention. Rejecting the overlap at entry
+    keeps that tie-breaker from ever deciding anything.
+    """
+
+    def setUp(self):
+        self.junior = factories.monteur("Junior", "009")
+        self.senior_a = factories.monteur("Senior A", "002", "M2")
+        self.senior_b = factories.monteur("Senior B", "003", "M3")
+
+    def _koppeling(self, senior, van, tot, junior=None):
+        return MeegeredenKoppeling(
+            junior=junior or self.junior, senior=senior, datum_van=van, datum_tot=tot
+        )
+
+    def _bestaand(self, senior, van, tot, junior=None):
+        koppeling = self._koppeling(senior, van, tot, junior)
+        koppeling.save()
+        return koppeling
+
+    def test_two_periods_that_do_not_touch_are_both_allowed(self):
+        self._bestaand(self.senior_a, dt.date(2026, 8, 1), dt.date(2026, 8, 9))
+        volgende = self._koppeling(
+            self.senior_b, dt.date(2026, 8, 10), dt.date(2026, 8, 20)
+        )
+        volgende.clean()  # does not raise
+
+    def test_two_overlapping_periods_are_rejected(self):
+        self._bestaand(self.senior_a, dt.date(2026, 8, 1), dt.date(2026, 8, 14))
+        overlappend = self._koppeling(
+            self.senior_b, dt.date(2026, 8, 10), dt.date(2026, 8, 20)
+        )
+        with self.assertRaises(ValidationError) as ctx:
+            overlappend.clean()
+        self.assertIn("datum_van", ctx.exception.message_dict)
+
+    def test_periods_sharing_one_boundary_day_are_rejected(self):
+        # Both ends are inclusive (as in geldt_op()), so 10 August belongs to
+        # both periods — a junior cannot be reassigned mid-day.
+        self._bestaand(self.senior_a, dt.date(2026, 8, 1), dt.date(2026, 8, 10))
+        aansluitend = self._koppeling(
+            self.senior_b, dt.date(2026, 8, 10), dt.date(2026, 8, 20)
+        )
+        with self.assertRaises(ValidationError):
+            aansluitend.clean()
+
+    def test_an_open_ended_period_blocks_every_later_one(self):
+        # datum_tot=None means "still running", so it reaches into the future
+        # rather than covering nothing.
+        self._bestaand(self.senior_a, dt.date(2026, 8, 1), None)
+        later = self._koppeling(self.senior_b, dt.date(2026, 12, 1), None)
+        with self.assertRaises(ValidationError):
+            later.clean()
+
+    def test_a_new_open_ended_period_cannot_swallow_an_existing_one(self):
+        self._bestaand(self.senior_a, dt.date(2026, 12, 1), dt.date(2026, 12, 31))
+        eerder = self._koppeling(self.senior_b, dt.date(2026, 8, 1), None)
+        with self.assertRaises(ValidationError):
+            eerder.clean()
+
+    def test_an_existing_row_does_not_clash_with_itself(self):
+        koppeling = self._bestaand(
+            self.senior_a, dt.date(2026, 8, 1), dt.date(2026, 8, 9)
+        )
+        koppeling.clean()  # re-saving an unchanged row must stay valid
+
+        koppeling.datum_tot = dt.date(2026, 8, 12)
+        koppeling.clean()  # and so must extending it
+
+    def test_another_juniors_period_is_irrelevant(self):
+        andere_junior = factories.monteur("Junior 2", "010")
+        self._bestaand(
+            self.senior_a, dt.date(2026, 8, 1), dt.date(2026, 8, 20),
+            junior=andere_junior,
+        )
+        eigen = self._koppeling(
+            self.senior_a, dt.date(2026, 8, 1), dt.date(2026, 8, 20)
+        )
+        eigen.clean()  # does not raise

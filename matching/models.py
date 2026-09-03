@@ -7,6 +7,9 @@ Phase 3 (matching engine) — the koppeltabellen SBTT maintains itself (Monteur,
 BekendeLocatie, Instelling, MeegeredenKoppeling, ToleranceRegel) plus Tijdblok,
 the reconstructed day the engine writes. See the section marker further down.
 
+Phase 4 (beheerschermen) — MatchmotorStatus, which records when the matching
+last ran and how it went, so the admin can show that and offer a re-run.
+
 Field lists follow docs/database.md.
 
 Naming convention (docs/decisions.md, 01-09-2026): Dutch domain terms from the
@@ -14,6 +17,8 @@ format SBTT designed themselves (Werkbon, Monteur, Rit, Medewerker, the Fase
 values) stay Dutch in model and field names; generic technical structure
 (source_file, row_number, status timestamps) is English.
 """
+
+import datetime as dt
 
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -627,6 +632,44 @@ class MeegeredenKoppeling(models.Model):
             )
         if self.datum_van and self.datum_tot and self.datum_tot < self.datum_van:
             raise ValidationError({"datum_tot": "De einddatum ligt vóór de begindatum."})
+        self._check_no_overlap()
+
+    def _check_no_overlap(self):
+        """No two koppelingen for the same junior may cover the same day.
+
+        A junior rides along with one senior at a time, and the matching resolves
+        exactly one bronmonteur per day — two overlapping rows would make that
+        choice arbitrary (matching/timeline/meegereden.py picks the most recently
+        started one, which is a tie-breaker, not an intention).
+
+        Two details, both taken from `geldt_op()` below so validation and
+        resolution agree on what a period means:
+
+        * An empty `datum_tot` is open-ended, so it is compared as if it ran
+          infinitely far into the future — not as "no end, therefore no overlap".
+        * Both ends are inclusive, so periods sharing a single boundary day
+          overlap: a junior cannot be reassigned to another senior on a day he
+          already rode with the first one.
+        """
+        if not self.junior_id or not self.datum_van:
+            return
+
+        eigen_tot = self.datum_tot or dt.date.max
+        andere = MeegeredenKoppeling.objects.filter(junior_id=self.junior_id).exclude(
+            pk=self.pk
+        )
+        for ander in andere:
+            ander_tot = ander.datum_tot or dt.date.max
+            if self.datum_van <= ander_tot and ander.datum_van <= eigen_tot:
+                raise ValidationError(
+                    {
+                        "datum_van": (
+                            "Overlapt met een bestaande koppeling van "
+                            f"{ander.junior} met {ander.senior} "
+                            f"({ander.datum_van} – {ander.datum_tot or 'heden'})."
+                        )
+                    }
+                )
 
     def geldt_op(self, datum) -> bool:
         """Whether this koppeling covers `datum`."""
@@ -701,3 +744,74 @@ class Tijdblok(models.Model):
 
     def __str__(self) -> str:
         return f"{self.datum} {self.monteur.naam} #{self.volgorde} {self.soort}"
+
+
+# ---------------------------------------------------------------------------
+# Roadmap phase 4 — the beheerschermen.
+# ---------------------------------------------------------------------------
+
+
+#: Primary key of the one MatchmotorStatus row. See INSTELLING_SINGLETON_PK.
+MATCHMOTOR_STATUS_SINGLETON_PK = 1
+
+
+class MatchmotorStatus(models.Model):
+    """When the matching last ran, and how it went — exactly one row.
+
+    The matching is never scheduled: it only runs when someone asks for it
+    (docs/database.md). That makes "when did this last run, and did it work"
+    a real question, and the admin has nowhere else to read the answer from.
+
+    Both trigger paths — the `run_matching` command and the admin's "matching nu
+    draaien" button — go through
+    `matching.timeline.runner.run_matching_and_record_status`, so this row is
+    accurate regardless of who started a run.
+    """
+
+    #: The one and only row.
+    SINGLETON_PK = MATCHMOTOR_STATUS_SINGLETON_PK
+
+    # Written before the run rather than after, so a run that crashes or is
+    # killed still leaves a trace that it was attempted.
+    laatste_run_gestart_op = models.DateTimeField(
+        "laatste run gestart op", null=True, blank=True
+    )
+    laatste_run_afgerond_op = models.DateTimeField(
+        "laatste run afgerond op", null=True, blank=True
+    )
+    # Three states, not two: null is "nog nooit gedraaid", which is not the same
+    # signal as False ("de laatste run is mislukt").
+    succes = models.BooleanField("gelukt", null=True, blank=True)
+    dagen_verwerkt = models.PositiveIntegerField("dagen verwerkt", default=0)
+    foutmelding = models.TextField("foutmelding", blank=True)
+
+    class Meta:
+        verbose_name = "matchmotor-status"
+        verbose_name_plural = "matchmotor-status"
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(id=MATCHMOTOR_STATUS_SINGLETON_PK),
+                name="matchmotor_status_is_singleton",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return "Matchmotor-status"
+
+    @classmethod
+    def load(cls) -> "MatchmotorStatus":
+        """The singleton row, created with its defaults if it does not exist yet."""
+        status, _ = cls.objects.get_or_create(pk=cls.SINGLETON_PK)
+        return status
+
+    def save(self, *args, **kwargs):
+        # Pinning the primary key is what makes this a singleton: a second row
+        # can only ever overwrite the first one.
+        self.pk = self.SINGLETON_PK
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError(
+            "De matchmotor-status kan niet verwijderd worden; hij wordt bij elke "
+            "run overschreven."
+        )

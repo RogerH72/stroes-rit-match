@@ -1,9 +1,15 @@
-from django.contrib import admin
+from django.contrib import admin, messages
+from django.core.exceptions import PermissionDenied
+from django.http import HttpResponseRedirect
+from django.urls import path, reverse
+from django.utils.decorators import method_decorator
+from django.views.decorators.http import require_POST
 
 from matching.models import (
     BekendeLocatie,
     ImportedFile,
     Instelling,
+    MatchmotorStatus,
     MeegeredenKoppeling,
     Monteur,
     Relatie,
@@ -13,6 +19,7 @@ from matching.models import (
     Uren,
     WerkbonControle,
 )
+from matching.timeline.runner import run_matching_and_record_status
 
 # Admin UI text is Dutch (project convention: UI in Dutch, code in English).
 admin.site.site_header = "RMW — Ritten Match Werkbon"
@@ -197,3 +204,91 @@ class TijdblokAdmin(admin.ModelAdmin):
     list_filter = ("soort", "datum", "monteur")
     search_fields = ("werkbon", "omschrijving", "adres")
     date_hierarchy = "datum"
+
+
+@admin.register(MatchmotorStatus)
+class MatchmotorStatusAdmin(admin.ModelAdmin):
+    """The status screen, and the one button SBTT needs.
+
+    The matching is never scheduled — it only recomputes when someone asks
+    (docs/database.md). Editing a koppeltabel therefore has no visible effect
+    until a run happens, and until now the only way to trigger one was
+    `python manage.py run_matching --force` on the server. SBTT staff have no
+    shell, so this screen is that command.
+
+    Singleton, like InstellingAdmin above: adding and deleting are off, and the
+    changelist doubles as the status view.
+    """
+
+    list_display = (
+        "__str__",
+        "laatste_run_gestart_op",
+        "laatste_run_afgerond_op",
+        "succes",
+        "dagen_verwerkt",
+    )
+    change_list_template = "admin/matching/matchmotorstatus/change_list.html"
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def changelist_view(self, request, extra_context=None):
+        # Make sure the single row exists, so the list is never empty and the
+        # button always has a page to live on.
+        MatchmotorStatus.load()
+        return super().changelist_view(request, extra_context)
+
+    def get_urls(self):
+        # Ahead of the default admin URLs, so the literal path is not swallowed
+        # by the <object_id> pattern.
+        return [
+            path(
+                "matching-nu-draaien/",
+                self.admin_site.admin_view(self.run_matching_view),
+                name="matching_matchmotorstatus_run",
+            ),
+            *super().get_urls(),
+        ]
+
+    @method_decorator(require_POST)
+    def run_matching_view(self, request):
+        """Recompute everything, then report back on the changelist.
+
+        POST-only: this rewrites every Tijdblok, which is not something a link
+        preview or a refreshed browser tab should be able to set off.
+
+        Deliberately synchronous. There is no task queue in this app and one
+        client's week of data takes well under a second, so the honest thing is
+        to make the user wait and then tell him what happened, rather than add
+        infrastructure to hide a wait that barely exists.
+
+        `force=True` and no filters: the button is the common case ("I changed
+        something, recompute everything"). The command keeps
+        `--monteur`/`--van`/`--tot` for a targeted re-run.
+        """
+        if not self.has_change_permission(request):
+            raise PermissionDenied
+
+        redirect_to = reverse("admin:matching_matchmotorstatus_changelist")
+        try:
+            result = run_matching_and_record_status(force=True)
+        except Exception as exc:
+            # The status row already recorded the failure; this is only to put
+            # it in front of the person who pressed the button.
+            self.message_user(
+                request,
+                f"De matching is mislukt: {exc}",
+                level=messages.ERROR,
+            )
+            return HttpResponseRedirect(redirect_to)
+
+        self.message_user(
+            request,
+            f"Matching afgerond: {len(result.dagen)} dag(en) herberekend, "
+            f"{result.aantal_blokken} tijdblok(ken).",
+            level=messages.SUCCESS,
+        )
+        return HttpResponseRedirect(redirect_to)

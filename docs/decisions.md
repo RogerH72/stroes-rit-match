@@ -367,3 +367,44 @@ staan, zie `docs/decisions.md` 01-09-2026) is een AVG-afweging die niet implicie
 door een code-tool gemaakt mag worden. Bij de bouw van fase 2 werd dit expliciet als
 zodanig herkend en aan Roger voorgelegd in plaats van zelf besloten — hier bevestigd
 als vast beleid voor de rest van het project.
+
+## 2026-09-03 — Deployment volgt het ReplayCalcTool-patroon; productiedatabase blijft SQLite (Current)
+
+Decision: RMW's oplevering (roadmap-fase 7) volgt dezelfde aanpak als
+ReplayCalcTool: lokaal bouwen, verpakken als Docker-container, en door de
+IT-supportpartner van de klant (Stric) op een eigen VM (bij voorkeur Proxmox,
+anders een kleine VPS) geplaatst vanaf de private GitHub-repo. Geen tussenlaag
+zoals Railway — bij Replay is dat destijds ook losgelaten ten gunste van
+rechtstreeks een VM bij de IT-partner.
+
+Daarnaast, expliciet nu al besloten in plaats van open te laten tot fase 7: de
+**productiedatabase blijft SQLite** (niet PostgreSQL zoals bij Replay). Het
+SQLite-bestand staat op een named Docker-volume, gedeeld door de `web`- en
+`scheduler`-service. Back-up gebeurt via een nog te bouwen `backup_db`
+management-command dat gebruikmaakt van SQLite's ingebouwde online-backup-API
+(veilig bruikbaar terwijl de database in gebruik is), wegschrijvend naar een
+aparte bind-mount op de VM (los van het databasevolume, zodat een
+`docker compose down -v` de back-ups niet meeneemt), met een dagelijkse cron-job
+en 30 dagen bewaartermijn — zelfde ritme als Replay's `pg_dump`-cron, andere
+techniek.
+
+Het volledige, uitvoerbare draaiboek staat in `DRAAIBOEK.md` (root van de
+repository, zelfde plek/naam als bij ReplayCalcTool). Dat draaiboek is nu al
+grotendeels geschreven, vooruitlopend op fase 7, met drie onderdelen expliciet
+gemarkeerd als nog niet definitief: de VM-gegevens (in te vullen zodra Stric een
+VM heeft klaargezet), het `backup_db`-commando + de bijbehorende volume in
+`docker-compose.yml` (nog te bouwen), en §7 "eerste inrichting" (kan pas
+ingevuld worden na de beheerschermen van fase 4/5).
+
+Reasoning: Roger wil voor RMW dezelfde, inmiddels bewezen werkwijze als bij
+Replay aanhouden — lokaal bouwen, dan containeriseren, dan bij de klant plaatsen
+via de IT-partner, in plaats van een aparte demo-/staging-omgeving. Voor de
+database is expliciet gekozen tussen SQLite en PostgreSQL (zie
+`settings.py`-comment "de productiedatabase is bewust nog niet gekozen"): SQLite
+past beter bij RMW's schaal (één klant, lage schrijffrequentie: de scheduler
+draait elke 5 minuten, de admin-schermen worden incidenteel gebruikt) en bij de
+in het OvO toegezegde "lichte, zelfstandige container" — een aparte
+databaseservice zoals bij Replay zou dat uitgangspunt onnodig verzwaren. Het
+draaiboek is nu al opgesteld (in plaats van te wachten tot fase 7) zodat de
+oplevering straks een kwestie van uitvoeren is; de drie nog openstaande
+onderdelen zijn expliciet gemarkeerd in plaats van als af voorgedaan.

@@ -55,7 +55,10 @@ Per monteur, als webpagina én als Excel-export, in de eigen lay-out van SBTT
 Lichte, zelfstandige Docker-container, i.s.m. Stric geplaatst in een bestaande
 Proxmox-/VM-omgeving (of anders een kleine VPS). Bij elke nieuwe versie eerst een
 back-up van de koppeltabellen, zodat een rollback mogelijk is bij problemen (OvO
-punt 3).
+punt 3). Volgt dezelfde aanpak als ReplayCalcTool (zie `docs/decisions.md`,
+03-09-2026). Het uitvoerbare draaiboek staat alvast klaar in `DRAAIBOEK.md`; drie
+onderdelen daarin zijn nog niet definitief (VM-gegevens, het `backup_db`-commando,
+§7 "eerste inrichting").
 
 ### 8. Acceptatie
 Samen testen; Wim test binnen 30 werkdagen na oplevering, anders geldt de oplevering

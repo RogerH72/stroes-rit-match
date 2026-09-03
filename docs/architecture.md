@@ -31,6 +31,16 @@ handmatige download, een Syntess-API-koppeling ("kost direct geld"), en Access/P
 BI als reporting-schil. Zie `docs/roadmap.md` voor de volledige lijst met
 uitbreidingen.
 
+## Deployment (fase 7, vooruitlopend vastgelegd)
+
+Zelfde patroon als ReplayCalcTool: lokaal bouwen, Docker-container, geplaatst
+door Stric op een eigen VM vanaf de private GitHub-repo. Productiedatabase blijft
+SQLite (niet PostgreSQL) — zie `docs/decisions.md` (03-09-2026) voor de afweging.
+Het volledige, stap-voor-stap draaiboek staat in `DRAAIBOEK.md` (root van de
+repository); drie onderdelen daarin zijn nog niet definitief (VM-gegevens bij
+Stric, het nog te bouwen `backup_db`-commando, en §7 "eerste inrichting" die op
+de fase 4/5-beheerschermen wacht).
+
 ### Trigger-mechanisme (bestandsdetectie servermap) — ontworpen, nog niet gebouwd
 
 Vastgelegd in een ontwerpgesprek (01-09-2026), vooruitlopend op de bouw:

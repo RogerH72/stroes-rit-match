@@ -714,6 +714,13 @@ class Tijdblok(models.Model):
     `werkbon` is free text on purpose: there is no Werkbon entity anywhere in
     this app — phase 2 stores werkbon numbers as plain values too.
 
+    `postcode` and `straat` hold the normalised matching keys of the stop, next
+    to the composed `adres` text that is only there to be displayed. They are
+    stored rather than derived later because the uitzonderingenscherm (phase 5)
+    groups and counts by them: re-parsing them out of `adres` works today, but
+    would break silently the moment that display string changes shape
+    (docs/decisions.md, 2026-09-03).
+
     No WB-vs-SYS signal field: that part of the PoC is deliberately not built
     (docs/decisions.md, 02-09-2026).
     """
@@ -731,6 +738,9 @@ class Tijdblok(models.Model):
 
     omschrijving = models.CharField("omschrijving", max_length=255, blank=True)
     adres = models.CharField("adres", max_length=512, blank=True)
+    # Indexed because the uitzonderingenscherm groups and counts on these two.
+    postcode = models.CharField("postcode", max_length=6, blank=True, db_index=True)
+    straat = models.CharField("straat", max_length=255, blank=True, db_index=True)
     werkbon = models.CharField("werkbon", max_length=32, blank=True, db_index=True)
 
     berekend_op = models.DateTimeField("berekend op", auto_now=True)

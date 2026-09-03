@@ -1,0 +1,49 @@
+{% extends "matching/basis.html" %}
+
+{% block titel %}Uitzonderingen — RMW{% endblock %}
+
+{% block inhoud %}
+  <h1>Onverklaarde stops</h1>
+  <p class="toelichting">
+    Adressen waar een monteur langer heeft gestaan dan de tolerantie toestaat,
+    zonder dat daar een werkbon of bekende locatie bij hoort. Koppel een adres
+    één keer en het verdwijnt uit deze lijst — ook voor de dagen die daarna nog
+    volgen.
+  </p>
+
+  {% if groepen %}
+    <div class="kaart">
+      <table>
+        <thead>
+          <tr>
+            <th>Adres</th>
+            <th>Hoe vaak</th>
+            <th>Monteur(s)</th>
+            <th>Datum(s)</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for groep in groepen %}
+            <tr>
+              <td><strong>{{ groep.adres }}</strong></td>
+              <td><span class="pil waarschuwing">{{ groep.aantal }}&times;</span></td>
+              <td>{{ groep.monteurs|join:", " }}</td>
+              <td>{% for datum in groep.datums %}{{ datum|date:"d-m-Y" }}{% if not forloop.last %}, {% endif %}{% endfor %}</td>
+              <td>
+                {% if perms.matching.add_bekendelocatie %}
+                  <a class="knop" href="{% url 'uitzonderingen_koppelen' groep.precisie groep.sleutel %}">Koppelen</a>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="kaart leeg">
+      Geen onverklaarde stops. Elke stop van elke monteur is verklaard door een
+      werkbon of een bekende locatie.
+    </div>
+  {% endif %}
+{% endblock %}

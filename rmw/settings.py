@@ -10,6 +10,7 @@ Docs: https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 import os
+import sys
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -129,6 +130,16 @@ STORAGES = {
         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
     },
 }
+
+# The manifest storage resolves {% static %} through staticfiles.json, which only
+# exists after collectstatic. The container runs that during its build, but
+# `manage.py test` never does — and a test run has DEBUG off, so the first
+# template with a {% static %} tag would fail on a fresh checkout. Only the test
+# run falls back to the plain storage; serving is unchanged.
+if "test" in sys.argv:
+    STORAGES["staticfiles"] = {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    }
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

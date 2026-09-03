@@ -17,6 +17,11 @@ refreshed tab or a link preview should be able to set off.
         de pagina opnieuw is geladen.
       </p>
     </form>
+    <p style="margin: 12px 0 0;">
+      {# The only way into the screen outside the admin. This page is where staff #}
+      {# already come after changing a koppeltabel, so it is the natural spot.    #}
+      <a href="{% url 'uitzonderingen' %}">Uitzonderingen bekijken &rarr;</a>
+    </p>
   </div>
   {{ block.super }}
 {% endblock %}

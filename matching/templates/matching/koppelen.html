@@ -1,0 +1,44 @@
+{% extends "matching/basis.html" %}
+
+{% block titel %}Koppelen: {{ groep.adres }} — RMW{% endblock %}
+
+{% block inhoud %}
+  <h1>Adres koppelen</h1>
+  <p class="toelichting">
+    Vertel één keer wat dit adres is. Alle onverklaarde stops op dit adres
+    krijgen daarna vanzelf de juiste SOORT — ook op latere dagen.
+  </p>
+
+  <div class="kaart">
+    <p style="margin-top:0;">
+      <strong>{{ groep.adres }}</strong>
+      <span class="pil waarschuwing">{{ groep.aantal }}&times; onverklaard</span>
+    </p>
+    <p style="margin-bottom:0;">
+      {{ groep.monteurs|join:", " }} —
+      {% for datum in groep.datums %}{{ datum|date:"d-m-Y" }}{% if not forloop.last %}, {% endif %}{% endfor %}
+    </p>
+  </div>
+
+  <form method="post" class="kaart">
+    {% csrf_token %}
+    {% for fout in form.non_field_errors %}<div class="fout">{{ fout }}</div>{% endfor %}
+    {% for veld in form %}
+      <div class="veld">
+        {{ veld.label_tag }}
+        {{ veld }}
+        {% if veld.help_text %}<div class="hulp">{{ veld.help_text }}</div>{% endif %}
+        {% for fout in veld.errors %}<div class="fout">{{ fout }}</div>{% endfor %}
+      </div>
+    {% endfor %}
+    <p class="hulp" style="max-width:420px;">
+      Herkend op postcode <strong>{{ groep.postcode|default:"–" }}</strong>,
+      straat <strong>{{ groep.straat|default:"–" }}</strong>. Wissel je van
+      herkenning, pas dan ook de waarde aan.
+    </p>
+    <p style="margin-bottom:0;">
+      <button type="submit" class="knop">Koppelen</button>
+      <a class="knop secundair" href="{% url 'uitzonderingen' %}" style="margin-left:12px;">Annuleren</a>
+    </p>
+  </form>
+{% endblock %}

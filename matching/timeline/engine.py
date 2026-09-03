@@ -318,6 +318,9 @@ def _classify_stop(
     postcode = normalize.postcode(rit.aankomstplaats)
     straat = normalize.street(rit.aankomstadres)
     adres = f"{rit.aankomstadres}, {rit.aankomstplaats}"
+    # Every branch below stores these two on its Tijdblok, not just the O one the
+    # uitzonderingenscherm reads: they are already computed here, so keeping all
+    # stop rows consistent costs nothing and saves a second migration later.
     gap = _minutes_between(start, eind)
 
     depot = koppeltabellen.depot_per_straat.get(
@@ -331,6 +334,8 @@ def _classify_stop(
             eind=eind,
             omschrijving=depot.label,
             adres=adres,
+            postcode=postcode,
+            straat=straat,
         )
         return
 
@@ -344,6 +349,8 @@ def _classify_stop(
             eind=eind,
             omschrijving=f"{urenregel.werkbon} · {omschrijving}".strip(" ·"),
             adres=adres,
+            postcode=postcode,
+            straat=straat,
             werkbon=urenregel.werkbon,
         )
         return
@@ -360,6 +367,8 @@ def _classify_stop(
             eind=eind,
             omschrijving=omschrijving,
             adres=adres,
+            postcode=postcode,
+            straat=straat,
             werkbon=controleregel.werkbon,
         )
         return
@@ -375,6 +384,8 @@ def _classify_stop(
             eind=eind,
             omschrijving=locatie.label,
             adres=adres,
+            postcode=postcode,
+            straat=straat,
         )
         return
 
@@ -391,6 +402,8 @@ def _classify_stop(
             eind=eind,
             omschrijving="Onverklaarde stop",
             adres=adres,
+            postcode=postcode,
+            straat=straat,
         )
     elif gap >= 1:
         _add(
@@ -400,6 +413,8 @@ def _classify_stop(
             eind=eind,
             omschrijving="Korte onbekende stop",
             adres=adres,
+            postcode=postcode,
+            straat=straat,
         )
     # Under a minute: too short to matter, no row at all.
 
@@ -412,9 +427,18 @@ def _add(
     eind: dt.datetime,
     omschrijving: str = "",
     adres: str = "",
+    postcode: str = "",
+    straat: str = "",
     werkbon: str = "",
 ) -> None:
-    """Append one unsaved Tijdblok, numbering it as the next block of the day."""
+    """Append one unsaved Tijdblok, numbering it as the next block of the day.
+
+    `postcode`/`straat` are the normalised matching keys of the stop, stored
+    alongside the composed `adres` display text so the uitzonderingenscherm can
+    group on them without re-parsing that text (docs/decisions.md, 2026-09-03).
+    They default to blank for a block that has no single address of its own — an
+    R (reistijd) block runs between two addresses, not at one.
+    """
     tijdlijn.blokken.append(
         Tijdblok(
             monteur=tijdlijn.monteur,
@@ -426,6 +450,8 @@ def _add(
             duur_minuten=_minutes_between(start, eind),
             omschrijving=omschrijving[:255],
             adres=adres[:512],
+            postcode=postcode[:6],
+            straat=straat[:255],
             werkbon=werkbon[:32],
         )
     )

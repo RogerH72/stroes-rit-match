@@ -459,9 +459,15 @@ def werkbon_controle(
     datum: dt.date,
     fase_status: str,
     *,
+    postcode: str = "",
+    titel: str = "",
     source_file: ImportedFile | None = None,
 ) -> WerkbonControle:
-    """One resolved Werkbon/medewerker/date row for the completeness check."""
+    """One resolved Werkbon/medewerker/date row.
+
+    `postcode` is stored raw, the way the parser stores it — the matching
+    normalises it when it looks it up.
+    """
     source_file = source_file or import_bestand(SourceKind.WERKBON_CONTROLE)
     return WerkbonControle.objects.create(
         source_file=source_file,
@@ -470,6 +476,8 @@ def werkbon_controle(
         medewerker=medewerker,
         datum=datum,
         fase_status=fase_status,
+        postcode=postcode,
+        titel=titel,
     )
 
 

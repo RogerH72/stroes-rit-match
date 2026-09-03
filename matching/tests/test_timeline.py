@@ -14,6 +14,7 @@ from django.test import TestCase
 
 from matching.models import (
     BekendeLocatie,
+    FaseStatus,
     Instelling,
     LocatieType,
     MeegeredenKoppeling,
@@ -108,7 +109,11 @@ class HomeStreetTests(TestCase):
 
 
 class ClassificatieTests(TestCase):
-    """The priority order of §3b: depot, werkbon, koppeltabel, thuis, onverklaard."""
+    """The priority order of §3b.
+
+    Depot, own booked hours, the Werkbonnen.xlsx postcode fallback, the rest of
+    the koppeltabel, home, and finally the tolerance check.
+    """
 
     def setUp(self):
         self.monteur = factories.monteur("M5", "005", "M5")
@@ -204,6 +209,84 @@ class ClassificatieTests(TestCase):
             self._day_with_one_stop(stop_adres="Randweg 20", stop_plaats=DEPOT_PLAATS)
         )
         self.assertEqual(stop.soort, Soort.LOCATIE)
+
+    def test_the_werkbonnen_postcode_rescues_a_stop_the_hours_do_not_cover(self):
+        """The fallback that closed the gap with the PoC's recovery rate.
+
+        A monteur types the address into his Uren booking by hand, so it can be
+        wrong or simply different from where the van actually stopped. The
+        postcode in Werkbonnen.xlsx comes from the office planning instead, so it
+        still matches when the Uren address does not — which is why the PoC found
+        werkbonnen this app was missing (docs/decisions.md, 2026-09-03).
+        """
+        factories.urenregel(
+            "005", DAG, "WB260908",
+            adres="Heel andere straat 1", postcode="9999 ZZ", plaats="ELDERS",
+        )
+        factories.werkbon_controle(
+            "WB260908", "005", DAG, FaseStatus.AFGEROND,
+            postcode="4196 HB", titel="TRICHT - E-werkzaamheden",
+        )
+        stop = self._stop(
+            self._day_with_one_stop(stop_adres=KLANT_ADRES, stop_plaats=KLANT_PLAATS)
+        )
+        self.assertEqual(stop.soort, Soort.WERKBON)
+        self.assertEqual(stop.werkbon, "WB260908")
+        # Titel is display text here, never a matching key of its own.
+        self.assertEqual(stop.omschrijving, "WB260908 · TRICHT - E-werkzaamheden")
+
+    def test_the_own_booked_hours_still_win_from_the_werkbonnen_postcode(self):
+        # The fallback is second-best on purpose: it only fires where the
+        # monteur's own booking does not already explain the stop.
+        factories.urenregel(
+            "005", DAG, "WB260908",
+            adres=KLANT_ADRES, postcode="4196 HB", plaats="TRICHT",
+            opdrachtgever="Gijs van Velzen",
+        )
+        factories.werkbon_controle(
+            "WB999999", "005", DAG, FaseStatus.AFGEROND,
+            postcode="4196 HB", titel="Andere werkbon",
+        )
+        stop = self._stop(
+            self._day_with_one_stop(stop_adres=KLANT_ADRES, stop_plaats=KLANT_PLAATS)
+        )
+        self.assertEqual(stop.werkbon, "WB260908")
+
+    def test_the_werkbonnen_postcode_wins_from_the_koppeltabel(self):
+        # A recognised werkbon says more than a label on an address, so the
+        # fallback sits above the koppeltabel in the order.
+        factories.bekende_locatie(
+            LocatieType.STRAAT, "Lingedijk", Soort.CREDITEUR, "Groothandel"
+        )
+        factories.werkbon_controle(
+            "WB260908", "005", DAG, FaseStatus.AFGEROND, postcode="4196 HB"
+        )
+        stop = self._stop(
+            self._day_with_one_stop(stop_adres=KLANT_ADRES, stop_plaats=KLANT_PLAATS)
+        )
+        self.assertEqual(stop.soort, Soort.WERKBON)
+
+    def test_the_depot_still_wins_from_the_werkbonnen_postcode(self):
+        # The fallback is inserted below the depot check, so a werkbon planned at
+        # the company's own address does not turn a depot stop into work.
+        factories.werkbon_controle(
+            "WB261206", "005", DAG, FaseStatus.AFGEROND, postcode="4104 AC"
+        )
+        stop = self._stop(
+            self._day_with_one_stop(stop_adres=DEPOT_ADRES, stop_plaats=DEPOT_PLAATS)
+        )
+        self.assertEqual(stop.soort, Soort.LOCATIE)
+
+    def test_a_werkbonnen_row_of_another_monteur_does_not_match(self):
+        factories.werkbon_controle(
+            "WB260908", "001", DAG, FaseStatus.AFGEROND, postcode="4196 HB"
+        )
+        stop = self._stop(
+            self._day_with_one_stop(
+                stop_adres=KLANT_ADRES, stop_plaats=KLANT_PLAATS, stop_minuten=45
+            )
+        )
+        self.assertEqual(stop.soort, Soort.ONVERKLAARD)
 
     def test_the_koppeltabel_labels_a_stop_that_has_no_werkbon(self):
         factories.bekende_locatie(

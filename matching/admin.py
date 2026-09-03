@@ -95,9 +95,15 @@ class RelatieAdmin(ReadOnlyImportAdmin):
 
 @admin.register(WerkbonControle)
 class WerkbonControleAdmin(ReadOnlyImportAdmin):
-    list_display = ("werkbon", "medewerker", "datum", "fase_status")
+    # `postcode` is in the list because it is the one column of this table the
+    # matching actually reads (see matching/timeline/engine.py). The remaining
+    # stored columns — titel, tijd, reistijd, werktijd, monteur_meegereden — are
+    # unused and stay off the list; like every read-only import admin here, the
+    # detail view restricts no fields, so they are all visible when a row is
+    # opened.
+    list_display = ("werkbon", "medewerker", "datum", "postcode", "fase_status")
     list_filter = ("fase_status", "datum", "medewerker")
-    search_fields = ("werkbon",)
+    search_fields = ("werkbon", "postcode", "titel")
     date_hierarchy = "datum"
 
 

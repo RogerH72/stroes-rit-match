@@ -258,11 +258,31 @@ class FaseStatus(models.TextChoices):
 
 
 class WerkbonControle(SourceRow):
-    """One Werkbon/medewerker/date from Werkbonnen.xlsx, for the completeness check only.
+    """One Werkbon/medewerker/date from Werkbonnen.xlsx.
 
-    Never an input for the matching itself (docs/business-rules.md). Reistijd,
-    Werktijd, Titel and "Monteur meegereden" are deliberately not stored: they are
-    unreliable and unused anywhere in the design.
+    Mainly for the completeness check (a finished werkbon without booked hours),
+    with one exception described below.
+
+    Every column the export offers is now stored (docs/decisions.md,
+    2026-09-03). Source files on the share are never deleted, so nothing would
+    have been lost by leaving them out — but capturing them in the migration this
+    table needed anyway avoids a second migration and a second read-through later
+    if a use ever appears. Storing is not using:
+
+    * `postcode` is the exception, and the only field the matching reads: it is a
+      fallback matching key, because it comes from the office planning rather
+      than from what a monteur hand-typed into his own Uren booking. Documented
+      where it is used, in matching/timeline/engine.py.
+    * `titel` is shown as description text only when that fallback fires — for
+      readability, never as a matching key of its own.
+    * `reistijd` and `werktijd` are kept verbatim as text: their unit and format
+      are not confirmed, and since nothing reads them, forcing a numeric type
+      would only risk failing an import over a value nobody acts on. They stay
+      out of the matching entirely — werktijd follows from the ride data
+      (docs/business-rules.md).
+    * `monteur_meegereden` is reserved for the SYNTESS mode of
+      `Instelling.meegereden_modus`, which is deliberately disabled; nothing
+      reads it yet.
 
     Werkbonnen.xlsx holds one row per Fase transition, and a Werkbon can appear on
     several dates. Rows are stored per (Werkbon, Medewerker, Datum) — the grain the
@@ -279,6 +299,18 @@ class WerkbonControle(SourceRow):
     datum = models.DateField("datum", db_index=True)
     fase_status = models.CharField(
         "fase-status", max_length=32, choices=FaseStatus.choices
+    )
+
+    # Stored raw, exactly like Uren.postcode; normalised at match time by
+    # matching/timeline/normalize.py rather than at parse time, so the stored
+    # value stays a faithful copy of the source.
+    postcode = models.CharField("postcode", max_length=10, blank=True)
+    titel = models.CharField("titel", max_length=255, blank=True)
+    tijd = models.TimeField("tijd", null=True, blank=True)
+    reistijd = models.CharField("reistijd", max_length=32, blank=True)
+    werktijd = models.CharField("werktijd", max_length=32, blank=True)
+    monteur_meegereden = models.CharField(
+        "monteur meegereden", max_length=16, blank=True
     )
 
     class Meta:

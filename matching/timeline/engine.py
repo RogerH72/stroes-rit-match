@@ -11,7 +11,10 @@ SBTT maintains itself.
 The shape of a day: each ride becomes an R (reistijd) block, and the gap between
 two consecutive rides is a stop that gets classified. Work time therefore follows
 from the ride data, never from the Werktijd/Reistijd fields on the werkbon —
-monteurs do not fill those in consistently (docs/business-rules.md).
+monteurs do not fill those in consistently (docs/business-rules.md). Those fields
+of Werkbonnen.xlsx (Werktijd/Reistijd/Titel/Tijd) are still never used for that;
+only its Postcode is read here, as a fallback matching key
+(docs/decisions.md, 2026-09-03).
 """
 
 from __future__ import annotations
@@ -30,6 +33,7 @@ from matching.models import (
     Tijdblok,
     ToleranceRegel,
     Uren,
+    WerkbonControle,
 )
 from matching.timeline import normalize
 from matching.timeline.meegereden import resolve_bronmonteur
@@ -162,6 +166,32 @@ class DagUren:
         return cls(per_postcode, per_straat)
 
 
+@dataclass
+class WerkbonPostcodes:
+    """Fallback postcode index from Werkbonnen.xlsx.
+
+    Used only when the monteur's own booked hours (DagUren) do not cover a
+    stop's postcode or street. Werkbonnen.xlsx is still not a general matching
+    source — Titel/Tijd/Reistijd/Werktijd from it are never read here — but its
+    Postcode comes from the office planning rather than what a monteur typed
+    into Uren.xlsx by hand, so it recovers matches the PoC also found this way
+    (docs/decisions.md, 2026-09-03).
+    """
+
+    per_postcode: dict[str, WerkbonControle]
+
+    @classmethod
+    def load(cls, monteur: Monteur, datum: dt.date) -> "WerkbonPostcodes":
+        per_postcode: dict[str, WerkbonControle] = {}
+        for regel in WerkbonControle.objects.filter(
+            medewerker=monteur.medewerker_nummer, datum=datum
+        ).order_by("row_number"):
+            postcode = normalize.postcode(regel.postcode)
+            if postcode:
+                per_postcode.setdefault(postcode, regel)
+        return cls(per_postcode)
+
+
 def drempel_minuten(activiteit: str | None = None) -> int:
     """The tolerance above which an unexplained stop counts as onverklaard (O).
 
@@ -212,6 +242,7 @@ def build_day(
     if koppeltabellen is None:
         koppeltabellen = Koppeltabellen.load()
     uren = DagUren.load(monteur, datum, koppeltabellen.depot_streets)
+    werkbonnen = WerkbonPostcodes.load(monteur, datum)
 
     # One lookup per day rather than per stop: the tolerance cannot change
     # halfway through a day.
@@ -245,6 +276,7 @@ def build_day(
             eind=volgende_vertrek,
             koppeltabellen=koppeltabellen,
             uren=uren,
+            werkbonnen=werkbonnen,
             home_streets=home_streets,
             drempel=drempel,
         )
@@ -259,6 +291,7 @@ def _classify_stop(
     eind: dt.datetime,
     koppeltabellen: Koppeltabellen,
     uren: DagUren,
+    werkbonnen: WerkbonPostcodes,
     home_streets: set[str],
     drempel: int,
 ) -> None:
@@ -268,15 +301,18 @@ def _classify_stop(
 
     1. Depot first — the company's own address doubles as a customer address, so
        a depot stop must never be read as work there.
-    2. Then the monteur's own booked hours — this is the actual matching: a stop
-       at an address he booked hours on that day is that werkbon (W).
-    3. Then the rest of the koppeltabel (K/L/C) — addresses a user recognised
+    2. Then the monteur's own booked hours (Uren.xlsx) — the actual matching: a
+       stop at an address he booked hours on that day is that werkbon (W).
+    3. Then Werkbonnen.xlsx's own Postcode, as a fallback for when Uren.xlsx's
+       address doesn't cover the stop — still W, just a second-best source
+       (docs/decisions.md, 2026-09-03).
+    4. Then the rest of the koppeltabel (K/L/C) — addresses a user recognised
        once and never has to explain again.
-    4. Then home — the day's own edges, dropped rather than shown.
-    5. Otherwise unexplained: above the tolerance it is a real signal (O), below
+    5. Then home — the day's own edges, dropped rather than shown.
+    6. Otherwise unexplained: above the tolerance it is a real signal (O), below
        it is short noise (?), and under a minute it is not worth a row at all.
 
-    Within 2, postcode wins over street; within 3, street wins over postcode —
+    Within 2, postcode wins over street; within 4, street wins over postcode —
     both exactly as the PoC ordered its lookups.
     """
     postcode = normalize.postcode(rit.aankomstplaats)
@@ -309,6 +345,22 @@ def _classify_stop(
             omschrijving=f"{urenregel.werkbon} · {omschrijving}".strip(" ·"),
             adres=adres,
             werkbon=urenregel.werkbon,
+        )
+        return
+
+    # The depot does not have to be excluded here the way DagUren.load() excludes
+    # the depot street: a depot stop already returned above.
+    controleregel = werkbonnen.per_postcode.get(postcode)
+    if controleregel:
+        omschrijving = f"{controleregel.werkbon} · {controleregel.titel}".strip(" ·")
+        _add(
+            tijdlijn,
+            soort=Soort.WERKBON,
+            start=start,
+            eind=eind,
+            omschrijving=omschrijving,
+            adres=adres,
+            werkbon=controleregel.werkbon,
         )
         return
 

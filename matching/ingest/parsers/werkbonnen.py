@@ -1,17 +1,22 @@
-"""Parser for Werkbonnen.xlsx — completeness check only, never matching input.
+"""Parser for Werkbonnen.xlsx — the completeness check, plus one fallback match key.
 
 Werkbonnen.xlsx holds one row per Fase transition (Uitgevoerd, Gestopt, Gereed,
 Afgehandeld), so a single Werkbon appears several times, and the same Werkbon can
-also appear on more than one date. Only Werkbon, Medewerker, Datum and a single
-resolved Fase-status are kept; Reistijd, Werktijd, Titel and "Monteur meegereden"
-are deliberately dropped (docs/database.md, docs/business-rules.md).
+also appear on more than one date. Rows collapse to one per (Werkbon, Medewerker,
+Datum), carrying a Fase-status resolved across all of that Werkbon's rows.
+
+Every remaining column is stored as well (docs/decisions.md, 2026-09-03). Only
+Postcode is actually read by the matching, as a fallback key; Titel is display
+text, and Tijd/Reistijd/Werktijd/"Monteur meegereden" are kept unused — see the
+WerkbonControle docstring in matching/models.py for why storing them now was the
+cheaper option.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from matching.ingest.parsers.base import read_excel_rows, text, to_date
+from matching.ingest.parsers.base import read_excel_rows, text, to_date, to_time
 from matching.models import FaseStatus, ImportedFile, WerkbonControle
 
 REQUIRED_COLUMNS = ("Werkbon", "Medewerker", "Datum", "Fase")
@@ -42,8 +47,11 @@ def build_rows(path: Path, source_file: ImportedFile) -> list[WerkbonControle]:
     up against Uren.
     """
     fases_per_werkbon: dict[str, list[str]] = {}
-    # Keyed on (werkbon, medewerker, datum) so repeated Fase rows collapse into one.
-    seen: dict[tuple[str, str, object], int] = {}
+    # Keyed on (werkbon, medewerker, datum) so repeated Fase rows collapse into
+    # one. The first row seen for a key supplies both its row_number and the
+    # values of the columns outside the key, so a row and the line it is traced
+    # back to always describe the same source line.
+    seen: dict[tuple[str, str, object], tuple[int, dict]] = {}
 
     for row_number, values in read_excel_rows(path, required_columns=REQUIRED_COLUMNS):
         werkbon = text(values.get("Werkbon"), max_length=32)
@@ -53,7 +61,7 @@ def build_rows(path: Path, source_file: ImportedFile) -> list[WerkbonControle]:
             continue
 
         fases_per_werkbon.setdefault(werkbon, []).append(text(values.get("Fase")))
-        seen.setdefault((werkbon, medewerker, datum), row_number)
+        seen.setdefault((werkbon, medewerker, datum), (row_number, values))
 
     return [
         WerkbonControle(
@@ -63,6 +71,14 @@ def build_rows(path: Path, source_file: ImportedFile) -> list[WerkbonControle]:
             medewerker=medewerker,
             datum=datum,
             fase_status=resolve_fase_status(fases_per_werkbon[werkbon]),
+            postcode=text(values.get("Postcode"), max_length=10),
+            titel=text(values.get("Titel"), max_length=255),
+            tijd=to_time(values.get("Tijd")),
+            reistijd=text(values.get("Reistijd"), max_length=32),
+            werktijd=text(values.get("Werktijd"), max_length=32),
+            monteur_meegereden=text(
+                values.get("Monteur meegereden"), max_length=16
+            ),
         )
-        for (werkbon, medewerker, datum), row_number in seen.items()
+        for (werkbon, medewerker, datum), (row_number, values) in seen.items()
     ]

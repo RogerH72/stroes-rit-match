@@ -186,23 +186,28 @@ class SampleDataMatchingTests(TestCase):
         """Roughly what the PoC/validation script got — no wild divergence.
 
         The PoC reported 82% for M5 on this week and the broader validation 78%
-        and 93% for two other monteurs over four weeks. This app scores a little
-        lower on purpose: the PoC also matched on postcodes from Werkbonnen.xlsx,
-        which is deliberately not a matching source here (docs/business-rules.md).
+        and 93% for two other monteurs over four weeks. The app used to land
+        below that because it matched on Uren.xlsx alone; adding back the
+        Werkbonnen.xlsx postcode as a fallback (docs/decisions.md, 2026-09-03)
+        closed most of that gap, which is the whole point of that change.
+
         The bound is loose because the exact figure depends on the koppeltabel;
         it is there to catch a rule that breaks, not to pin a number.
         """
         gevonden, totaal = self._werkbon_recovery(self.m5)
         self.assertGreaterEqual(totaal, 8, "sample data no longer holds M5's week")
-        self.assertGreaterEqual(gevonden / totaal, 0.6)
+        self.assertGreaterEqual(gevonden / totaal, 0.75)
 
     def test_m1_shows_the_depot_rule_outranking_a_werkbon(self):
         """M1 works at Randweg 20 — the depot street, so his stops read as L.
 
         Not a defect but the validated priority order at work (a stop at the
         company's own address is a depot visit, not work at the customer who
-        shares that address). Asserted so the behaviour is visible rather than
-        surprising, and so a change to the order shows up here.
+        shares that address). The Werkbonnen.xlsx postcode fallback does not
+        rescue him either, by design: it sits below the depot check, so his
+        werkbonnen planned at 4104 AC stay depot visits. Asserted so the
+        behaviour is visible rather than surprising, and so a change to the
+        order shows up here.
         """
         gevonden, totaal = self._werkbon_recovery(self.m1)
         self.assertGreater(totaal, 0)

@@ -260,15 +260,43 @@ class WerkbonnenParserTests(ParserTestCase):
         }
         self.assertEqual(statuses, {FaseStatus.AFGEROND})
 
-    def test_unused_columns_are_not_stored(self):
-        # Reistijd, Werktijd, Titel and "Monteur meegereden" are deliberately
-        # dropped (docs/database.md, docs/business-rules.md).
-        field_names = {field.name for field in rows_model_fields()}
-        for unwanted in ("reistijd", "werktijd", "titel", "monteur_meegereden"):
-            self.assertNotIn(unwanted, field_names)
+    def test_every_remaining_column_is_stored_verbatim(self):
+        """The columns the matching does not read are captured all the same.
 
+        Only Postcode is ever read (as a fallback matching key); the rest are
+        stored because the source files are never deleted, so capturing them now
+        beats building a second read-through later (docs/decisions.md,
+        2026-09-03). This guards the parser side of that independently of what
+        the matching does with any of it.
+        """
+        path = factories.werkbonnen_file(self.directory)
+        rows = {
+            (row.werkbon, row.datum): row
+            for row in werkbonnen.build_rows(path, self.imported_file)
+        }
 
-def rows_model_fields():
-    from matching.models import WerkbonControle
+        row = rows[("WB260908", dt.date(2026, 8, 3))]
+        self.assertEqual(row.postcode, "4196 HB")  # raw, normalised at match time
+        self.assertEqual(row.titel, "TRICHT - E-werkzaamheden")
+        self.assertEqual(row.tijd, dt.time(7, 30))
+        # Reistijd/Werktijd stay text: their unit is not confirmed and nothing
+        # reads them, so a numeric type would only risk failing an import.
+        self.assertEqual(row.reistijd, "0")
+        self.assertEqual(row.werktijd, "0")
+        self.assertEqual(row.monteur_meegereden, "Nee")
 
-    return WerkbonControle._meta.get_fields()
+    def test_the_stored_values_come_from_the_row_the_row_number_points_at(self):
+        # Fase rows for one key are collapsed to the first one seen; its values
+        # and its row_number have to describe the same source line, or a value
+        # would be traced back to a line it never came from.
+        path = factories.werkbonnen_file(self.directory)
+        rows = werkbonnen.build_rows(path, self.imported_file)
+
+        # WB260986 appears on two dates with different Fase rows; each date keeps
+        # its own Tijd/Postcode rather than borrowing the other's.
+        per_datum = {row.datum: row for row in rows if row.werkbon == "WB260986"}
+        self.assertEqual(per_datum[dt.date(2026, 8, 6)].row_number, 6)
+        self.assertEqual(per_datum[dt.date(2026, 8, 7)].row_number, 7)
+        for row in per_datum.values():
+            self.assertEqual(row.postcode, "4021 JP")
+            self.assertEqual(row.tijd, dt.time(8, 0))

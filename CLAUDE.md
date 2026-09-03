@@ -17,6 +17,9 @@ achtergrond staat in `project-context.md`.
   specificaties, alleen laden wanneer een taak dat onderdeel raakt.
 - `docs/decisions.md` — waarom eerdere besluiten zijn genomen.
 - `docs/changelog.md` — chronologische geschiedenis. Niet nodig voor normale taken.
+- `voor-klant/` — materiaal om letterlijk met Wim/SBTT te delen (geen
+  technische documentatie, geen `docs/*.md`). Onderhoudsafspraak: zie
+  "Klant-uitleg bijhouden" onder Development principles.
 
 ## How to select documentation for a task
 
@@ -46,6 +49,13 @@ database → `docs/database.md`, enz.). Lees verdere documenten als de taak dat 
   sessie die de code daadwerkelijk schrijft en commit, gebruikt zijn eigen
   attributie (Co-Authored-By + Claude-Session) — die sessie heeft de code
   geschreven, niet de sessie die de instructie opstelde.
+- **Klant-uitleg bijhouden (vastgelegd 03-09-2026):** `voor-klant/hoe-werkt-de-
+  matching.md` legt in gewone taal uit hoe de matchmotor werkt, voor Wim. Dit
+  document wordt bijgewerkt zodra de matchlogica wijzigt (bijv. de
+  prioriteitsvolgorde of een nieuwe matchbron), en zodra een onderdeel dat er nu
+  nog als "niet klaar" in staat (bijv. het uitzonderingenscherm) daadwerkelijk
+  gereed komt. Dit is een expliciete stap in de documentatie-nazorg na een build,
+  net als de technische `docs/*.md`-bijwerking.
 - PoC eerst: forceer geen productiestack-beslissingen vóór het matchingsconcept
   gevalideerd is op echte data.
 - Herkomst/achtergrond van de opdracht staat in de brainstorm-sessie

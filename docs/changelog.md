@@ -283,3 +283,15 @@ Twee operationele punten, meegenomen in `docs/business-rules.md` en
    nu wordt een instructie naar Claude Code niet meer voorzien van de eigen
    footer van de opstellende sessie; de uitvoerende sessie gebruikt zijn eigen
    attributie.
+
+## 2026-09-03 — Klant-uitleg matchmotor toegevoegd
+
+Nieuw `voor-klant/`-mapje voor materiaal dat letterlijk met Wim/SBTT gedeeld
+wordt (geen technische documentatie). Eerste document:
+`voor-klant/hoe-werkt-de-matching.md`, een uitleg zonder technisch jargon van
+hoe de app een werkdag herkent (rit-data leidend, de classificatievolgorde in
+gewone taal, de SOORT-codes, en waarom dit betrouwbaar genoeg is — gebaseerd
+op de PoC-validatie). Onderhoudsafspraak vastgelegd in `CLAUDE.md`: dit
+document wordt bijgewerkt zodra de matchlogica wijzigt, en zodra een
+onderdeel dat er nu nog als "niet klaar" in staat (bijv. het
+uitzonderingenscherm) gereed komt.

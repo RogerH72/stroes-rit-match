@@ -216,8 +216,9 @@ class MatchmotorStatusAdmin(admin.ModelAdmin):
     `python manage.py run_matching --force` on the server. SBTT staff have no
     shell, so this screen is that command.
 
-    Singleton, like InstellingAdmin above: adding and deleting are off, and the
-    changelist doubles as the status view.
+    Singleton like Instelling, but fully read-only like Tijdblok: adding,
+    changing and deleting are all off, and the changelist doubles as the status
+    view.
     """
 
     list_display = (
@@ -233,6 +234,13 @@ class MatchmotorStatusAdmin(admin.ModelAdmin):
         return False
 
     def has_delete_permission(self, request, obj=None):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        # Read-only for the same reason as TijdblokAdmin: this row is a report
+        # of what run_matching did, not an input. Hand-editing it would only
+        # make the screen lie until the next run overwrote it; the way to change
+        # the outcome is to correct a koppeltabel and run the matching again.
         return False
 
     def changelist_view(self, request, extra_context=None):
@@ -269,7 +277,11 @@ class MatchmotorStatusAdmin(admin.ModelAdmin):
         something, recompute everything"). The command keeps
         `--monteur`/`--van`/`--tot` for a targeted re-run.
         """
-        if not self.has_change_permission(request):
+        # Not `self.has_change_permission()`: that is False for everyone, so the
+        # form cannot be used to edit the row. Pressing the button is still a
+        # change — it rewrites the timeline and this row — so it is gated on the
+        # underlying Django permission the admin method would otherwise consult.
+        if not request.user.has_perm("matching.change_matchmotorstatus"):
             raise PermissionDenied
 
         redirect_to = reverse("admin:matching_matchmotorstatus_changelist")

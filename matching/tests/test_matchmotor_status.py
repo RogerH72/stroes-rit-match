@@ -10,11 +10,13 @@ from __future__ import annotations
 import datetime as dt
 from unittest import mock
 
+from django.contrib import admin
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
+from matching.admin import MatchmotorStatusAdmin
 from matching.models import MatchmotorStatus, Tijdblok
 from matching.tests import factories
 from matching.timeline.runner import run_matching_and_record_status
@@ -211,3 +213,43 @@ class RunNowButtonTests(TestCase):
     def test_adding_and_deleting_the_status_row_are_not_offered(self):
         response = self.client.get(self.changelist)
         self.assertNotContains(response, "Matchmotor-status toevoegen")
+
+    def test_the_row_cannot_be_edited_by_hand(self):
+        # The row reports what a run did; the change form must not be a way to
+        # rewrite that report.
+        MatchmotorStatus.load()
+        change_url = reverse(
+            "admin:matching_matchmotorstatus_change",
+            args=[MatchmotorStatus.SINGLETON_PK],
+        )
+        # assertLogs only to keep Django's 403 traceback out of the test output.
+        with self.assertLogs("django.request", "WARNING"):
+            response = self.client.post(change_url, {"dagen_verwerkt": 99})
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(MatchmotorStatus.load().dagen_verwerkt, 0)
+
+    def test_the_button_still_works_with_the_form_read_only(self):
+        # The two live together on purpose: the run writes the row through
+        # save(), not through the admin form, so switching the form off must not
+        # switch the button off with it.
+        self.assertFalse(
+            MatchmotorStatusAdmin(MatchmotorStatus, admin.site).has_change_permission(
+                None
+            )
+        )
+        response = self.client.post(self.url)
+        self.assertRedirects(response, self.changelist)
+        self.assertTrue(MatchmotorStatus.load().succes)
+
+    def test_a_staff_user_without_the_permission_cannot_press_it(self):
+        # has_change_permission() is False for everyone now, so the endpoint
+        # checks the underlying Django permission instead — it must still say no
+        # to staff who do not have it.
+        kijker = User.objects.create_user(
+            "kijker", "k@sbtt.nl", "geheim", is_staff=True
+        )
+        self.client.force_login(kijker)
+        with self.assertLogs("django.request", "WARNING"):
+            response = self.client.post(self.url)
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(Tijdblok.objects.count(), 0)

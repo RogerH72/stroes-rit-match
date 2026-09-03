@@ -52,10 +52,64 @@ Voorzien voor fase 2 (ruwe import, één tabel per bronbestand):
   wordt voor die periode als "niet uitgevoerd, bronbestand ontbrak" gemarkeerd. Zie
   `docs/functioneel-ontwerp.md` §3a.
 
-Voorzien voor later (roadmap-fase 4/5): een "bekende-locaties"-koppeltabel (onthoudt
-handmatig bevestigde locatiekoppelingen, zodat het uitzonderingenlijstje elke week
-korter wordt). PoC-opslag: csv-koppelbestand. Productie-opslag: tabel in de database
-(Django-admin).
+## Voorzien voor fase 3/4 (matchmotor + koppeltabellen)
+
+_Vastgelegd 2026-09-03, vooruitlopend op de bouw van roadmap-fase 3. Op verzoek van
+Roger worden de koppeltabellen die de matchmotor nodig heeft (personeelsnummer↔naam,
+bekende locaties, meegereden-instelling, tolerantietabel) nu al als echte
+modellen gebouwd, in plaats van pas in fase 4 — zie `docs/decisions.md`
+(03-09-2026). Fase 4 verfijnt daarna vooral de admin-schermen (UX, het
+uitzonderingen-eenklik-scherm), niet de tabellen zelf._
+
+**Koppeltabellen:**
+
+- **Monteur** — koppelt de twee identificatiesystemen die de bronbestanden gebruiken:
+  het Syntess-personeelsnummer (`Uren.Medewerker`) en de RouteVision-bestuurderscode
+  (`Rit.Bestuurder`), plus naam en kenteken. Zonder deze koppeling kunnen `Uren` en
+  `Rit` niet eens bij elkaar gelegd worden — dit is de eerste, noodzakelijke schakel
+  voor de matching.
+- **BekendeLocatie** — postcode/straat → SOORT + label. Vervangt het
+  demo-koppelbestand (`locaties_demo.csv`) uit de PoC. **`soort` is een keuzeveld met
+  uitsluitend K (Klant), L (Locatie) of C (Crediteur) als opties** — dit zijn de
+  SOORT-codes die een gebruiker aan een adres kan toekennen. W, ? , O en R volgen
+  altijd automatisch uit de matchlogica zelf (W = matcht een werkbon, ? = korte
+  onbekende stop, O = onverklaarde stop boven de drempel, R = reistijd) en zijn dus
+  geen keuzemogelijkheid in deze tabel. Gebruikers vullen deze tabel via het
+  uitzonderingenscherm (fase 5) of rechtstreeks via de beheerschermen (fase 4).
+- **Instelling** — één rij (singleton) met configuratie die niet per record maar voor
+  de hele app geldt. Bevat vooralsnog `meegereden_modus`: VAST / PERIODE / SYNTESS
+  (zie hieronder en `docs/decisions.md`, 03-09-2026).
+- **MeegeredenKoppeling** — junior-monteur, senior-monteur, geldig-van, geldig-tot.
+  Gebruikt wanneer `Instelling.meegereden_modus = PERIODE`. Voor `meegereden_modus =
+  VAST` volstaat een eenvoudig zelf-verwijzend veld op `Monteur`
+  (`vaste_meerijder`). `meegereden_modus = SYNTESS` is een gereserveerde keuze zonder
+  achterliggende logica — die vereist eerst een uitbreiding van `WerkbonControle` met
+  het Syntess-veld "Monteur meegereden", wat nu bewust niet wordt opgeslagen (zie
+  `docs/decisions.md`, 02-09-2026).
+- **ToleranceRegel** — activiteit (vrije sleutel, met een standaardrij "algemeen") →
+  drempel in minuten voor wat nog telt als een "onverklaarde" stop. Vervangt de vaste
+  `DREMPEL`-constante (15 minuten) uit de PoC door een instelbare tabel. Exacte
+  waarden per activiteit liggen nog niet vast — te bevestigen met de klant (zie
+  `docs/functioneel-ontwerp.md` §9, punt 2); de tabel start met alleen de
+  standaardwaarde 15 min.
+
+**Matchresultaat:**
+
+- **Tijdblok** — de gereconstrueerde tijdlijn per monteur per dag: monteur, datum,
+  volgorde binnen de dag, SOORT-code, starttijd, eindtijd, duur in minuten,
+  omschrijving, adres, en (bij SOORT=W) een verwijzing naar de werkbon. Persistent
+  opgeslagen — niet elke paginaweergave herberekend — zodat fase 5 (uitzonderingen)
+  en fase 6 (weekoverzicht) op stabiele data kunnen bouwen. Herberekenen gebeurt
+  expliciet via een management-command (`run_matching`, zelfde patroon als
+  `check_imports`), o.a. nodig nadat een koppeltabel is aangepast.
+  **Bevat geen WB-vs-SYS-signaalveld** — dat onderdeel van de PoC is bewust niet
+  gebouwd (zie `docs/decisions.md`, 02-09-2026).
+
+**Geen aparte tabel, wel een berekening:** de volledigheidscontrole
+(Werkbonnen.xlsx-check, zie `docs/business-rules.md`) heeft geen eigen tabel nodig —
+het is een service-functie die `WerkbonControle`-rijen per werkbon beoordeelt (op
+basis van de al opgeslagen fase-status) en op aanvraag (bijv. bij het weekoverzicht)
+het resultaat teruggeeft.
 
 ## Known limitations / deprecated fields
 

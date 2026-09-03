@@ -408,3 +408,38 @@ databaseservice zoals bij Replay zou dat uitgangspunt onnodig verzwaren. Het
 draaiboek is nu al opgesteld (in plaats van te wachten tot fase 7) zodat de
 oplevering straks een kwestie van uitvoeren is; de drie nog openstaande
 onderdelen zijn expliciet gemarkeerd in plaats van als af voorgedaan.
+
+## 2026-09-03 — "Monteur meegereden" verfijnd tot instelbare 3-standen toggle (Current, verfijnt eerder besluit)
+
+Decision: het besluit van 02-09-2026 ("optie A": een junior monteur hard koppelen aan
+een senior) wordt verfijnd tot één globale instelling (in het "Instellingen"-scherm,
+fase 4) met drie standen:
+
+1. **Vast** — een junior monteur is permanent gekoppeld aan één senior monteur (één
+   veld op de monteur-koppeltabel); wijzigt alleen als iemand dat handmatig aanpast.
+2. **Periode-/datumgebonden** — een aparte koppeltabel met een geldigheidsperiode
+   (van–tot), zodat een junior op verschillende momenten met verschillende senioren
+   kan meerijden.
+3. **Uit Syntess** (de kolom "Monteur meegereden" in de Werkbonnen-export) — **staat
+   nu uit** en kan niet gekozen worden, omdat Syntess dit veld in de praktijk nog niet
+   betrouwbaar vult (ligt bij Ruud/RVS Solutions, geen ETA). Activeren is een apart,
+   later te nemen besluit zodra RVS Solutions dit oplevert; het vereist bovendien een
+   uitbreiding van de fase 2-importtabel `WerkbonControle`, die "Monteur meegereden"
+   momenteel bewust niet opslaat (zie het besluit van 02-09-2026).
+
+Voor de bouw (fase 3/4): standen 1 en 2 worden nu echt werkend gebouwd (model +
+matchinglogica). Stand 3 wordt opgenomen als gereserveerde keuze in het model/de
+instelling, zonder importlogica erachter — dat volgt pas bij een apart besluit om hem
+te activeren.
+
+Reasoning: bij het bespreken van de matchmotor (fase 3) bleek een vaste koppeling
+alleen niet flexibel genoeg — een junior kan met verschillende senioren meerijden op
+verschillende momenten — terwijl de oorspronkelijke wens (het Syntess-veld zelf
+uitlezen, "optie B" uit de eerdere afweging in `docs/business-rules.md`) ooit weer
+bruikbaar kan worden zodra RVS Solutions het veld gaat vullen. Een instelbare toggle
+met drie standen dekt beide scenario's zonder dat de app later herbouwd hoeft te
+worden: nu twee werkende, handmatige standen; een kant-en-klare, maar bewust
+uitgeschakelde derde stand voor zodra de brondata het toelaat. Superseded: het besluit
+"2026-09-02 — Fase-2 databronnen en 'monteur meegereden' vastgelegd", voor zover dat
+"optie A" als enige/definitieve oplossing beschreef — de databronnen-keuzes in dat
+besluit blijven ongewijzigd van kracht.

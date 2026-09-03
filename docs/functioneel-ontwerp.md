@@ -124,11 +124,23 @@ dat er ooit uren op zijn geboekt", niet "klopte de status op déze specifieke da
 met de uren van diezelfde datum". Dat laatste zou onnodig complex zijn en voegt niets
 toe aan het doel van de controle.
 
-**Monteur meegereden (besluit definitief, 2026-09-02):** het Syntess-veld "Monteur
-meegereden" wordt in de praktijk nog niet gevuld (ligt bij Ruud/RVS Solutions, geen
-ETA). Daarom wordt **optie A** gebouwd: in de beheerschermen ("Instellingen") wordt
-een junior monteur hard gekoppeld aan een senior monteur, waarna de junior automatisch
-dezelfde rittijden krijgt toegewezen als de senior.
+**Monteur meegereden — instelbare 3-standen toggle (verfijnd 2026-09-03, zie
+`docs/decisions.md`):** één globale instelling ("Instellingen"-scherm, fase 4) bepaalt
+hoe een junior monteur zijn rittijden krijgt toegewezen:
+
+1. **Vast** — een junior monteur is permanent gekoppeld aan één senior monteur.
+2. **Periode-/datumgebonden** — een koppeltabel met geldigheidsperiode (van–tot),
+   zodat een junior op verschillende momenten met verschillende senioren kan
+   meerijden.
+3. **Uit Syntess** — leest de kolom "Monteur meegereden" in de Werkbonnen-export
+   rechtstreeks uit. **Staat nu uit en kan niet gekozen worden**: Syntess vult dit
+   veld in de praktijk nog niet betrouwbaar (ligt bij Ruud/RVS Solutions, geen ETA).
+   Activeren is een apart, later te nemen besluit, en vereist ook een uitbreiding van
+   de fase 2-importtabel `WerkbonControle` (die dit veld nu bewust niet opslaat).
+
+Fase 3/4 bouwt de standen 1 en 2 echt werkend (model + matchinglogica); stand 3 is een
+gereserveerde keuze zonder importlogica erachter, tot de activatie ervan apart besloten
+wordt.
 
 **Werkbon-tijdregistratie (WB-vs-SYS-signaal) — bewust niet gebouwd (vastgelegd
 2026-09-02):** het originele wensdoel van de klant om de door de monteur ingevulde
@@ -148,8 +160,9 @@ Te bevestigen zodra die aangepaste export er is.
 Via Django-admin worden de koppeltabellen onderhouden:
 
 - Bekende locaties (met marge/tolerantie).
-- Monteur–voertuig, inclusief de "meegereden"-koppeling (junior hard gekoppeld aan
-  senior monteur, zie §3b).
+- Monteur–voertuig, inclusief de "meegereden"-instelling met haar drie standen
+  (vast / periode-gebonden / uit Syntess — de laatste voorlopig uitgeschakeld, zie
+  §3b).
 - Personeelsnummer–naam.
 - Klant/leverancier-relaties (mogelijk overbodig zodra RVS Solutions dit oplost, zie
   hierboven).
@@ -207,7 +220,8 @@ Verzameld uit de secties hierboven, zodat ze niet uit het oog raken:
 4. Snelheidscontrole-meerwerk: wel of niet oppakken, en zo ja, hoe met de
    AVG/medewerkersmonitoring-vraag om te gaan (§8).
 
-_Opgelost op 2026-09-02: "monteur meegereden" (optie A, zie §3b), de databronnen voor
+_Opgelost op 2026-09-02: "monteur meegereden" (verfijnd 03-09-2026 tot een
+instelbare 3-standen toggle, zie §3b/§4 en `docs/decisions.md`), de databronnen voor
 de matching (Uren.xlsx + RouteVision leidend, Werkbonnen.xlsx alleen als
 volledigheidscontrole, zie §2/§3b), het WB-vs-SYS-tijdsignaal (bewust niet gebouwd,
 zie §3b), de onafhankelijke bestandsstatus per bron (zie §3a), het polling-/

@@ -48,14 +48,17 @@ Nog geen (project net gestart).
   tijdlijnreconstructie gewoon door (die leunt niet op Werkbonnen.xlsx) — alleen de
   volledigheidscontrole wordt voor die periode overgeslagen (status "niet uitgevoerd,
   bronbestand ontbrak"), niet het hele weekoverzicht geblokkeerd.
-- **"Monteur meegereden" (besluit definitief, 2026-09-02):** het Syntess-veld
-  "Monteur meegereden" in de Werkbonnen-export wordt in de praktijk nog niet gevuld —
-  dit ligt bij Ruud/RVS Solutions en heeft geen ETA. Daarom wordt **optie A** gebouwd
-  als de werkende oplossing: in de beheerschermen ("Instellingen") kan een junior
-  monteur hard gekoppeld worden aan een senior monteur, waarna de junior automatisch
-  dezelfde rittijden krijgt toegewezen als de senior. Mocht Syntess het veld later
-  betrouwbaar gaan vullen, dan is dat een nieuw, apart besluit — er wordt nu niet op
-  gewacht.
+- **"Monteur meegereden" — instelbare 3-standen toggle (verfijnd 2026-09-03,
+  zie `docs/decisions.md`):** één globale instelling ("Instellingen"-scherm, fase 4)
+  bepaalt hoe een junior monteur zijn rittijden krijgt toegewezen: (1) **Vast** —
+  permanent gekoppeld aan één senior monteur; (2) **Periode-/datumgebonden** — een
+  koppeltabel met geldigheidsperiode, zodat een junior op verschillende momenten met
+  verschillende senioren kan meerijden; (3) **Uit Syntess** — leest de kolom "Monteur
+  meegereden" in de Werkbonnen-export rechtstreeks uit. Stand 3 **staat nu uit en kan
+  niet gekozen worden**, omdat Syntess dit veld in de praktijk nog niet betrouwbaar
+  vult (ligt bij Ruud/RVS Solutions, geen ETA); activeren is een apart, later te nemen
+  besluit. Fase 3/4 bouwt standen 1 en 2 echt werkend; stand 3 is een gereserveerde
+  keuze zonder importlogica erachter.
 - Tolerantietabel per activiteit (drempel voor onverklaarde stops is instelbaar) —
   exacte waarden nog te bevestigen met de klant (bron: `20260424 RMW-Overzicht
   ....xlsx` in de brainstorm-sessie).

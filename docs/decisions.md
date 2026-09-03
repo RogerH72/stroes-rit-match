@@ -443,3 +443,40 @@ uitgeschakelde derde stand voor zodra de brondata het toelaat. Superseded: het b
 "2026-09-02 — Fase-2 databronnen en 'monteur meegereden' vastgelegd", voor zover dat
 "optie A" als enige/definitieve oplossing beschreef — de databronnen-keuzes in dat
 besluit blijven ongewijzigd van kracht.
+
+## 2026-09-03 — Fase 3 gebouwd: twee aandachtspunten voor de configuratie, geen bugs (Current)
+
+Decision: bij het bouwen en testen van de reken-/matchmotor (fase 3, commit `eea759c`)
+kwamen twee dingen naar boven die geen fouten in de motor zijn, maar bewust
+vastgelegd worden als aandachtspunt voor de vervolgstappen:
+
+1. **Straat-niveau depotrisico.** De depotprioriteitsregel (een `BekendeLocatie` met
+   `is_depot=True` wint altijd van een werkbonmatch — de gevalideerde PoC-regel,
+   nodig omdat het eigen depotadres van SBTT kan samenvallen met of dicht bij
+   klantadressen kan liggen) werkt op straatniveau. Zodra in fase 4 het échte
+   SBTT-depotadres wordt ingevoerd, claimt dat élk adres op diezelfde straat vóór een
+   werkbonmatch — ook als dat andere adres feitelijk een klant is. Geen bug (dit is
+   precies het gevalideerde PoC-gedrag), maar iets om bewust bij te houden bij het
+   invoeren van het echte depotadres in fase 4: een depotadres met een postcode of
+   huisnummer-precisie zou dit risico verkleinen, maar dat is nu geen doel op zich.
+2. **Lager werkbon-hervindingspercentage dan de PoC.** Dit is het verwachte gevolg
+   van het eerder genomen besluit (02-09-2026) om Werkbonnen.xlsx niet als matchbron
+   te gebruiken (alleen voor de volledigheidscontrole) — de PoC gebruikte
+   Werkbonnen-postcodes wél mee in de match. Geen motorfout; de tests bevestigen dat
+   het hervindingspercentage binnen de op basis van dit besluit te verwachten
+   bandbreedte valt.
+
+Daarnaast een kleine, geaccepteerde beperking: `Instelling.delete()` is aan
+modelniveau geblokkeerd (de singleton-instelling mag niet verwijderd worden), maar
+een `Instelling.objects.all().delete()` op queryset-niveau omzeilt dat (Django roept
+`delete()` op individuele instances niet aan bij een queryset-bulkdelete). Dit is een
+bewust geaccepteerd, laag risico: er is geen UI-pad dat een bulkdelete op
+`Instelling` aanbiedt, en de DB-`CheckConstraint` voorkomt in elk geval dat er ooit
+meer dan één rij ontstaat.
+
+Reasoning: beide bevindingen zijn eigenschappen van bewust eerder genomen besluiten
+(de PoC-gevalideerde depotregel; het besluit om Werkbonnen.xlsx niet als matchbron te
+gebruiken), geen nieuwe fouten — vastleggen voorkomt dat ze later als verrassing of
+als "misschien een bug" opnieuw onderzocht moeten worden. Het depotrisico wordt
+expliciet meegenomen als aandachtspunt bij de fase 4-bespreking (zie
+`GUIDELINES.md`, "Current priorities", punt 6).

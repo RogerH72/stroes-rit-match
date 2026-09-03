@@ -2,19 +2,21 @@
 
 ## Implemented
 
-Nog geen (project net gestart).
+Gebouwd t/m roadmap-fase 3 (03-09-2026, commit `eea759c`, 143 tests groen — zie
+`docs/changelog.md`):
 
-## Designed but not implemented
-
-- Tijdlijn-reconstructie + afwijkingsdetectie per monteur per dag (geen simpele
-  1-op-1 koppeling werkbon ↔ rit).
-- SOORT-codes per tijdblok in het weekoverzicht: K=klant, L=locatie, C=crediteur,
-  W=werkbon, ?=onbekend, O=onverklaard, R=reistijd — conform het eindresultaat dat de
-  klant zelf al in Excel had ontworpen.
-- Matchingregels, al gevalideerd op echte data: postcode-exact is niet genoeg →
-  straatnaam-fallback; een depotbezoek vóór werk wordt herkend. Bekende
-  adres-afwijkingen (bv. werkbonadres ≠ busadres) worden als aandachtspunt getoond,
-  niet automatisch gematcht.
+- Tijdlijn-reconstructie per monteur per dag (`matching/timeline/engine.py`,
+  `build_day()`), persistent opgeslagen in `Tijdblok`.
+- Classificatie in SOORT-codes per tijdblok (K=klant, L=locatie, C=crediteur,
+  W=werkbon, ?=onbekend, O=onverklaard) volgens de gevalideerde prioriteitsvolgorde:
+  depot-`BekendeLocatie` (L) → eigen Uren-regel op postcode/straat (W) → overige
+  `BekendeLocatie` op straat/postcode (K/L/C) → thuisadres (laten vallen) →
+  tolerantiecheck (O of ?). R (reistijd) volgt uit de tussenliggende ritten. Conform
+  het eindresultaat dat de klant zelf al in Excel had ontworpen — het
+  weekoverzicht-scherm zelf (fase 6) toont dit nog niet.
+- Matchingregels, gevalideerd op echte data: postcode-exact is niet genoeg →
+  straatnaam-fallback; een depotbezoek vóór werk wordt herkend (op straatniveau, zie
+  het aandachtspunt in `docs/database.md` en `docs/decisions.md`, 03-09-2026).
 - **Werktijd bepalen uit ritgegevens (leidend), niet uit de Werktijd/Reistijd-velden
   van de werkbon** — bevestigd door Wim (mailwisseling 27/28-08-2026, herbevestigd
   02-09-2026), omdat monteurs die velden niet consequent invullen en er geen
@@ -26,42 +28,53 @@ Nog geen (project net gestart).
   monteur ingevulde aankomst-/vertrektijd op de werkbon te vergelijken met de
   werkelijkheid (een WB-vs-SYS-signaal) is hiermee bewust niet gebouwd — zie
   `docs/decisions.md` voor een impact-analyse mocht Wim hier ooit op terugkomen.
-- **Databronnen voor de matching (vastgelegd 2026-09-02, na inspectie van de
-  voorbeeld-databestanden in `voorbeeld-data/`):** van de 3 Syntess-exports drijft de
-  matching zelf uitsluitend op **Uren.xlsx** (wie, welke werkbon, welke datum, hoeveel
-  uur, welk adres/klant) en de RouteVision-rit-CSV, aangevuld met **Relaties.xlsx**
-  voor klant/leverancier-stamgegevens. **Werkbonnen.xlsx wordt niet gebruikt voor de
-  matching** — Reistijd/Werktijd daaruit zijn al niet leidend (zie hierboven), en
-  Titel/Fase voegen voor de matching zelf niets toe. Werkbonnen.xlsx wordt wél
-  ingelezen, maar uitsluitend voor een **volledigheidscontrole**: signaleren of er een
-  werkbon bestaat zonder geboekte uren. Daarbij wordt de **laatste/huidige Fase-status**
-  van de werkbon gebruikt (niet de volledige historie van fase-overgangen) om onderscheid
-  te maken tussen "nog niet gestart" (Fase bijv. Uitgevoerd/Gestopt — verwacht, geen
-  signaal) en "afgerond zonder geboekte uren" (Fase Afgehandeld/Gereed zonder
-  Uren-regels — wél een afwijking om te tonen). Een monteur die uren boekt op een
-  werkbonnummer dat niet in de Werkbonnen-export voorkomt wordt logisch onmogelijk
-  geacht (Syntess borgt die referentie zelf), dus dat scenario hoeft niet apart
-  gedetecteerd te worden.
-- **Ontbrekend bronbestand blokkeert alleen zijn eigen doel (vastgelegd
+- **Databronnen voor de matching (vastgelegd 2026-09-02, gebouwd 2026-09-03):** van
+  de 3 Syntess-exports drijft de matching zelf uitsluitend op **Uren.xlsx** (wie,
+  welke werkbon, welke datum, hoeveel uur, welk adres/klant) en de
+  RouteVision-rit-CSV, aangevuld met **Relaties.xlsx** voor klant/
+  leverancier-stamgegevens. **Werkbonnen.xlsx wordt niet gebruikt voor de matching**
+  — Reistijd/Werktijd daaruit zijn al niet leidend (zie hierboven), en Titel/Fase
+  voegen voor de matching zelf niets toe. Werkbonnen.xlsx wordt wél ingelezen, maar
+  uitsluitend voor een **volledigheidscontrole**: signaleren of er een werkbon
+  bestaat zonder geboekte uren, op basis van de laatste/huidige Fase-status. Dit
+  besluit geeft, zoals verwacht, een lager werkbon-hervindingspercentage dan de PoC
+  (die Werkbonnen-postcodes wél meenam) — zie `docs/decisions.md` (03-09-2026).
+- **Ontbrekend bronbestand blokkeert alleen zijn eigen doel (vastgelegd en gebouwd
   2026-09-02):** elk bronbestand wordt onafhankelijk gevolgd. Ontbreekt
-  Werkbonnen.xlsx voor een periode terwijl Uren.xlsx er wel is, dan draait de matching/
-  tijdlijnreconstructie gewoon door (die leunt niet op Werkbonnen.xlsx) — alleen de
-  volledigheidscontrole wordt voor die periode overgeslagen (status "niet uitgevoerd,
-  bronbestand ontbrak"), niet het hele weekoverzicht geblokkeerd.
-- **"Monteur meegereden" — instelbare 3-standen toggle (verfijnd 2026-09-03,
-  zie `docs/decisions.md`):** één globale instelling ("Instellingen"-scherm, fase 4)
-  bepaalt hoe een junior monteur zijn rittijden krijgt toegewezen: (1) **Vast** —
-  permanent gekoppeld aan één senior monteur; (2) **Periode-/datumgebonden** — een
-  koppeltabel met geldigheidsperiode, zodat een junior op verschillende momenten met
-  verschillende senioren kan meerijden; (3) **Uit Syntess** — leest de kolom "Monteur
-  meegereden" in de Werkbonnen-export rechtstreeks uit. Stand 3 **staat nu uit en kan
-  niet gekozen worden**, omdat Syntess dit veld in de praktijk nog niet betrouwbaar
-  vult (ligt bij Ruud/RVS Solutions, geen ETA); activeren is een apart, later te nemen
-  besluit. Fase 3/4 bouwt standen 1 en 2 echt werkend; stand 3 is een gereserveerde
-  keuze zonder importlogica erachter.
-- Tolerantietabel per activiteit (drempel voor onverklaarde stops is instelbaar) —
-  exacte waarden nog te bevestigen met de klant (bron: `20260424 RMW-Overzicht
-  ....xlsx` in de brainstorm-sessie).
+  Werkbonnen.xlsx voor een periode terwijl Uren.xlsx er wel is, dan draait de
+  matching/tijdlijnreconstructie gewoon door — alleen de volledigheidscontrole wordt
+  voor die periode overgeslagen.
+- **"Monteur meegereden" — instelbare 3-standen toggle (verfijnd en standen 1+2
+  gebouwd 2026-09-03, zie `docs/decisions.md`):** één globale instelling
+  (`Instelling.meegereden_modus`) bepaalt hoe een junior monteur zijn rittijden
+  krijgt toegewezen: (1) **Vast** — permanent gekoppeld aan één senior monteur
+  (`Monteur.vaste_meerijder`), werkend gebouwd; (2) **Periode-/datumgebonden** — de
+  `MeegeredenKoppeling`-tabel, werkend gebouwd; (3) **Uit Syntess** — gereserveerde
+  keuze zonder achterliggende logica, staat uit en kan niet gekozen worden (zie
+  "Designed but not implemented").
+- Tolerantietabel per activiteit als instelbare `ToleranceRegel`-tabel (vervangt de
+  vaste PoC-constante van 15 minuten), gebouwd met één standaardrij ("algemeen",
+  15 min) als fallback. Exacte waarden per activiteit nog te bevestigen met de klant
+  (zie "Designed but not implemented").
+- Koppeltabellen `Monteur` en `BekendeLocatie` als bewerkbare Django-admin-modellen,
+  incl. `BekendeLocatie.soort` beperkt tot K/L/C als gebruikerskeuze (zie
+  `docs/database.md`).
+
+## Designed but not implemented
+
+- SOORT-codes per tijdblok tónen in het weekoverzicht (webpagina + Excel-export, in
+  de eigen lay-out van SBTT) — de classificatielogica zelf is al gebouwd (zie
+  "Implemented"), het weergavescherm volgt in fase 6.
+- Uitzonderingenscherm om onbekende/afwijkende adressen in één klik te koppelen
+  (fase 5) — de onderliggende `BekendeLocatie`-tabel bestaat al.
+- **"Monteur meegereden", stand 3 (Uit Syntess)** — leest de kolom "Monteur
+  meegereden" in de Werkbonnen-export rechtstreeks uit. Staat nu uit en kan niet
+  gekozen worden, omdat Syntess dit veld in de praktijk nog niet betrouwbaar vult
+  (ligt bij Ruud/RVS Solutions, geen ETA); activeren is een apart, later te nemen
+  besluit en vereist bovendien een uitbreiding van `WerkbonControle` met dat veld.
+- Exacte tolerantiewaarden per activiteit — nog te bevestigen met de klant (bron:
+  `20260424 RMW-Overzicht ....xlsx` in de brainstorm-sessie); de tabel en het
+  mechanisme zijn al gebouwd, alleen met de standaardwaarde.
 - **Klant/leverancier-onderscheid** — was een open datavraag, maar wordt bij de bron
   opgelost: Ruud (RVS Solutions) gaat dit onderscheid zelf aan de Relaties-export
   toevoegen. Mogelijk hoeft de app dit dan niet meer zelf via een koppeltabel af te

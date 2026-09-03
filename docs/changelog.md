@@ -198,3 +198,49 @@ zuiver operationeel, geen ontwerpvraag.
 Roadmap-fase 2 is hiermee volledig afgerond, inclusief de operationele afronding.
 Eerstvolgende stap: roadmap-fase 3 (reken-/matchmotor) bespreken en bevestigen,
 pas daarna een instructie naar de Claude Code-sessie.
+
+## 2026-09-03 — Fase 3 gebouwd: reken-/matchmotor en koppeltabellen
+
+Na bespreking en bevestiging in de Cowork-sessie (koppeltabellen nu al als echte
+Django-modellen, "monteur meegereden" als instelbare 3-standen toggle, `soort` op
+`BekendeLocatie` beperkt tot K/L/C als gebruikerskeuze) is een precieze instructie
+naar de Claude Code-sessie gegaan. Resultaat, gecontroleerd door de gevalideerde
+`matching/models.py` en `matching/timeline/engine.py` zelf te lezen:
+
+- **Koppeltabellen** (`matching/models.py`): `Monteur`, `BekendeLocatie` (met
+  `is_depot`-vlag en `soort` beperkt tot K/L/C via model-`choices`),
+  `Instelling` (singleton — vaste `pk=1`, `load()`-classmethod, `clean()`/
+  `save()`/`delete()`-overrides die verwijderen en dubbele rijen blokkeren, met
+  een DB-`CheckConstraint` als achtervang), `MeegeredenKoppeling`
+  (periode-gebonden junior→senior-koppeling met een `geldt_op(datum)`-helper),
+  `ToleranceRegel` (met een geseede "algemeen"-rij van 15 minuten als fallback),
+  `Tijdblok`. Allemaal met normale, bewerkbare `ModelAdmin`-registraties (in
+  tegenstelling tot de read-only importtabellen uit fase 2).
+- **Matchmotor** (`matching/timeline/engine.py`, 441 regels, uitgebreid
+  becommentarieerd per de nieuwe `CLAUDE.md`-afspraak): de gevalideerde
+  PoC-heuristiek overgezet — `Koppeltabellen`-dataclass (gesplitst op
+  `is_depot`), `DagUren`-dataclass, `home_streets_for()` voor
+  thuisadres-detectie, `build_day()` als hoofdfunctie, `_classify_stop()` met de
+  exacte prioriteitsvolgorde uit de PoC (1. depot-`BekendeLocatie` → L, 2. eigen
+  Uren-regel op postcode-dan-straat, depotstraat uitgesloten → W, 3. overige
+  `BekendeLocatie` op straat-dan-postcode → K/L/C, 4. thuisstraat → laten
+  vallen, niet opgeslagen, 5. tolerantiecheck tegen `ToleranceRegel` → O bij
+  gat ≥ drempel, ? bij gat ≥ 1 minuut, anders laten vallen), `_trim_home_hops()`,
+  `_ride_moments()` (met afhandeling van ritten die middernacht overschrijden),
+  `_minutes_between()` (met clamping van negatieve duur).
+- **Tests**: 143 tests groen, inclusief expliciete regressietests tegen de
+  PoC-cijfers (werkbon-hervinding in de verwachte bandbreedte) en tegen de
+  depotprioriteitsregel (M1: depot wint van een werkbonmatch).
+
+Twee aandachtspunten kwamen boven, geen bugs — vastgelegd als apart besluit in
+`docs/decisions.md` (03-09-2026): een straat-niveau depotadres claimt élk adres
+op die straat vóór een werkbonmatch (relevant zodra het echte SBTT-depotadres in
+fase 4 wordt ingevoerd), en het eerder genomen besluit om Werkbonnen.xlsx niet als
+matchbron te gebruiken geeft een lager werkbon-hervindingspercentage dan de PoC
+liet zien (verwacht gevolg van dat besluit, geen motorfout).
+
+Commit `eea759c`, lokaal gecommit en gepusht door Roger (deze Cowork-sessie heeft
+geen GitHub-credentials).
+
+Roadmap-fase 3 is hiermee afgerond. Eerstvolgende stap: roadmap-fase 4
+(verfijning van de beheerschermen) bespreken en bevestigen.

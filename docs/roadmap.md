@@ -38,10 +38,18 @@ De gevalideerde matching-heuristiek (uit de PoC en de bredere validatie —
 naar herbruikbare Django-logica: tijdlijnreconstructie per monteur per dag,
 classificatie in soorten (werkbon/klant/leverancier/eigen locatie/reistijd/
 onbekend/onverklaard), en het toepassen van de tolerantietabel per activiteit.
+**Gebouwd (03-09-2026), inclusief de koppeltabellen die de motor nodig heeft
+(`Monteur`, `BekendeLocatie`, `Instelling`, `MeegeredenKoppeling`, `ToleranceRegel`)
+— op verzoek van Roger nu al als echte modellen, in plaats van pas in fase 4. 143
+tests groen, commit `eea759c`. Zie `docs/changelog.md` en `docs/decisions.md`
+(03-09-2026).**
 
 ### 4. Koppeltabellen + beheerschermen
-Django-admin voor: bekende locaties (met marge), monteur–voertuig (incl. meerijden),
-personeelsnummer–naam, en relaties (klant/leverancier-onderscheid).
+De koppeltabellen zelf zijn al gebouwd in fase 3 (zie hierboven). Deze fase gaat nu
+vooral over de admin-schermen zelf verfijnen (labels, filters, gebruiksgemak) en het
+invoeren van de echte SBTT-stamgegevens (o.a. het echte depotadres — met het
+aandachtspunt uit `docs/decisions.md`, 03-09-2026, over het straat-niveau
+depotrisico).
 
 ### 5. Uitzonderingen-scherm
 Onbekende of afwijkende adressen in één klik koppelen; bevestigde koppelingen worden

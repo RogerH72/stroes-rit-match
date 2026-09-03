@@ -48,6 +48,18 @@ Django-superuser werkt, en de Docker-build is gecontroleerd: build, migraties,
 healthcheck en admin allemaal groen. Zie `docs/changelog.md` en `docs/decisions.md`
 (02-09-2026 en 03-09-2026).
 
+**Fase 3 (reken-/matchmotor) is gebouwd (03-09-2026):** de gevalideerde
+matchheuristiek uit de PoC omgezet naar Django — tijdlijnreconstructie per
+monteur/dag, classificatie in SOORT-codes (depot → eigen Uren-regels → overige
+koppeltabel → thuis → onverklaard/onbekend), en de koppeltabellen die dat nodig
+heeft (`Monteur`, `BekendeLocatie`, `Instelling`, `MeegeredenKoppeling`,
+`ToleranceRegel`), nu al als echte, in Django-admin bewerkbare modellen (zie
+`docs/decisions.md`, 03-09-2026). 143 tests groen. Twee dingen zijn daarbij aan het
+licht gekomen, geen bugs maar aandachtspunten voor de echte configuratie: een
+straat-niveau depotadres claimt élk adres op die straat vóór een werkbonmatch, en
+het uitsluiten van Werkbonnen.xlsx als matchbron (eerder besluit) geeft een lager
+werkbon-hervindingspercentage dan de PoC. Zie `docs/decisions.md` (03-09-2026).
+
 Beoogde PoC-architectuur: een los
 Python-script dat de Syntess-exports en de RouteVision-download inleest, per
 monteur/dag een tijdlijn reconstrueert, matcht tegen bekende locaties
@@ -57,8 +69,9 @@ een weekoverzicht wegschrijft. Zie `docs/architecture.md`.
 ## Application / module overview
 
 - `rmw/` — Django-projectconfiguratie (settings, urls, wsgi/asgi).
-- `matching/` — de applicatie: matchinglogica, modellen en admin (nu nog leeg;
-  gevuld in roadmap-fase 2 t/m 6).
+- `matching/` — de applicatie: importmodellen + admin (fase 2), de koppeltabellen
+  en de matchmotor in `matching/timeline/` (fase 3); de uitzonderingen- en
+  weekoverzichtschermen volgen in fase 5/6.
 
 De PoC zelf was één script (`D:\STROES\PoC-demo\rmw_sbtt.py`).
 
@@ -98,8 +111,15 @@ RouteVision-data komt voor de PoC uit een handmatige download, niet uit de API.
    naar `origin/main`), lokale Django-superuser opnieuw aangemaakt en login bevestigd,
    en de Docker-build gecontroleerd (build, migraties, healthcheck, admin — allemaal
    groen). Zie `docs/changelog.md` (03-09-2026).
-5. **Eerstvolgende stap:** roadmap-fase 3 (reken-/matchmotor) hier bespreken en
-   bevestigen, pas daarna een instructie naar de Claude Code-sessie.
+5. **Gedaan (03-09-2026).** Roadmap-fase 3 (reken-/matchmotor) gebouwd, getest en
+   gepusht (`eea759c`), inclusief de koppeltabellen die de motor nodig heeft. Zie
+   `docs/changelog.md` en `docs/decisions.md` (03-09-2026).
+6. **Eerstvolgende stap:** roadmap-fase 4 (verfijning van de beheerschermen — de
+   koppeltabellen bestaan al, dit gaat om UX: labels, het
+   uitzonderingen-eenklik-scherm) hier bespreken en bevestigen. Neem bij het
+   configureren van het echte depotadres het aandachtspunt uit
+   `docs/decisions.md` (03-09-2026) mee: een straat-niveau depot claimt elk adres
+   op die straat.
 
 **Vervallen:** de eerder voorziene live-PoC-fase met 1-2 monteurs bij de klant (~1
 week, in overleg met Wim) — het akkoord van 31-08-2026 betrof al de volledige

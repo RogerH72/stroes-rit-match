@@ -113,4 +113,16 @@ het resultaat teruggeeft.
 
 ## Known limitations / deprecated fields
 
-Nog geen.
+- **Straat-niveau depotrisico (sinds fase 3, 03-09-2026).** De depotprioriteitsregel
+  op `BekendeLocatie.is_depot` werkt op straatniveau: een depotadres claimt élk adres
+  op diezelfde straat vóór een werkbonmatch. Dit is het gevalideerde PoC-gedrag, geen
+  bug, maar een aandachtspunt bij het invoeren van het echte SBTT-depotadres in fase
+  4. Zie `docs/decisions.md` (03-09-2026).
+- **`Instelling.delete()` alleen op instance-niveau geblokkeerd (sinds fase 3,
+  03-09-2026).** De `clean()`/`save()`/`delete()`-overrides op het singleton-model
+  `Instelling` voorkomen normaal verwijderen, maar een
+  `Instelling.objects.all().delete()` op queryset-niveau omzeilt dat (Django roept
+  `delete()` op individuele instances niet aan bij een bulkdelete via een queryset).
+  Geaccepteerd, laag risico: geen UI-pad biedt een bulkdelete op `Instelling` aan, en
+  de DB-`CheckConstraint` voorkomt hoe dan ook meer dan één rij. Zie
+  `docs/decisions.md` (03-09-2026).

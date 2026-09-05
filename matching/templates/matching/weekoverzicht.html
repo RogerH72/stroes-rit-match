@@ -1,0 +1,275 @@
+{% extends "matching/basis.html" %}
+{% comment %}
+The weekoverzicht (roadmap phase 6), in the layout SBTT designed themselves:
+a legend, a collapsible table per day with a SOORT-total underneath, and a
+week-total bar on top.
+
+Two deliberate differences from the prototype
+(D:/STROES/PoC-demo/RMW_SBTT_week_M5.html), both explained in
+matching/weekoverzicht.py: there is no WB column and no ⚑ signal (that
+WB-vs-SYS comparison is deliberately not built), and the gefactureerd/op-locatie
+comparison is shown per day as well as per week.
+{% endcomment %}
+
+{% block titel %}Weekoverzicht — RMW{% endblock %}
+
+{% block stijl %}
+    .keuzebalk {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+    .keuzebalk .veld { margin-bottom: 0; }
+    .keuzebalk .veld select, .keuzebalk .veld input {
+      width: auto;
+      min-width: 200px;
+      padding: 8px 10px;
+      border: 1px solid var(--rand);
+      border-radius: 6px;
+      font: inherit;
+      background: var(--kaart);
+    }
+    .keuzebalk .acties { margin-left: auto; display: flex; align-items: center; gap: 14px; }
+    .stap { color: var(--navy); text-decoration: none; font-weight: 600; white-space: nowrap; }
+    .stap:hover { text-decoration: underline; }
+    /* SOORT-code chip: a square badge rather than the round status pill, so a
+       code inside a dense table row stays as narrow as the letter it holds. */
+    .code {
+      display: inline-block;
+      min-width: 22px;
+      text-align: center;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 5px;
+    }
+    .legenda { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+    .legenda span.item {
+      background: var(--kaart);
+      border: 1px solid var(--rand);
+      border-radius: 16px;
+      padding: 3px 12px 3px 6px;
+      font-size: 13px;
+      color: var(--grijze-tekst);
+    }
+    .legenda .code { margin-right: 6px; }
+    .weektotalen { display: flex; flex-wrap: wrap; gap: 10px; margin: 4px 0 14px; }
+    .weektotalen .vak {
+      flex: 1 1 110px;
+      background: var(--kaart);
+      border: 1px solid var(--rand);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 13px;
+      color: var(--grijze-tekst);
+    }
+    .weektotalen .vak b { display: block; font-size: 18px; color: var(--tekst); }
+    .weektotalen .vak.totaal { background: var(--navy); border-color: var(--navy); color: #fff; }
+    .weektotalen .vak.totaal b { color: #fff; }
+    .vergelijking {
+      background: var(--kaart);
+      border: 1px solid var(--rand);
+      border-left: 4px solid var(--navy);
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-bottom: 18px;
+      font-size: 14px;
+    }
+    .vergelijking .uitleg { color: var(--grijze-tekst); font-size: 13px; margin-top: 2px; }
+    .waarschuwingskaart {
+      background: #FDF3E3;
+      border: 1px solid var(--waarschuwing);
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 18px;
+    }
+    .waarschuwingskaart b { color: #96540A; }
+    details.dag {
+      background: var(--kaart);
+      border: 1px solid var(--rand);
+      border-radius: 8px;
+      margin-bottom: 10px;
+      padding: 0 16px;
+    }
+    details.dag summary { cursor: pointer; padding: 12px 0; font-size: 15px; }
+    details.dag summary .dagtotaal { float: right; color: var(--grijze-tekst); font-size: 13px; }
+    table.dagtabel { font-size: 13.5px; }
+    table.dagtabel th, table.dagtabel td { padding: 6px 8px; }
+    table.dagtabel td.tijd { text-align: center; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    table.dagtabel td.duur { font-weight: 600; }
+    table.dagtabel td.adres { color: var(--grijze-tekst); }
+    /* Travel rows are context, not something to check: dimmed so the eye lands
+       on the stops, exactly as in the prototype. */
+    table.dagtabel tr.reistijd td { background: #FAFBFC; color: var(--grijze-tekst); }
+    .dagtotalen {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      align-items: center;
+      padding: 10px 2px 14px;
+      font-size: 13px;
+      color: var(--grijze-tekst);
+    }
+    .dagtotalen b { color: var(--tekst); }
+    .dagtotalen .vergelijk { margin-left: auto; }
+    a.koppel { color: var(--oranje); font-weight: 600; text-decoration: none; white-space: nowrap; }
+    a.koppel:hover { text-decoration: underline; }
+{% endblock %}
+
+{% block inhoud %}
+  {% if not overzicht %}
+    <h1>Weekoverzicht</h1>
+    <div class="kaart leeg">
+      Er zijn nog geen monteurs ingericht. Voeg ze toe onder
+      <a href="{% url 'admin:matching_monteur_changelist' %}">Beheer &rsaquo; Monteurs</a>;
+      daarna kan de matching draaien en verschijnt hier het weekoverzicht.
+    </div>
+  {% else %}
+    <h1>Weekoverzicht — {{ overzicht.monteur.naam }}</h1>
+    <p class="toelichting">
+      Week {{ overzicht.week }} · {{ overzicht.maandag|date:"j F" }} t/m
+      {{ overzicht.zondag|date:"j F Y" }}{% if overzicht.monteur.kenteken %} · bus
+      {{ overzicht.monteur.kenteken }}{% endif %}. De tijden komen uit RouteVision:
+      de werktijd volgt uit de ritten, niet uit de werkbontijd die de monteur zelf
+      invult.
+    </p>
+
+    {# One GET form: the browser turns the two fields into ?monteur=..&week=.. #}
+    <form class="keuzebalk" method="get" action="{% url 'weekoverzicht' %}">
+      <div class="veld">
+        <label for="monteur">Monteur</label>
+        <select id="monteur" name="monteur" onchange="this.form.submit()">
+          {% for monteur in monteurs %}
+            <option value="{{ monteur.pk }}"{% if monteur.pk == overzicht.monteur.pk %} selected{% endif %}>
+              {{ monteur.naam }} ({{ monteur.medewerker_nummer }})
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="veld">
+        <label for="week">Week</label>
+        {% comment %}
+        type=week gives a week picker where the browser has one and a plain text
+        field where it does not; either way the value is "2026-W32".
+        {% endcomment %}
+        <input type="week" id="week" name="week" value="{{ overzicht.waarde }}">
+      </div>
+      <button type="submit" class="knop">Toon week</button>
+      <div class="acties">
+        <a class="stap" href="?monteur={{ overzicht.monteur.pk }}&amp;week={{ overzicht.vorige_week }}">&larr; vorige week</a>
+        <a class="stap" href="?monteur={{ overzicht.monteur.pk }}&amp;week={{ overzicht.volgende_week }}">volgende week &rarr;</a>
+        <a class="knop" href="{% url 'weekoverzicht_excel' %}?monteur={{ overzicht.monteur.pk }}&amp;week={{ overzicht.waarde }}">Excel downloaden</a>
+      </div>
+    </form>
+
+    <div class="legenda">
+      {% for soort in overzicht.totalen %}
+        <span class="item"><span class="code" style="background: {{ soort.kleur }}">{{ soort.code }}</span>{{ soort.label }}</span>
+      {% endfor %}
+    </div>
+
+    {% if overzicht.ontbrekende_dagen %}
+      <div class="waarschuwingskaart">
+        <b>Onvolledige week.</b> Geen ritgegevens voor:
+        {% for dag in overzicht.ontbrekende_dagen %}
+          {{ dag.datum|date:"l j-n" }}{% if dag.gefactureerde_uren %}
+            (wel {{ dag.gefactureerde_uren }} uur geboekt){% endif %}{% if not forloop.last %}, {% endif %}
+        {% endfor %}.
+        De totalen hieronder gaan alleen over de dagen die er wél zijn. Een dag
+        zonder geboekte uren is meestal verlof; een dag mét geboekte uren maar
+        zonder ritten wijst op een ontbrekende of nog niet verwerkte
+        RouteVision-export.
+      </div>
+    {% endif %}
+
+    {% if overzicht.leeg %}
+      <div class="kaart leeg">
+        Voor deze week is nog geen dag berekend voor {{ overzicht.monteur.naam }}.
+        Kies een andere week, of draai de matching opnieuw via
+        <a href="{% url 'admin:matching_matchmotorstatus_changelist' %}">Beheer &rsaquo; Matchmotor-status</a>.
+      </div>
+    {% else %}
+      <h2 style="font-size: 15px; margin: 0 0 8px;">Weektotaal per SOORT</h2>
+      <div class="weektotalen">
+        {% for soort in overzicht.totalen %}
+          <div class="vak">
+            <span class="code" style="background: {{ soort.kleur }}">{{ soort.code }}</span>
+            {{ soort.label }}<b>{{ soort.tijd }}</b>
+          </div>
+        {% endfor %}
+        <div class="vak totaal">Totaal week<b>{{ overzicht.totaal }}</b></div>
+      </div>
+
+      <div class="vergelijking">
+        <b>Gefactureerd {{ overzicht.gefactureerde_uren }} uur → op locatie
+        {{ overzicht.uren_op_locatie }} uur</b>
+        (verschil {{ overzicht.verschil }} uur).
+        <div class="uitleg">
+          Links: de uren die deze monteur deze week in Syntess heeft geboekt.
+          Rechts: de tijd die hij volgens RouteVision daadwerkelijk op een
+          werkbon-adres stond (de W-blokken). Een groot verschil is een reden om
+          de dagen hieronder na te lopen — niet automatisch een fout. Let op twee
+          bekende oorzaken: uren die op het eigen bedrijfsadres zijn geboekt
+          tellen nooit als W (een stop op het depot wordt als L herkend), en uren
+          die één persoon voor een heel team boekt staan volledig op zijn naam.
+        </div>
+      </div>
+
+      {% for dag in overzicht.dagen %}
+        <details class="dag" open>
+          <summary>
+            <b>{{ dag.datum|date:"l j F"|capfirst }}</b>
+            <span class="dagtotaal">totaal {{ dag.totaal }}</span>
+          </summary>
+          <table class="dagtabel">
+            <thead>
+              <tr>
+                <th>Aankomst</th>
+                <th>Vertrek</th>
+                <th>Tijd</th>
+                <th>SOORT</th>
+                <th>Omschrijving</th>
+                <th>Adres</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for regel in dag.regels %}
+                <tr{% if regel.is_reistijd %} class="reistijd"{% endif %}>
+                  <td class="tijd">{{ regel.start|date:"H:i" }}</td>
+                  <td class="tijd">{{ regel.eind|date:"H:i" }}</td>
+                  <td class="tijd duur">{{ regel.duur }}</td>
+                  <td class="tijd"><span class="code" style="background: {{ regel.kleur }}">{{ regel.blok.soort }}</span></td>
+                  <td>
+                    {{ regel.blok.omschrijving }}
+                    {% if regel.koppelbaar and perms.matching.add_bekendelocatie %}
+                      {% comment %}
+                      Straight into the phase 5 confirm form for this exact
+                      address, so an O can be explained where it is noticed.
+                      {% endcomment %}
+                      — <a class="koppel" href="{% url 'uitzonderingen_koppelen' regel.koppel_precisie regel.koppel_sleutel %}">koppelen</a>
+                    {% endif %}
+                  </td>
+                  <td class="adres">{{ regel.blok.adres }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          <div class="dagtotalen">
+            {% for soort in dag.totalen %}
+              <span><b style="color: {{ soort.kleur }}">{{ soort.code }}</b> {{ soort.tijd }}</span>
+            {% endfor %}
+            <span><b>Totaal</b> {{ dag.totaal }}</span>
+            <span class="vergelijk">
+              <b>Gefact. → locatie</b>
+              {{ dag.gefactureerde_uren }} → {{ dag.uren_op_locatie }} u
+              ({{ dag.verschil }})
+            </span>
+          </div>
+        </details>
+      {% endfor %}
+    {% endif %}
+  {% endif %}
+{% endblock %}

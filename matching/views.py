@@ -2,13 +2,17 @@
 
 The beheerschermen (koppeltabellen, tolerantietabel, matchmotor-status) are
 Django-admin screens by contract (GUIDELINES.md, "Technology stack"). The
-uitzonderingenscherm is not: SBTT staff will use it often, so it is part of the
-web application itself, with its own simple style (docs/decisions.md,
-2026-09-03).
+uitzonderingenscherm (phase 5) and the weekoverzicht (phase 6) are not: SBTT
+staff will use them often, so they are part of the web application itself, with
+their own simple style (docs/decisions.md, 2026-09-03).
 
 Authentication reuses the admin's session login — there is no separate front-end
 login in this app, and staff are already signed in there when they come from the
 matchmotor-status page.
+
+The week assembly itself lives in matching/weekoverzicht.py; the views here only
+resolve which monteur and which week were asked for, and hand the result to a
+template or to the Excel writer.
 """
 
 from __future__ import annotations
@@ -19,12 +23,14 @@ from dataclasses import dataclass, field
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
-from django.http import Http404, JsonResponse
+from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 
+from matching import weekoverzicht as week
 from matching.forms import KoppelLocatieForm
-from matching.models import LocatieType, Soort, Tijdblok
+from matching.models import LocatieType, Monteur, Soort, Tijdblok
 from matching.timeline.runner import run_matching_and_record_status
+from matching.weekoverzicht_excel import bestandsnaam, bouw_werkboek
 
 #: Where an anonymous visitor is sent; the admin owns the only login page.
 LOGIN_URL = "/admin/login/"
@@ -80,6 +86,10 @@ def _onverklaarde_groepen() -> list[Uitzondering]:
     Rows with neither key are skipped, because there is nothing to link them to.
     In practice those only exist in a database that has not been reprocessed
     since the two fields were added (`run_matching --force`).
+
+    The key itself comes from `Tijdblok.koppelsleutel`, which the weekoverzicht
+    (phase 6) uses too, so a link from there always lands on the group shown
+    here.
     """
     groepen: dict[tuple[str, str], Uitzondering] = {}
     # A Counter per group rather than one street on the group: rows sharing a
@@ -93,11 +103,8 @@ def _onverklaarde_groepen() -> list[Uitzondering]:
         .order_by("datum", "monteur__naam", "volgorde")
     )
     for blok in blokken:
-        if blok.postcode:
-            sleutel = (LocatieType.POSTCODE, blok.postcode)
-        elif blok.straat:
-            sleutel = (LocatieType.STRAAT, blok.straat)
-        else:
+        sleutel = blok.koppelsleutel
+        if sleutel is None:
             continue
 
         groep = groepen.get(sleutel)
@@ -144,7 +151,7 @@ def uitzonderingen(request):
     return render(
         request,
         "matching/uitzonderingen.html",
-        {"groepen": _onverklaarde_groepen()},
+        {"groepen": _onverklaarde_groepen(), "scherm": "uitzonderingen"},
     )
 
 
@@ -203,3 +210,105 @@ def _koppel_en_herbereken(request, form: KoppelLocatieForm):
             f"{result.aantal_blokken} tijdblok(ken).",
         )
     return redirect("uitzonderingen")
+
+
+# --- het weekoverzicht ------------------------------------------------------
+
+
+@dataclass
+class Weekkeuze:
+    """Which monteur and which week the page is showing, plus the alternatives."""
+
+    monteur: Monteur
+    jaar: int
+    week: int
+    #: What the dropdown offers.
+    monteurs: list[Monteur] = field(default_factory=list)
+
+
+@login_required(login_url=LOGIN_URL)
+def weekoverzicht(request):
+    """One monteur's week: the reconstructed days, per SOORT and in total."""
+    keuze = _weekkeuze(request)
+    if keuze is None:
+        # No monteurs at all: an empty dropdown with an empty table underneath
+        # would leave the user guessing, so say what is missing instead.
+        return render(
+            request,
+            "matching/weekoverzicht.html",
+            {"overzicht": None, "scherm": "weekoverzicht"},
+        )
+
+    overzicht = week.bouw_weekoverzicht(keuze.monteur, keuze.jaar, keuze.week)
+    return render(
+        request,
+        "matching/weekoverzicht.html",
+        {
+            "overzicht": overzicht,
+            "monteurs": keuze.monteurs,
+            "scherm": "weekoverzicht",
+        },
+    )
+
+
+@login_required(login_url=LOGIN_URL)
+def weekoverzicht_excel(request):
+    """The same week as an .xlsx, with the same SOORT colours as the page."""
+    keuze = _weekkeuze(request)
+    if keuze is None:
+        raise Http404("Er zijn nog geen monteurs ingericht.")
+
+    overzicht = week.bouw_weekoverzicht(keuze.monteur, keuze.jaar, keuze.week)
+    antwoord = HttpResponse(
+        bouw_werkboek(overzicht),
+        content_type=(
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        ),
+    )
+    antwoord["Content-Disposition"] = (
+        f'attachment; filename="{bestandsnaam(overzicht)}"'
+    )
+    return antwoord
+
+
+def _weekkeuze(request) -> Weekkeuze | None:
+    """Read `?monteur=<id>&week=<jaar>-W<nr>`; None when there is no monteur yet.
+
+    A parameter that is absent falls back to a sensible default (the first
+    monteur, his most recent processed week), because that is what opening the
+    screen from a menu looks like. A parameter that is *present but wrong* is a
+    404 rather than a silent fallback: showing week 30 under a URL that says
+    week 99 is the kind of thing someone screenshots and then acts on.
+    """
+    monteurs = list(Monteur.objects.filter(actief=True))
+
+    gevraagd = request.GET.get("monteur")
+    if gevraagd:
+        monteur = Monteur.objects.filter(pk=_als_getal(gevraagd)).first()
+        if monteur is None:
+            raise Http404("Onbekende monteur.")
+        if monteur not in monteurs:
+            # An inactive monteur is still viewable — his past weeks did happen
+            # — so he is added to the dropdown for as long as he is selected.
+            monteurs = sorted(monteurs + [monteur], key=lambda m: m.naam)
+    elif monteurs:
+        monteur = monteurs[0]
+    else:
+        return None
+
+    gevraagde_week = request.GET.get("week")
+    if gevraagde_week:
+        gekozen = week.parse_week(gevraagde_week)
+        if gekozen is None:
+            raise Http404("Onbekende week.")
+    else:
+        gekozen = week.laatste_week_met_data(monteur)
+
+    return Weekkeuze(
+        monteur=monteur, jaar=gekozen[0], week=gekozen[1], monteurs=monteurs
+    )
+
+
+def _als_getal(waarde: str) -> int | None:
+    """The primary key from the URL, or None when it is not a number at all."""
+    return int(waarde) if waarde.isdigit() else None

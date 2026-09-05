@@ -392,3 +392,40 @@ warnings" herschreven, nieuw afgerond punt onder "Current priorities"),
 `docs/business-rules.md`, `docs/demo.md`, `project-context.md` en `docs/decisions.md`
 (nieuw besluit; het oude besluit "Meerwerk snelheidscontrole" is als Superseded
 gemarkeerd). Puur documentatie, geen codewijziging.
+
+## 2026-09-05 — Roadmap-fase 6 gebouwd: weekoverzicht (web + Excel)
+
+Het weekoverzicht per monteur per week, in de lay-out die SBTT zelf had ontworpen.
+`/weekoverzicht/` toont een legenda, het weektotaal per SOORT en per dag een
+inklapbare tabel (aankomst, vertrek, duur, SOORT, omschrijving, adres) met
+dagtotalen eronder. Monteur en week worden bovenaan gekozen (dropdown +
+weekkiezer) en staan in de URL (`?monteur=<id>&week=<jaar>-W<nr>`), met
+vorige/volgende week-links. `/weekoverzicht/excel/` levert dezelfde week als
+.xlsx met dezelfde SOORT-celkleuren.
+
+Twee bewuste afwijkingen van het HTML-prototype uit de validatie: de WB-kolom en
+het ⚑-signaal zijn weggelaten (dat is het WB-vs-SYS-signaal dat bewust niet
+gebouwd is, zie `docs/functioneel-ontwerp.md` §3b), en de "gefactureerd vs. op
+locatie"-vergelijking is juist overgenomen — per dag én als weektotaal, als som
+van `Uren.Aantal` tegenover de opgetelde duur van de SOORT=W-tijdblokken.
+
+Verder: een SOORT O-blok linkt rechtstreeks naar het koppelformulier van fase 5
+(via een gedeelde `Tijdblok.koppelsleutel`, zodat scherm en lijst altijd hetzelfde
+adres aanspreken), en een onvolledige week meldt expliciet welke werkdagen
+ontbreken inclusief de uren die er wél op geboekt zijn — die uren blijven buiten
+het weektotaal.
+
+Geen nieuwe tabellen, velden of migraties: alles wordt berekend uit de al
+opgeslagen `Tijdblok`- en `Uren`-rijen. Nieuwe bestanden:
+`matching/weekoverzicht.py` (de week samenstellen),
+`matching/weekoverzicht_excel.py` (de export) en
+`matching/templates/matching/weekoverzicht.html`. De gedeelde basispagina kreeg een
+navigatie (Weekoverzicht · Uitzonderingen · Beheer) en een `stijl`-block; de
+SOORT-kleuren staan vastgelegd in `docs/ui-spec.md`. 240 tests groen (was 195).
+
+Bij het nalopen op de voorbeelddata bleek één weekvergelijking op het eerste
+gezicht alarmerend (106 uur geboekt tegenover 0 uur op locatie). Dat is geen
+rekenfout maar echte data: die uren zijn geboekt op het eigen bedrijfsadres (waar
+een stop per definitie L is, nooit W) en één persoon boekt daar de uren van een
+heel team op zijn naam. Beide verklaringen staan nu op het scherm zelf en in
+`docs/business-rules.md`.

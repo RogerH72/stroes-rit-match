@@ -134,6 +134,16 @@ het is een service-functie die `WerkbonControle`-rijen per werkbon beoordeelt (o
 basis van de al opgeslagen fase-status) en op aanvraag (bijv. bij het weekoverzicht)
 het resultaat teruggeeft.
 
+**Het weekoverzicht (fase 6, 05-09-2026) voegt géén tabellen of velden toe.** Het
+leest de al opgeslagen `Tijdblok`-rijen en telt daar per dag en per week de minuten
+per SOORT bij op; de "gefactureerd"-kant is een `Sum` over `Uren.aantal` per datum,
+op het moment van weergave berekend. Bewust niet opgeslagen: het is een afgeleide van
+data die al in de database staat, en opslaan zou een tweede waarheid introduceren die
+na elke `run_matching` bijgewerkt moet blijven. `Tijdblok` kreeg er in deze fase één
+afgeleide property bij (`koppelsleutel`, postcode-eerst met straat als fallback) —
+geen kolom, alleen de gedeelde regel waarmee zowel het uitzonderingenscherm als het
+weekoverzicht een stop adresseren.
+
 ## Known limitations / deprecated fields
 
 - **Straat-niveau depotrisico (sinds fase 3, 03-09-2026).** De depotprioriteitsregel

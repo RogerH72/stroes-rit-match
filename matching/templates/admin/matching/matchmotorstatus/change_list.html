@@ -18,8 +18,10 @@ refreshed tab or a link preview should be able to set off.
       </p>
     </form>
     <p style="margin: 12px 0 0;">
-      {# The only way into the screen outside the admin. This page is where staff #}
-      {# already come after changing a koppeltabel, so it is the natural spot.    #}
+      {# The way into the screens outside the admin. This page is where staff  #}
+      {# already come after changing a koppeltabel, so it is the natural spot. #}
+      <a href="{% url 'weekoverzicht' %}">Weekoverzicht bekijken &rarr;</a>
+      &nbsp;·&nbsp;
       <a href="{% url 'uitzonderingen' %}">Uitzonderingen bekijken &rarr;</a>
     </p>
   </div>

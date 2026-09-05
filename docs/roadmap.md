@@ -83,6 +83,24 @@ aan Wim (`docs/decisions.md`, 03-09-2026).
 Per monteur, als webpagina én als Excel-export, in de eigen lay-out van SBTT
 (SOORT-codes K/L/C/W/?/O/R) — voortbouwend op het HTML-prototype uit de validatie.
 
+**Gebouwd (05-09-2026), 240 tests groen (was 195):** `/weekoverzicht/` toont één
+monteur-week met een legenda, een weektotaal per SOORT en per dag een inklapbare
+tabel (aankomst, vertrek, duur, SOORT, omschrijving, adres) met daaronder de
+dagtotalen. Monteur en week worden gekozen met een dropdown en een weekkiezer; de
+keuze staat in de URL (`?monteur=<id>&week=<jaar>-W<nr>`), met vorige/volgende
+week-links. `/weekoverzicht/excel/` levert dezelfde week als .xlsx met dezelfde
+SOORT-celkleuren. Twee afwijkingen van het prototype, beide bewust:
+
+- **Geen WB-kolom en geen ⚑-signaal** — dat is het WB-vs-SYS-signaal dat al eerder
+  bewust niet gebouwd is (`docs/functioneel-ontwerp.md` §3b).
+- **Wél de "gefactureerd vs. op locatie"-vergelijking**, per dag én als weektotaal:
+  de som van `Uren.Aantal` tegenover de opgetelde duur van de SOORT=W-tijdblokken.
+
+Een SOORT O-blok linkt rechtstreeks naar het koppelformulier van fase 5. Een
+onvolledige week toont de dagen die er wél zijn plus een expliciete melding welke
+werkdagen ontbreken (inclusief de uren die op zo'n dag geboekt zijn) — die uren
+blijven buiten het weektotaal, zodat er nooit een stil onvolledig totaal ontstaat.
+
 ### 7. Oplevering
 Lichte, zelfstandige Docker-container, i.s.m. Stric geplaatst in een bestaande
 Proxmox-/VM-omgeving (of anders een kleine VPS). Bij elke nieuwe versie eerst een

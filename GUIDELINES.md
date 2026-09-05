@@ -134,10 +134,22 @@ RouteVision-data komt voor de PoC uit een handmatige download, niet uit de API.
    buiten deze roadmap. Puur een documentatiebesluit, geen codewijziging. Zie
    `docs/decisions.md` (05-09-2026), `docs/functioneel-ontwerp.md` §8/§9 en
    `docs/roadmap.md`.
-9. **Eerstvolgende stap:** roadmap-fase 6 (weekoverzicht) hier bespreken en
-   bevestigen — bouwt voort op de basispagina/stijl uit fase 5. Neem verder mee:
-   bij het configureren van het echte depotadres voor SBTT het aandachtspunt uit
-   `docs/decisions.md` (03-09-2026) over het straat-niveau depotrisico, en bij
+9. **Gedaan (05-09-2026).** Roadmap-fase 6 (weekoverzicht) gebouwd:
+   `/weekoverzicht/` toont per monteur per week de gereconstrueerde dagen in
+   SBTT's eigen lay-out (legenda, weektotaal per SOORT, per dag een inklapbare
+   tabel met dagtotalen), met monteur/week in de URL en een Excel-export
+   (`/weekoverzicht/excel/`) met dezelfde SOORT-celkleuren. Twee bewuste
+   afwijkingen van het prototype: geen WB-kolom en geen ⚑-signaal (het
+   WB-vs-SYS-signaal is niet gebouwd), wél de "gefactureerd vs. op
+   locatie"-vergelijking per dag én per week. Een O-blok linkt door naar het
+   koppelformulier van fase 5; een onvolledige week meldt expliciet welke dagen
+   ontbreken. Geen nieuwe tabellen of velden. 240 tests groen (was 195). Zie
+   `docs/changelog.md` en `docs/business-rules.md`.
+10. **Eerstvolgende stap:** roadmap-fase 7 (oplevering) — het draaiboek staat
+   klaar in `DRAAIBOEK.md`, met drie nog niet definitieve onderdelen
+   (VM-gegevens, het `backup_db`-commando, §7 "eerste inrichting"). Neem verder
+   mee: bij het configureren van het echte depotadres voor SBTT het aandachtspunt
+   uit `docs/decisions.md` (03-09-2026) over het straat-niveau depotrisico, en bij
    de oplevering (fase 7/8) dat de instructie aan Wim expliciet foutherstel via
    "Bekende locaties" moet uitleggen (`docs/decisions.md`, 03-09-2026).
 

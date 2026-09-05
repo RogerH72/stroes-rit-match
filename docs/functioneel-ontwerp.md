@@ -219,6 +219,28 @@ Het eindresultaat per monteur, beschikbaar als webpagina én als Excel-export, i
 layout die de klant zelf al in Excel had ontworpen (met de SOORT-codes uit §3b).
 Bouwt voort op het HTML-prototype uit de eerdere validatie.
 
+**Gebouwd (05-09-2026, 240 tests groen).** `/weekoverzicht/` toont één monteur-week:
+een legenda, het weektotaal per SOORT, en per dag een inklapbare tabel (aankomst,
+vertrek, duur, SOORT, omschrijving, adres) met daaronder de dagtotalen. Monteur en
+week worden gekozen bovenaan de pagina en staan in de URL
+(`?monteur=<id>&week=<jaar>-W<nr>`), met vorige/volgende week-links.
+`/weekoverzicht/excel/` levert dezelfde week als .xlsx met dezelfde SOORT-celkleuren.
+
+Twee bewuste afwijkingen van het prototype:
+
+- **Geen WB-kolom en geen ⚑-signaal.** Die vergeleken de handmatig ingevulde
+  werkbontijd met de RouteVision-tijd — het WB-vs-SYS-signaal dat volgens §3b bewust
+  niet gebouwd is. Het prototype-uiterlijk mag dat signaal niet alsnog terugbrengen.
+- **Wél de "gefactureerd vs. op locatie"-vergelijking**, per dag én als weektotaal:
+  de som van `Uren.Aantal` tegenover de opgetelde duur van de SOORT=W-tijdblokken.
+  Anders dan WB-vs-SYS vergelijkt dit twee bronnen die allebei betrouwbaar zijn
+  (geboekte uren en gereconstrueerde ritdata).
+
+Verder: een SOORT O-blok linkt rechtstreeks naar het koppelformulier van §5, en een
+onvolledige week toont de dagen die er wél zijn plus een melding welke werkdagen
+ontbreken — die ontbrekende dagen blijven buiten het weektotaal, zodat er nooit een
+stil onvolledig totaal ontstaat.
+
 ## 7. Oplevering en acceptatie (roadmap-fase 7 en 8)
 
 Oplevering als lichte, zelfstandige Docker-container, samen met Stric geplaatst in een

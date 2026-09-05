@@ -2,8 +2,8 @@
 
 Een uitleg zonder technisch jargon — bedoeld om te delen met Wim.
 
-_Laatst bijgewerkt: 03-09-2026, na het toevoegen van het Werkbonnen-postcode-
-vangnet (zie `docs/decisions.md`). Zie de onderhoudsafspraak onderaan dit
+_Laatst bijgewerkt: 05-09-2026, na het gereedkomen van het weekoverzicht (zie
+"Wat je hiervan te zien krijgt"). Zie de onderhoudsafspraak onderaan dit
 document._
 
 ## Het probleem waar dit voor is bedacht
@@ -69,6 +69,37 @@ label per moment — precies de indeling die Wim zelf al in Excel had bedacht:
 | **R** | Onderweg (reistijd) |
 | **O** | Onverklaarde stop — de moeite waard om te bekijken |
 | **?** | Korte, onbekende stop |
+
+## Wat je hiervan te zien krijgt
+
+Per monteur kun je een week opvragen. Bovenaan staat het weektotaal: hoeveel
+tijd er die week in elk van bovenstaande categorieën zat. Daaronder staat elke
+dag apart, met alle momenten op een rij — hoe laat de bus ergens aankwam en
+weer wegreed, hoe lang dat duurde, welk label erbij hoort en om welk adres het
+gaat. Je kunt een dag dichtklappen als je hem niet nodig hebt. Dezelfde week is
+te downloaden als Excel-bestand, met dezelfde kleuren, zodat je hem kunt
+bewaren of doorsturen.
+
+Staat er een onverklaarde stop tussen, dan kun je die daar meteen koppelen —
+je hoeft daar geen apart scherm voor op te zoeken.
+
+Per dag en per week staat er één extra vergelijking bij: **de uren die de
+monteur in Syntess heeft geboekt, naast de tijd dat hij volgens de
+ritregistratie daadwerkelijk op een werkbon-adres stond.** Dat is bedoeld als
+signaal om even naar te kijken, niet als beschuldiging — er zijn twee
+verklaringen die vaak voorkomen en die geen enkel probleem zijn:
+
+- Uren die op het eigen bedrijfsadres worden geboekt tellen niet mee aan de
+  rechterkant. Een stop op het eigen terrein wordt namelijk herkend als "eigen
+  locatie", niet als werk op een werkbon.
+- Als één iemand de uren van een heel team op zijn eigen naam boekt, staat aan
+  de linkerkant het werk van meerdere mensen, en aan de rechterkant alleen zijn
+  eigen bus.
+
+Is een week niet compleet — bijvoorbeeld omdat de ritgegevens van een dag nog
+niet binnen zijn — dan zegt het scherm dat er met zoveel woorden bij, met welke
+dagen het betreft. Er verschijnt dus nooit stilzwijgend een weektotaal dat
+eigenlijk over minder dagen gaat dan je denkt.
 
 ## Waarom dit betrouwbaar genoeg is om op te bouwen
 

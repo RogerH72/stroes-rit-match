@@ -15,4 +15,15 @@ urlpatterns = [
         views.uitzonderingen_koppelen,
         name="uitzonderingen_koppelen",
     ),
+    # Monteur and week are query parameters rather than path segments: they are
+    # what the two controls at the top of the page set, and a form GET writes
+    # its fields into the query string by itself. The Excel export takes exactly
+    # the same parameters, so "download deze week" is the page's own URL with
+    # /excel/ in it.
+    path("weekoverzicht/", views.weekoverzicht, name="weekoverzicht"),
+    path(
+        "weekoverzicht/excel/",
+        views.weekoverzicht_excel,
+        name="weekoverzicht_excel",
+    ),
 ]

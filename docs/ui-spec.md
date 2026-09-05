@@ -72,6 +72,37 @@ laad-gedoe.
   18_09_13.png`) wordt als beeldmerk gebruikt zoals het is — de kleuren in dat logo
   zelf zijn niet de bron voor dit kleurenschema (zie hierboven).
 
+## SOORT-kleuren (vastgelegd bij de bouw van fase 6, 05-09-2026)
+
+De zeven SOORT-codes hebben een eigen kleurenset, los van het SBTT-palet hierboven.
+Reden: dit is een **functioneel codepalet**, geen merkpalet — de codes moeten in een
+dichte tabel van elkaar te onderscheiden zijn, en zeven codes passen niet in drie
+huisstijlkleuren. De waarden komen uit het prototype waar SBTT het overzicht al in
+las (`D:\STROES\PoC-demo\rmw_sbtt.py`), zodat het scherm er voor Wim hetzelfde
+uitziet als wat hij kent. Eén afwijking: **O gebruikt de waarschuwingskleur van fase
+5** (`#D97706`) in plaats van het rood uit het prototype, zodat een onverklaarde stop
+er op beide schermen hetzelfde uitziet.
+
+| Code | Betekenis | Hex |
+|---|---|---|
+| K | Klant | `#0E7C86` |
+| L | Locatie | `#2563B0` |
+| C | Crediteur | `#8250B5` |
+| W | Werkbon | `#1F8A4C` |
+| ? | Onbekend | `#8A94A2` |
+| O | Onverklaard | `#D97706` |
+| R | Reistijd | `#9AA4B2` |
+
+Deze tabel staat één keer in code (`SOORT_KLEUREN` in `matching/weekoverzicht.py`) en
+wordt door zowel de webpagina als de Excel-export gebruikt, zodat een gedownloade week
+dezelfde kleuren heeft als het scherm.
+
+**Componenten die fase 6 toevoegde** aan de gedeelde basispagina: een navigatie in de
+kopbalk (Weekoverzicht · Uitzonderingen · Beheer, met het actieve scherm onderstreept)
+en een `stijl`-block waarin een scherm zijn eigen CSS kwijt kan. De SOORT-code zelf
+wordt getoond als een klein vierkant "chip" (`.code`), niet als de ronde status-pil:
+in een tabelrij moet een code niet breder zijn dan de letter die erin staat.
+
 ## Reikwijdte van dit document
 
 Dit is een lichte basisstijl, geen uitgebreid design system — dat past bij de

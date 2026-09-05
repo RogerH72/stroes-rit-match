@@ -755,6 +755,29 @@ class Tijdblok(models.Model):
     def __str__(self) -> str:
         return f"{self.datum} {self.monteur.naam} #{self.volgorde} {self.soort}"
 
+    @property
+    def koppelsleutel(self) -> tuple[str, str] | None:
+        """How this block is addressed when it is linked to a BekendeLocatie.
+
+        Postcode first, street as fallback: the postcode is the more precise key
+        and RouteVision supplies one for nearly every stop, so grouping on the
+        street would merge two different addresses in the same street.
+
+        Lives on the model because two screens depend on producing the *same*
+        key — the uitzonderingenscherm groups its list by it (phase 5) and the
+        weekoverzicht links an O block straight to that group (phase 6). If the
+        two ever disagreed, the link would open a form about another address.
+
+        None for a block with neither key: there is nothing to link it to. In
+        practice only blocks from before these two fields existed
+        (`run_matching --force` fills them in).
+        """
+        if self.postcode:
+            return (LocatieType.POSTCODE, self.postcode)
+        if self.straat:
+            return (LocatieType.STRAAT, self.straat)
+        return None
+
 
 # ---------------------------------------------------------------------------
 # Roadmap phase 4 — the beheerschermen.

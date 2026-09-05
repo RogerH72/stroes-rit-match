@@ -12,8 +12,8 @@ Gebouwd t/m roadmap-fase 3 (03-09-2026, commit `eea759c`, 143 tests groen — zi
   depot-`BekendeLocatie` (L) → eigen Uren-regel op postcode/straat (W) → overige
   `BekendeLocatie` op straat/postcode (K/L/C) → thuisadres (laten vallen) →
   tolerantiecheck (O of ?). R (reistijd) volgt uit de tussenliggende ritten. Conform
-  het eindresultaat dat de klant zelf al in Excel had ontworpen — het
-  weekoverzicht-scherm zelf (fase 6) toont dit nog niet.
+  het eindresultaat dat de klant zelf al in Excel had ontworpen; sinds fase 6
+  (05-09-2026) toont het weekoverzicht deze codes ook daadwerkelijk.
 - Matchingregels, gevalideerd op echte data: postcode-exact is niet genoeg →
   straatnaam-fallback; een depotbezoek vóór werk wordt herkend (op straatniveau, zie
   het aandachtspunt in `docs/database.md` en `docs/decisions.md`, 03-09-2026).
@@ -86,13 +86,35 @@ Gebouwd t/m roadmap-fase 3 (03-09-2026, commit `eea759c`, 143 tests groen — zi
   onbepaald lang — consistent met hoe `geldt_op()` een koppeling al
   toepaste.
 
+**Weergaveregels van het weekoverzicht (gebouwd 05-09-2026, roadmap-fase 6,
+240 tests groen):**
+
+- **Gefactureerd vs. op locatie** — per dag en per week wordt de som van
+  `Uren.Aantal` (de in Syntess geboekte uren van die monteur op die datum)
+  gezet tegenover de opgetelde duur van de **SOORT=W**-tijdblokken (de tijd dat
+  de monteur volgens RouteVision daadwerkelijk op een werkbon-adres stond). Dit
+  is een signaal om na te lopen, geen fout: twee bekende verklaringen zijn uren
+  die op het eigen bedrijfsadres zijn geboekt (een depotstop is per definitie L,
+  nooit W — zie de prioriteitsvolgorde hierboven) en uren die één persoon voor
+  een heel team op zijn eigen naam boekt. Beide komen voor in de
+  voorbeelddata.
+- **Geen WB-vs-SYS-signaal in het scherm** — het prototype had een WB-kolom en een
+  ⚑-signaal die de handmatig ingevulde werkbontijd met de RouteVision-tijd
+  vergeleken. Die zijn bewust niet overgenomen; zie de regel over werktijd
+  hierboven en `docs/decisions.md` (02-09-2026).
+- **Een week is nooit stil onvolledig** — alleen dagen met een gereconstrueerde
+  tijdlijn tellen mee in de dag- en weektotalen. Werkdagen (ma t/m vr) zonder
+  tijdlijn worden apart gemeld, met de uren die er wél op geboekt zijn; die uren
+  blijven buiten het weektotaal, omdat ze anders zouden worden afgezet tegen
+  W-blokken die niet bestaan. Dagen die nog moeten komen (later deze week) tellen
+  niet als ontbrekend, en weekenddagen worden alleen getoond als er ritdata voor
+  is.
+- **Uren worden per datum opgeteld, niet per werkbon** — een monteur boekt
+  regelmatig meerdere werkbonnen op één dag; de vergelijking gaat over de dag als
+  geheel.
+
 ## Designed but not implemented
 
-- SOORT-codes per tijdblok tónen in het weekoverzicht (webpagina + Excel-export, in
-  de eigen lay-out van SBTT) — de classificatielogica zelf is al gebouwd (zie
-  "Implemented"), het weergavescherm volgt in fase 6.
-- Uitzonderingenscherm om onbekende/afwijkende adressen in één klik te koppelen
-  (fase 5) — de onderliggende `BekendeLocatie`-tabel bestaat al.
 - **"Monteur meegereden", stand 3 (Uit Syntess)** — leest de kolom "Monteur
   meegereden" in de Werkbonnen-export rechtstreeks uit. Staat nu uit en kan niet
   gekozen worden, omdat Syntess dit veld in de praktijk nog niet betrouwbaar vult

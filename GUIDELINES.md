@@ -129,7 +129,12 @@ RouteVision-data komt voor de PoC uit een handmatige download, niet uit de API.
    (navy/oranje/groen, uit SBTT's eigen site) vastgelegd in `docs/ui-spec.md`
    en herbruikbaar voor fase 6. 195 tests groen (was 176). Zie
    `docs/changelog.md` en `docs/decisions.md` (03-09-2026).
-8. **Eerstvolgende stap:** roadmap-fase 6 (weekoverzicht) hier bespreken en
+8. **Gedaan (05-09-2026).** Het snelheidscontrole-meerwerk is als openstaande
+   beslissing afgerond: vastgelegd als een aparte, later apart te offreren fase,
+   buiten deze roadmap. Puur een documentatiebesluit, geen codewijziging. Zie
+   `docs/decisions.md` (05-09-2026), `docs/functioneel-ontwerp.md` §8/§9 en
+   `docs/roadmap.md`.
+9. **Eerstvolgende stap:** roadmap-fase 6 (weekoverzicht) hier bespreken en
    bevestigen — bouwt voort op de basispagina/stijl uit fase 5. Neem verder mee:
    bij het configureren van het echte depotadres voor SBTT het aandachtspunt uit
    `docs/decisions.md` (03-09-2026) over het straat-niveau depotrisico, en bij
@@ -142,9 +147,12 @@ offerte, niet alleen een PoC-stap. Zie `docs/decisions.md`.
 
 ## Important warnings
 
-Mogelijk meerwerk (een snelheidscontrole per locatie op basis van RouteVision-data)
-raakt AVG/medewerkersmonitoring en vereist een zorgvuldig juridisch/HR-traject naast de
-techniek — nog geen besluit. Zie `docs/decisions.md`.
+Het snelheidscontrole-meerwerk (een snelheidscontrole per locatie op basis van
+RouteVision-data) is op 05-09-2026 vastgelegd als een **aparte, later apart te
+offreren fase** — geen openstaande ja/nee-vraag binnen deze roadmap en niet iets om
+nu op te pakken. Zodra die fase wel aan de orde komt: die controle raakt
+AVG/medewerkersmonitoring en vereist een zorgvuldig juridisch/HR-traject naast de
+techniek. Zie `docs/decisions.md` (05-09-2026).
 
 ## Documentation map
 

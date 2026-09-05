@@ -105,8 +105,9 @@ Gebouwd t/m roadmap-fase 3 (03-09-2026, commit `eea759c`, 143 tests groen — zi
   opgelost: Ruud (RVS Solutions) gaat dit onderscheid zelf aan de Relaties-export
   toevoegen. Mogelijk hoeft de app dit dan niet meer zelf via een koppeltabel af te
   leiden — te bevestigen zodra de aangepaste export er is.
-- Mogelijk meerwerk: snelheidscontrole per locatie (RouteVision-snelheid vs.
-  maximumsnelheid) — nog geen besluit, zie `docs/decisions.md`.
+- Meerwerk: snelheidscontrole per locatie (RouteVision-snelheid vs.
+  maximumsnelheid) — op 05-09-2026 vastgelegd als een aparte, later apart te
+  offreren fase, buiten deze roadmap. Zie `docs/decisions.md`.
 
 ## Superseded
 

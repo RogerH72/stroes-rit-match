@@ -249,8 +249,10 @@ Apart te offreren als vervolgstap, niet onderdeel van deze eerste werkende versi
 - Automatische signalering (bijv. een dagelijkse/wekelijkse e-mail met afwijkingen).
 - Een optioneel serviceabonnement voor ondersteuning en kleine aanpassingen.
 - Het snelheidscontrole-meerwerk (RouteVision-snelheid vs. maximumsnelheid per
-  locatie) — nog geen besluit; raakt bovendien AVG/medewerkersmonitoring en vereist
-  een juridisch/HR-traject naast de techniek.
+  locatie) — **vastgelegd (05-09-2026): een aparte fase, later apart te offreren.**
+  Het is dus geen openstaande ja/nee-vraag meer binnen deze roadmap en wordt nu niet
+  opgepakt. Raakt bovendien AVG/medewerkersmonitoring en vereist een juridisch/
+  HR-traject naast de techniek. Zie `docs/decisions.md` (05-09-2026).
 
 ## 9. Openstaande beslissingen — overzicht
 
@@ -262,8 +264,6 @@ Verzameld uit de secties hierboven, zodat ze niet uit het oog raken:
    met de klant.
 3. Klant/leverancier-onderscheid: blijft dit een koppeltabel in de app, of lost RVS
    Solutions dit op in de Relaties-export (§3b/§4)?
-4. Snelheidscontrole-meerwerk: wel of niet oppakken, en zo ja, hoe met de
-   AVG/medewerkersmonitoring-vraag om te gaan (§8).
 
 _Opgelost op 2026-09-02: "monteur meegereden" (verfijnd 03-09-2026 tot een
 instelbare 3-standen toggle, zie §3b/§4 en `docs/decisions.md`), de databronnen voor
@@ -275,3 +275,7 @@ volledigheidscontrole (per werkbon, zie §3b), en het AVG-beleid dat (ook
 geanonimiseerde) klantdata nooit in git komt (zie `docs/decisions.md`) — zie
 `docs/decisions.md` voor de volledige onderbouwing. Roadmap-fase 2 is gebouwd
 (02-09-2026)._
+
+_Opgelost op 2026-09-05: het snelheidscontrole-meerwerk. Dit is geen openstaande
+ja/nee-vraag meer binnen deze roadmap, maar een aparte, later apart te offreren fase
+— niet iets om nu op te pakken (zie §8 en `docs/decisions.md`)._

@@ -158,7 +158,7 @@ Reasoning: Syntess-ontsluiting was het grootste risico; dat is voor de PoC opgel
 3 dagelijkse Excel-exports, dus is er geen dure/premature architectuurkeuze nodig om
 het matchingsconcept te valideren.
 
-## Meerwerk snelheidscontrole (Deferred)
+## Meerwerk snelheidscontrole (Superseded — zie 2026-09-05 hieronder)
 
 Decision: nog geen besluit over het bouwen van een snelheidscontrole
 (RouteVision-snelheid vs. maximumsnelheid per locatie).
@@ -645,3 +645,29 @@ Bewust niet nu al uitgeschreven als kant-en-klare instructietekst: het
 uitzonderingenscherm is op het moment van dit besluit nog niet gebouwd (de
 bouwinstructie is net verstuurd), en een instructietekst schrijven voor een
 scherm dat tijdens de bouw nog kan afwijken zou voorbarig zijn.
+
+## 2026-09-05 — Snelheidscontrole-meerwerk: aparte, later te offreren fase (Current, vervangt "Meerwerk snelheidscontrole")
+
+Decision: het snelheidscontrole-meerwerk (RouteVision-snelheid vs. maximumsnelheid per
+locatie) is geen openstaande ja/nee-vraag meer binnen deze roadmap, maar een aparte,
+later apart te offreren fase — niet iets om nu op te pakken.
+
+Reasoning: het punt stond tot nu toe als open beslissing in
+`docs/functioneel-ontwerp.md` §9, waardoor het bij elke roadmap-stap opnieuw als
+af te wegen keuze terugkwam terwijl het in de praktijk buiten het huidige traject
+valt. Door het expliciet als aparte fase vast te leggen, is duidelijk dat het niet
+vergeten is maar bewust naar een eigen offerte-moment is verplaatst; de inhoudelijke
+zwaarte blijft ongewijzigd (het raakt AVG/medewerkersmonitoring en vereist een
+zorgvuldig juridisch/HR-traject naast de techniek, en wordt pas uitgewerkt als Wim
+dit expliciet als meerwerk wil laten offreren). De verkende technische bronnen
+(OSM/Overpass, Mapbox, HERE/TomTom, NWB/WKD) staan in
+`D:\AI\brainstorm-sessies\stroes-rit-match-werkbon\besluiten.md`.
+
+Superseded: het besluit "Meerwerk snelheidscontrole" hierboven, voor zover dat de
+status beschreef als "nog geen besluit".
+
+Doorgevoerd in: `docs/functioneel-ontwerp.md` §8 (herformuleerd) en §9 (uit de
+openstaande-beslissingen-lijst gehaald, toegevoegd aan de opgelost-regel),
+`docs/roadmap.md` ("Expliciet buiten deze roadmap"), `GUIDELINES.md` ("Important
+warnings" en "Current priorities"), `docs/business-rules.md` en `docs/demo.md`.
+Geen codewijziging.

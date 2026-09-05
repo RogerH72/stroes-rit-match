@@ -61,7 +61,8 @@ is dan de kortlopende, per-opdracht shells van Cowork. Ontwerp, besluiten en
 documentatie-onderhoud blijven hier. Zie `docs/decisions.md` (01-09-2026).
 
 De volledige voorgeschiedenis, functionele vragen (37 stuks), risico-analyse en het
-(nog onbesliste) meerwerk-idee snelheidscontrole staan in de brainstorm-sessie
+meerwerk-idee snelheidscontrole (05-09-2026 vastgelegd als aparte, later apart te
+offreren fase) staan in de brainstorm-sessie
 `D:\AI\brainstorm-sessies\stroes-rit-match-werkbon` (`overzicht.md`, `sessies.md`,
 `besluiten.md`) — raadplegen bij twijfel over eerdere afwegingen. Klantbronmateriaal
 (analyse, origineel Excel-overzicht, ChatGPT-voorstel) staat in `D:\STROES`.

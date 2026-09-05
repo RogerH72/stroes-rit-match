@@ -34,8 +34,8 @@ voorgesteld.
 - Geen productiestack-keuze (geen Django, geen database) tijdens de PoC.
 - Geen betaalde Syntess-API-koppeling.
 - Geen automatische RouteVision-API-koppeling (nog handmatige download).
-- Het snelheidscontrole-meerwerk — apart traject, nog geen besluit (zie
-  `docs/decisions.md`).
+- Het snelheidscontrole-meerwerk — apart traject; op 05-09-2026 vastgelegd als een
+  aparte, later apart te offreren fase (zie `docs/decisions.md`).
 - Geen volledige vervanging van het bestaande Access-programma; wel een
   tijdwinst-indicatie zoals Wim expliciet wil zien.
 

@@ -379,3 +379,16 @@ alleen het testen, niet hoe de app in productie draait.
 Foutherstel (een verkeerde koppeling terugdraaien via "Bekende locaties" in
 de admin, gevolgd door opnieuw matchen) is vastgelegd als verplicht onderdeel
 van de opleverinstructie aan Wim — zie `docs/decisions.md`, 03-09-2026.
+
+## 2026-09-05 — Snelheidscontrole-meerwerk vastgelegd als aparte fase
+
+Het snelheidscontrole-meerwerk (RouteVision-snelheid vs. maximumsnelheid per locatie)
+is geen openstaande ja/nee-vraag meer binnen deze roadmap, maar een aparte, later
+apart te offreren fase — niet iets om nu op te pakken. Verwerkt in
+`docs/functioneel-ontwerp.md` §8 (bullet herformuleerd) en §9 (uit de
+openstaande-beslissingen-lijst gehaald, toegevoegd aan de opgelost-regel),
+`docs/roadmap.md` ("Expliciet buiten deze roadmap"), `GUIDELINES.md` ("Important
+warnings" herschreven, nieuw afgerond punt onder "Current priorities"),
+`docs/business-rules.md`, `docs/demo.md`, `project-context.md` en `docs/decisions.md`
+(nieuw besluit; het oude besluit "Meerwerk snelheidscontrole" is als Superseded
+gemarkeerd). Puur documentatie, geen codewijziging.

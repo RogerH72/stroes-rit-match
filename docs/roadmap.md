@@ -106,7 +106,10 @@ per OvO punt 2a / projectvoorstel §6):
 - Een directe API-koppeling met Syntess en/of RouteVision (i.p.v. bestandsuitwisseling).
 - Automatische signalering (bijv. een dagelijkse/wekelijkse e-mail met afwijkingen).
 - Een optioneel serviceabonnement voor ondersteuning en kleine aanpassingen.
-- Het snelheidscontrole-meerwerk (zie `docs/decisions.md` — "Meerwerk snelheidscontrole", Deferred).
+- Het snelheidscontrole-meerwerk (RouteVision-snelheid vs. maximumsnelheid per
+  locatie) — op 05-09-2026 vastgelegd als een **aparte, later apart te offreren
+  fase**; geen openstaande ja/nee-vraag meer binnen deze roadmap en nu niet op te
+  pakken (zie `docs/decisions.md` — "Meerwerk snelheidscontrole").
 
 ## Afhankelijkheden van derden
 

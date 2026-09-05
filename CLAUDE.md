@@ -29,16 +29,22 @@ database → `docs/database.md`, enz.). Lees verdere documenten als de taak dat 
 
 ## Development principles
 
-- **Taal (vastgelegd 01-09-2026, zie `docs/decisions.md`):** UI en
-  klantcommunicatie altijd Nederlands. De al bestaande projectdocumentatie
-  (`CLAUDE.md`, `GUIDELINES.md`, `docs/*.md`) blijft Nederlands. Code (variabelen,
-  comments), commit-messages en nieuwe instructies naar een code tool zijn vanaf nu
-  Engels — zelfde conventie als ReplayCalcTool ("UI language: Dutch", rest Engels).
+- **Taal (vastgelegd 01-09-2026, commit-taal bijgesteld 05-09-2026 — zie
+  `docs/decisions.md`):** UI en klantcommunicatie altijd Nederlands. De al
+  bestaande projectdocumentatie (`CLAUDE.md`, `GUIDELINES.md`, `docs/*.md`) blijft
+  Nederlands. Code (variabelen, comments) en nieuwe instructies naar een code tool
+  zijn Engels — zelfde conventie als ReplayCalcTool ("UI language: Dutch", rest
+  Engels).
   **Uitzondering:** Nederlandse domeintermen die letterlijk uit het door SBTT
   ontworpen format komen (Werkbon, Monteur, Rit, de SOORT-codes K/L/C/W/?/O/R,
   koppeltabel, tolerantietabel) blijven ongewijzigd Nederlands in modelnamen/velden
   — net als "Totaal Montage" bij ReplayCalcTool. Alleen generieke code/structuur is
   Engels.
+  **Commit-messages zijn Nederlands** (bijgesteld op 05-09-2026, was Engels): een
+  commit-message hoort bij de projectuitvoering, niet bij de code zelf, en sluit
+  daarmee aan op de rest van het project — alle documentatie, klantcommunicatie en
+  Project-output zijn al Nederlands. Dit volgt bovendien de feitelijke praktijk:
+  de commits van fase 5 en 6 waren al Nederlands geschreven.
 - **Duidelijk gecommentarieerd (vastgelegd 03-09-2026):** Roger leest de code soms
   zelf, dus niet-triviale logica krijgt uitleg over het *waarom*, niet alleen het
   *wat* — vooral bij de matchmotor (de classificatie-prioriteit, de

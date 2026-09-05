@@ -120,7 +120,7 @@ zicht op elk commando en kan hij direct onderbreken. Git+GitHub meteen vanaf fas
 voorkomt dat er een periode is waarin bouwwerk onbeheerd/onback-upt op de lokale
 schijf staat.
 
-## 2026-09-01 — Taalconventie: code/instructies Engels, UI/documentatie Nederlands (Current)
+## 2026-09-01 — Taalconventie: code/instructies Engels, UI/documentatie Nederlands (Current, commit-taal herzien op 2026-09-05 hieronder)
 
 Decision: vanaf de bouw van de webapp zijn code (variabelen, comments),
 commit-messages en instructies naar een code tool (Claude Code) in het Engels. De al
@@ -671,3 +671,24 @@ openstaande-beslissingen-lijst gehaald, toegevoegd aan de opgelost-regel),
 `docs/roadmap.md` ("Expliciet buiten deze roadmap"), `GUIDELINES.md` ("Important
 warnings" en "Current priorities"), `docs/business-rules.md` en `docs/demo.md`.
 Geen codewijziging.
+
+## 2026-09-05 — Commit-messages in het Nederlands (Current, herziet de commit-taal van 2026-09-01)
+
+Decision: commit-messages zijn Nederlands. De rest van de taalconventie van
+01-09-2026 blijft ongewijzigd: code (variabelen, comments) en instructies naar een
+code tool blijven Engels, UI en klantcommunicatie blijven Nederlands, en de
+bestaande projectdocumentatie blijft Nederlands.
+
+Reasoning: een commit-message hoort bij de projectuitvoering, niet bij de code zelf
+— hij wordt gelezen naast de changelog, de roadmap en de besluiten, en die zijn
+allemaal Nederlands. Engelse commit-messages boven een volledig Nederlandstalig
+project leverden een taalgrens midden in dezelfde gedachtegang op. Daarbij was de
+Engelse regel in de praktijk al niet gevolgd: de commits van fase 5 en fase 6, en
+de documentatiecommits daaromheen, zijn Nederlands geschreven. Deze bijstelling
+maakt de vastgelegde conventie gelijk aan de feitelijke praktijk, in plaats van een
+regel te laten staan die bij elke commit opnieuw wordt overtreden.
+
+Superseded: het besluit "2026-09-01 — Taalconventie", uitsluitend voor zover dat
+commit-messages als Engels aanwees. De motivering daarvan (aansluiten bij het
+Engelstalige Django-ecosysteem) geldt voor code en tool-instructies, niet voor een
+tekst die alleen door de projectbetrokkenen zelf gelezen wordt.

@@ -1,10 +1,18 @@
 """URLs of the screens outside the Django admin (roadmap phases 5-6)."""
 
+from django.contrib.auth.views import LogoutView
 from django.urls import path
 
 from matching import views
 
 urlpatterns = [
+    # One logout route for the whole application: both the navigation bar and
+    # the admin header post here, so "uitloggen" cannot come to mean two things
+    # depending on which screen you are on. Where it lands is
+    # LOGOUT_REDIRECT_URL. LogoutView refuses GET, which is why both headers
+    # hold a small POST form and not a link — a link would be followed by every
+    # link-prefetcher and mail scanner.
+    path("uitloggen/", LogoutView.as_view(), name="uitloggen"),
     path("uitzonderingen/", views.uitzonderingen, name="uitzonderingen"),
     # The precision is a path segment rather than a query parameter, so both
     # kinds of group have their own stable, bookmarkable address. `str` also

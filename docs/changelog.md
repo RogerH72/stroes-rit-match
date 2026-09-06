@@ -429,3 +429,93 @@ rekenfout maar echte data: die uren zijn geboekt op het eigen bedrijfsadres (waa
 een stop per definitie L is, nooit W) en één persoon boekt daar de uren van een
 heel team op zijn naam. Beide verklaringen staan nu op het scherm zelf en in
 `docs/business-rules.md`.
+
+## 2026-09-06 — Landingspagina: het weekoverzicht in plaats van de admin
+
+Twee routing-aanpassingen, geen nieuwe modellen of migraties. De root-URL (`/`)
+stuurt niet langer door naar `/admin/login/` maar naar `/weekoverzicht/` — het
+scherm waar SBTT-personeel de hele dag in werkt, terwijl de beheerschermen
+incidenteel zijn. Wie niet is ingelogd loopt daardoor via `/weekoverzicht/` naar
+`/admin/login/?next=/weekoverzicht/` en komt ná het inloggen op het weekoverzicht
+terug in plaats van in de admin-index; `LOGIN_URL` en `LOGIN_REDIRECT_URL` staan
+nu in `rmw/settings.py`, zodat `matching/views.py` met een kale `@login_required`
+toekan. De "Beheer"-link in de navigatiebalk wijst onveranderd naar `/admin/`.
+
+De gevraagde derde wijziging — `/weekoverzicht/` zonder parameters op de *huidige*
+week openen — is na overleg niet doorgevoerd: het scherm toonde al geen leeg
+scherm (eerste actieve monteur alfabetisch + diens meest recent verwerkte week),
+en op de huidige week openen zou juist wél een lege pagina geven op een
+maandagochtend of na een vakantie. Dat bestaande gedrag is in plaats daarvan
+expliciet vastgelegd — in `matching/views.py` (`_weekkeuze` sorteert nu zelf op
+naam in plaats van op `Monteur.Meta.ordering` te leunen), in
+`docs/functioneel-ontwerp.md` §6 en met drie tests.
+
+Verder bijgewerkt: `docs/architecture.md` (nieuwe alinea "Routing/toegang", er
+stond nog niets over URL-configuratie) en `DRAAIBOEK.md` §6, waar de
+verificatiestap na deployment nu het kale LAN-adres volgt in plaats van
+`/admin/login/`. 250 tests groen (was 240): een nieuw bestand
+`matching/tests/test_routing.py` (8 tests) en twee extra tests op de
+standaardweergave in `matching/tests/test_weekoverzicht.py`.
+
+## 2026-09-06 — Uitloggen en navigatie: sessieblok in de balk, admin-kop verduidelijkt
+
+De gedeelde kopbalk (`basis.html`) heeft rechts een sessieblok gekregen: de naam van
+de ingelogde gebruiker en een "Uitloggen"-knop, zichtbaar op `/weekoverzicht/` en
+`/uitzonderingen/`. Uitloggen gaat via een eigen route `/uitloggen/` (Django's
+`LogoutView`, POST-only) en eindigt op `/admin/login/?next=/weekoverzicht/`, dus op
+het inlogscherm met de terugweg al ingevuld (`LOGOUT_REDIRECT_URL`).
+
+**Bevinding over de admin: er was niets kapot.** Er bestond geen `base_site.html`,
+geen eigen admin-CSS en geen aangepaste `site_url`; Django's eigen kopbalk toonde
+zowel de uitlog- als de "bekijk site"-link gewoon. Wat ontbrak was herkenbaarheid:
+met `LANGUAGE_CODE = "nl-nl"` rendert Django zijn Nederlandse vertalingen, dus
+uitloggen heette daar "Afmelden" en de weg terug "Website bekijken" — een derde en
+vierde woord voor wat de rest van RMW "Uitloggen" en "Weekoverzicht" noemt, verstopt
+in het kleine grijze rijtje tekstlinks rechtsboven.
+
+Daarom is er verduidelijkt in plaats van hersteld: `templates/admin/base_site.html`
+overschrijft alleen het `userlinks`-block met dezelfde links onder de bewoording van
+de rest van de applicatie ("Naar het weekoverzicht", "Uitloggen"), die twee krijgen
+een dun kadertje zodat ze opvallen, en `admin.site.site_url` wijst nu rechtstreeks
+naar `/weekoverzicht/` in plaats van naar `/` (dat kwam er ook uit, maar via een
+redirect). Het bestand staat in de project-`templates/`-map en niet in
+`matching/templates/`, omdat `django.contrib.admin` in `INSTALLED_APPS` vóór
+`matching` staat en een app-kopie het dus zou verliezen — daar zit een expliciete
+test op.
+
+Geen nieuwe modellen of migraties. 264 tests groen (was 250): nieuw bestand
+`matching/tests/test_navigatie.py` (14 tests). Documentatie: `docs/ui-spec.md`
+(nieuw hoofdstuk "Sessieblok en uitloggen — Gebouwd", plus de reikwijdte-paragraaf
+van vooruitkijkend naar afgerond).
+
+_Correctie (zelfde dag, zie de volgende regel): bij deze wijziging is genoteerd dat
+de uitlogknop in de admin op Django's eigen afmeldpagina bleef eindigen. Dat was
+onjuist._
+
+## 2026-09-06 — Uitloggen gelijkgetrokken (en een correctie op de vorige regel)
+
+De uitlogknop in de Django-admin post nu naar `/uitloggen/` in plaats van naar
+`admin:logout`, zodat de applicatie één uitlogroute heeft in plaats van twee.
+
+**Correctie op de vorige changelog-regel.** Daar stond dat de admin-uitlogknop op
+Django's afmeldpagina eindigde en `/uitloggen/` op het inlogscherm — een "bewust
+verschil". Dat klopte niet. `AdminSite.logout` is een `LogoutView` zonder
+`next_page` en valt dus terug op `settings.LOGOUT_REDIRECT_URL`; Django's
+afmeldpagina verschijnt alleen als niets die bestemming zet. Beide knoppen kwamen
+daardoor al op `/admin/login/?next=/weekoverzicht/` uit vanaf het moment dat
+`LOGOUT_REDIRECT_URL` werd toegevoegd. Nagemeten: `POST /admin/logout/` en `POST
+/uitloggen/` gaven allebei `302 → /admin/login/?next=/weekoverzicht/`.
+
+Er viel dus geen gedrag recht te trekken, maar de wijziging is wel doorgevoerd, om
+een andere reden: de gelijkheid hing op een terugvalregel binnen Django. Verdween
+`LOGOUT_REDIRECT_URL` ooit, dan kwam de afmeldpagina stilletjes terug — alleen voor
+wie vanuit de admin uitlogt. Via de eigen route is het expliciet. `admin:logout`
+bestaat nog, maar geen scherm linkt er nog naar.
+
+270 tests groen (was 264): `SymmetrischUitloggenTests` legt niet alleen de
+bestemming vast maar ook de route, juist omdat de bestemming ook zonder die route
+zou kloppen — de test drukt de knop die elke kopbalk daadwerkelijk rendert, in
+plaats van naar een vast adres te posten. Gecontroleerd dat de nieuwe tests falen
+als de knop wordt teruggezet op `admin:logout`. `docs/ui-spec.md` is op hetzelfde
+punt gecorrigeerd.
+

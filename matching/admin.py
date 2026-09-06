@@ -1,7 +1,7 @@
 from django.contrib import admin, messages
 from django.core.exceptions import PermissionDenied
 from django.http import HttpResponseRedirect
-from django.urls import path, reverse
+from django.urls import path, reverse, reverse_lazy
 from django.utils.decorators import method_decorator
 from django.views.decorators.http import require_POST
 
@@ -25,6 +25,11 @@ from matching.timeline.runner import run_matching_and_record_status
 admin.site.site_header = "RMW — Ritten Match Werkbon"
 admin.site.site_title = "RMW"
 admin.site.index_title = "Beheer"
+# The "view site" link in the admin header. Its default is "/", which lands on
+# the weekoverzicht too but only after a redirect; naming the screen directly
+# keeps the URL in the status bar honest about where the link goes. reverse_lazy
+# because this module is imported before the URLconf is loaded.
+admin.site.site_url = reverse_lazy("weekoverzicht")
 
 # The raw import tables are registered read-only: they are a 1-to-1 copy of the
 # source files, so editing a row here would only make the database disagree with

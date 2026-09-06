@@ -25,6 +25,13 @@ bestandsgebaseerd, geen API-koppeling met Syntess/RouteVision in deze versie;
 oplevering als lichte, zelfstandige Docker-container. Zie `docs/roadmap.md` voor de
 bouwvolgorde.
 
+**Routing/toegang (06-09-2026).** De root-URL (`/`) is de voordeur van de
+*applicatie*, niet van de admin: `/` stuurt door naar `/weekoverzicht/`. De
+Django-admin blijft het enige inlogscherm (`LOGIN_URL = "/admin/login/"`), zodat
+een anonieme bezoeker via `?next=` terugkomt op het scherm dat hij vroeg;
+`LOGIN_REDIRECT_URL = "/weekoverzicht/"` vangt een inlog zonder bestemming op.
+Zie `docs/functioneel-ontwerp.md` §6.
+
 Bewust buiten deze eerste versie (apart te offreren als vervolgstap): een directe
 RouteVision REST API-koppeling (https://rest.routevision.com/docs) i.p.v. de
 handmatige download, een Syntess-API-koppeling ("kost direct geld"), en Access/Power

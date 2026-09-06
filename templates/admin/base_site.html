@@ -1,0 +1,85 @@
+{% extends "admin/base.html" %}
+{% comment %}
+Overrides the header of every Django-admin screen. Nothing here was suppressing
+the standard links — there was no override at all before this file, and Django's
+own header already carried both "view site" and a logout button. What it carried
+them under was the problem: with LANGUAGE_CODE = "nl-nl" Django renders its own
+translations, so logging out read "Afmelden" (a third word for what the
+application's own navigation bar calls "Uitloggen") and the way back read
+"Website bekijken", which says nothing about landing on the weekoverzicht. Both
+sat in the small grey run-on line of links Django puts in the top-right corner.
+
+So this file relabels rather than rebuilds: same links, the wording the rest of
+RMW uses, and enough emphasis that the two that matter are found without reading
+the row (docs/ui-spec.md). One target is redirected — logging out goes through
+the application's own route, see the comment at the form below.
+
+It lives in templates/ and not in matching/templates/ on purpose:
+django.contrib.admin comes before matching in INSTALLED_APPS, so an app-level
+copy would lose to Django's own base_site.html. The DIRS entry is searched
+first. matching/tests/test_navigatie.py guards that.
+
+The title, branding and nav-global blocks below are Django's own base_site.html
+verbatim; extending admin/base.html means re-supplying them.
+{% endcomment %}
+
+{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block branding %}
+<div id="site-name"><a href="{% url 'admin:index' %}">{{ site_header|default:_('Django administration') }}</a></div>
+{% if user.is_anonymous %}
+  {% include "admin/color_theme_toggle.html" %}
+{% endif %}
+{% endblock %}
+
+{% block nav-global %}{% endblock %}
+
+{% block extrastyle %}{{ block.super }}
+<style>
+  /* The two session actions are the ones people hunt for, so they get a border
+     instead of blending into the row of grey text links Django ships. */
+  #user-tools .rmw-actie {
+    display: inline-block;
+    border: 1px solid var(--header-link-color, #fff);
+    border-radius: 4px;
+    padding: 2px 10px;
+    margin-left: 6px;
+    font: inherit;
+    text-transform: none;
+    letter-spacing: normal;
+    background: none;
+    color: var(--header-link-color, #fff);
+    cursor: pointer;
+    text-decoration: none;
+  }
+  #user-tools .rmw-actie:hover { text-decoration: underline; }
+  /* Django lays the logout form out inline; keep it from adding its own margin
+     next to the bordered button. */
+  #user-tools form#logout-form { display: inline; margin: 0; }
+</style>
+{% endblock %}
+
+{% block userlinks %}
+  {% if site_url %}
+    <a class="rmw-actie" href="{{ site_url }}">Naar het weekoverzicht</a>
+  {% endif %}
+  {% if user.has_usable_password %}
+    <a href="{% url 'admin:password_change' %}">Wachtwoord wijzigen</a>
+  {% endif %}
+  {% comment %}
+  Posts to the application's own /uitloggen/ rather than to admin:logout, so
+  that there is one logout route in the whole app instead of two that merely
+  agree. They do agree today: AdminSite.logout is a LogoutView without a
+  next_page, so it already falls back to settings.LOGOUT_REDIRECT_URL and lands
+  on the same login screen — Django's "thanks for the time you spent" page only
+  renders when nothing sets that destination. That is the point: the symmetry
+  hung on a Django fallback, and removing LOGOUT_REDIRECT_URL would silently
+  bring the dead-end page back for admin users only. Going through the app's own
+  route makes it explicit. admin:logout still exists; nothing links to it.
+  {% endcomment %}
+  <form id="logout-form" method="post" action="{% url 'uitloggen' %}">
+    {% csrf_token %}
+    <button type="submit" class="rmw-actie">Uitloggen</button>
+  </form>
+  {% include "admin/color_theme_toggle.html" %}
+{% endblock %}

@@ -222,8 +222,9 @@ docker compose logs -f scheduler
 ```
 
 Open in een browser op een kantoor-pc: **`http://192.168.1.50`** (het LAN-IP van
-de VM). `/health/` moet 200 geven; `/admin/login/` moet het inlogscherm tonen. Log
-in met de superuser.
+de VM). Dat kale adres stuurt door naar `/weekoverzicht/` en, zolang je niet bent
+ingelogd, vandaar naar het inlogscherm — log in met de superuser en je komt op het
+weekoverzicht uit. `/health/` moet 200 geven.
 
 ---
 

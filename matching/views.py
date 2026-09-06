@@ -8,7 +8,9 @@ their own simple style (docs/decisions.md, 2026-09-03).
 
 Authentication reuses the admin's session login — there is no separate front-end
 login in this app, and staff are already signed in there when they come from the
-matchmotor-status page.
+matchmotor-status page. Where that login page lives is settings.LOGIN_URL, so a
+bare @login_required is enough here; the ?next= it appends is what brings the
+user back to the screen he asked for instead of into the admin.
 
 The week assembly itself lives in matching/weekoverzicht.py; the views here only
 resolve which monteur and which week were asked for, and hand the result to a
@@ -31,9 +33,6 @@ from matching.forms import KoppelLocatieForm
 from matching.models import LocatieType, Monteur, Soort, Tijdblok
 from matching.timeline.runner import run_matching_and_record_status
 from matching.weekoverzicht_excel import bestandsnaam, bouw_werkboek
-
-#: Where an anonymous visitor is sent; the admin owns the only login page.
-LOGIN_URL = "/admin/login/"
 
 
 def health(request):
@@ -145,7 +144,7 @@ def _groep_of_404(precisie: str, waarde: str) -> Uitzondering:
     raise Http404("Deze onverklaarde stop staat niet meer in de lijst.")
 
 
-@login_required(login_url=LOGIN_URL)
+@login_required
 def uitzonderingen(request):
     """The list of unexplained addresses, most frequent first."""
     return render(
@@ -160,7 +159,7 @@ def uitzonderingen(request):
 # own model permission, the same one the admin checks when adding that row by
 # hand — this screen deliberately has no rights system of its own
 # (docs/decisions.md, 2026-09-03).
-@login_required(login_url=LOGIN_URL)
+@login_required
 @permission_required("matching.add_bekendelocatie", raise_exception=True)
 def uitzonderingen_koppelen(request, precisie: str, waarde: str):
     """Turn one unexplained address into a BekendeLocatie, then recompute."""
@@ -226,7 +225,7 @@ class Weekkeuze:
     monteurs: list[Monteur] = field(default_factory=list)
 
 
-@login_required(login_url=LOGIN_URL)
+@login_required
 def weekoverzicht(request):
     """One monteur's week: the reconstructed days, per SOORT and in total."""
     keuze = _weekkeuze(request)
@@ -251,7 +250,7 @@ def weekoverzicht(request):
     )
 
 
-@login_required(login_url=LOGIN_URL)
+@login_required
 def weekoverzicht_excel(request):
     """The same week as an .xlsx, with the same SOORT colours as the page."""
     keuze = _weekkeuze(request)
@@ -274,13 +273,18 @@ def weekoverzicht_excel(request):
 def _weekkeuze(request) -> Weekkeuze | None:
     """Read `?monteur=<id>&week=<jaar>-W<nr>`; None when there is no monteur yet.
 
-    A parameter that is absent falls back to a sensible default (the first
-    monteur, his most recent processed week), because that is what opening the
-    screen from a menu looks like. A parameter that is *present but wrong* is a
+    A parameter that is absent falls back to a sensible default, because a bare
+    /weekoverzicht/ is what the root URL and the navigation link both open, and
+    that must never be an empty screen: the first active monteur alphabetically,
+    and his most recent processed week (not the current week — see
+    `week.laatste_week_met_data`). A parameter that is *present but wrong* is a
     404 rather than a silent fallback: showing week 30 under a URL that says
     week 99 is the kind of thing someone screenshots and then acts on.
     """
-    monteurs = list(Monteur.objects.filter(actief=True))
+    # order_by is explicit rather than left to Monteur.Meta, because "the first
+    # one alphabetically" is the defined default of this screen and should not
+    # change along with the model's default ordering.
+    monteurs = list(Monteur.objects.filter(actief=True).order_by("naam"))
 
     gevraagd = request.GET.get("monteur")
     if gevraagd:

@@ -97,6 +97,25 @@ DATABASES = {
 }
 
 
+# Authentication
+# The admin owns the only login page in this app; there is no separate
+# front-end login (docs/decisions.md, 2026-09-03). LOGIN_URL is therefore the
+# admin's, so @login_required sends an anonymous visitor there with
+# ?next=<the screen he asked for>.
+LOGIN_URL = "/admin/login/"
+# Where a login without a `next` lands: the weekoverzicht, the screen SBTT staff
+# actually work in. The admin login form fills in `next` itself (its own index)
+# when it is opened directly through the "Beheer" link, so this only applies to
+# a login that carries no destination of its own.
+LOGIN_REDIRECT_URL = "/weekoverzicht/"
+# Logging out returns to the login screen — with ?next= already filled in, so
+# signing back in lands on the weekoverzicht rather than in the admin. This is
+# also what keeps Django's "thanks for the time you spent" page out of the way:
+# AdminSite.logout is a LogoutView without a next_page, so it renders that page
+# only when nothing sets a destination here.
+LOGOUT_REDIRECT_URL = "/admin/login/?next=/weekoverzicht/"
+
+
 # Password validation
 
 AUTH_PASSWORD_VALIDATORS = [

@@ -145,7 +145,31 @@ RouteVision-data komt voor de PoC uit een handmatige download, niet uit de API.
    koppelformulier van fase 5; een onvolledige week meldt expliciet welke dagen
    ontbreken. Geen nieuwe tabellen of velden. 240 tests groen (was 195). Zie
    `docs/changelog.md` en `docs/business-rules.md`.
-10. **Eerstvolgende stap:** roadmap-fase 7 (oplevering) — het draaiboek staat
+10. **Gedaan (06-09-2026).** Landingspagina: `/` stuurt door naar
+   `/weekoverzicht/` in plaats van naar de admin, en een niet-ingelogde
+   bezoeker komt na het inloggen op het weekoverzicht terug (`LOGIN_URL` en
+   `LOGIN_REDIRECT_URL` staan nu in `rmw/settings.py`). De "Beheer"-link blijft
+   naar `/admin/` wijzen. De standaardweergave zonder parameters (eerste
+   actieve monteur alfabetisch + diens meest recent verwerkte week) is
+   ongewijzigd gebleven maar nu expliciet vastgelegd — op de huidige week
+   openen zou juist een leeg scherm geven. Geen nieuwe tabellen of velden. 250
+   tests groen (was 240). Zie `docs/changelog.md` en
+   `docs/functioneel-ontwerp.md` §6.
+11. **Gedaan (06-09-2026).** Uitloggen en navigatie: de gedeelde kopbalk toont
+   de ingelogde gebruiker en een "Uitloggen"-knop (eigen route `/uitloggen/`,
+   POST-only, eindigt op het inlogscherm). In de Django-admin bleek niets
+   onderdrukt — Django toonde beide links al, maar als "Afmelden" en "Website
+   bekijken"; `templates/admin/base_site.html` herbenoemt ze naar "Uitloggen" en
+   "Naar het weekoverzicht" en licht ze uit, en `admin.site.site_url` wijst nu
+   rechtstreeks naar het weekoverzicht. Geen nieuwe tabellen of velden. 264
+   tests groen (was 250). Zie `docs/changelog.md` en `docs/ui-spec.md`.
+12. **Gedaan (06-09-2026).** Uitloggen gelijkgetrokken: de admin-uitlogknop post
+   nu naar `/uitloggen/`, zodat er één uitlogroute is. Let op de correctie
+   daarbij: de twee knoppen kwamen al op hetzelfde inlogscherm uit
+   (`AdminSite.logout` erft `LOGOUT_REDIRECT_URL`), dus dit maakt bestaande
+   gelijkheid expliciet in plaats van een verschil te repareren. 270 tests
+   groen (was 264). Zie `docs/changelog.md` en `docs/ui-spec.md`.
+13. **Eerstvolgende stap:** roadmap-fase 7 (oplevering) — het draaiboek staat
    klaar in `DRAAIBOEK.md`, met drie nog niet definitieve onderdelen
    (VM-gegevens, het `backup_db`-commando, §7 "eerste inrichting"). Neem verder
    mee: bij het configureren van het echte depotadres voor SBTT het aandachtspunt

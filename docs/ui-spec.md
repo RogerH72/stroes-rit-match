@@ -103,12 +103,74 @@ en een `stijl`-block waarin een scherm zijn eigen CSS kwijt kan. De SOORT-code z
 wordt getoond als een klein vierkant "chip" (`.code`), niet als de ronde status-pil:
 in een tabelrij moet een code niet breder zijn dan de letter die erin staat.
 
+## Sessieblok en uitloggen — Gebouwd (06-09-2026)
+
+**In de eigen schermen.** Rechts in de kopbalk van `basis.html` staat nu een
+sessieblok, gescheiden van de schermlinks door een verticale streep: de naam van de
+ingelogde gebruiker (volledige naam als die bekend is, anders de gebruikersnaam) en
+"Uitloggen". Het staat in de gedeelde basispagina, dus het is er op `/weekoverzicht/`
+én `/uitzonderingen/` en op elk scherm dat later diezelfde pagina gebruikt. Uitloggen
+is een `<button>` binnen een POST-formulier en geen link — Django 5 weigert een
+GET-logout, en terecht: een link zou door elke link-prefetcher en mailscanner gevolgd
+worden. De knop is zo opgemaakt dat hij niet van de links ernaast te onderscheiden is.
+Na uitloggen kom je op `/admin/login/?next=/weekoverzicht/`, dus op het inlogscherm,
+en opnieuw inloggen brengt je terug op het weekoverzicht.
+
+**In de Django-admin.** Hier is *niets hersteld* — er viel niets te herstellen. Er was
+geen `base_site.html`, geen aangepaste `site_header` buiten de drie tekstregels in
+`matching/admin.py`, en geen eigen admin-CSS; Django's eigen kopbalk toonde beide
+links gewoon. Het probleem was de bewoording, niet de aanwezigheid. Met
+`LANGUAGE_CODE = "nl-nl"` rendert Django zijn eigen vertalingen, dus uitloggen heette
+er **"Afmelden"** en de weg terug **"Website bekijken"** — een derde en een vierde
+woord voor wat de rest van RMW "Uitloggen" en "Weekoverzicht" noemt. Allebei stonden
+ze in het kleine grijze rijtje tekstlinks rechtsboven, tussen "Wachtwoord wijzigen" en
+de themaschakelaar. Wie op "Uitloggen" zoekt, vindt "Afmelden" niet.
+
+Wat er daarom is gebeurd:
+
+- `templates/admin/base_site.html` overschrijft alleen het `userlinks`-block:
+  dezelfde links naar dezelfde adressen, maar met de bewoording van de rest van de
+  applicatie — "Naar het weekoverzicht" en "Uitloggen".
+- Die twee krijgen een dun kadertje (`.rmw-actie`), zodat ze opvallen tussen de
+  gewone tekstlinks. "Wachtwoord wijzigen" en de themaschakelaar blijven onopgemaakt:
+  die zoekt niemand.
+- `admin.site.site_url` wijst nu rechtstreeks naar `/weekoverzicht/` in plaats van
+  naar de standaard `/`. Dat kwam ook op het weekoverzicht uit, maar via een redirect
+  — de statusbalk van de browser toonde dan `/`.
+
+Het bestand staat in de project-`templates/`-map en **niet** in
+`matching/templates/`, omdat `django.contrib.admin` in `INSTALLED_APPS` vóór
+`matching` staat: een kopie op app-niveau zou het van Django's eigen `base_site.html`
+verliezen. `TEMPLATES["DIRS"]` wordt eerst doorzocht. Dat is per ongeluk ongedaan te
+maken, dus `matching/tests/test_navigatie.py` controleert expliciet dat "Afmelden" en
+"Website bekijken" niet meer in de admin-pagina voorkomen.
+
+**Uitloggen is symmetrisch (bijgesteld 06-09-2026).** Hier stond eerder dat de
+uitlogknop in de admin op Django's eigen afmeldpagina eindigde ("Bedankt voor de
+tijd…") en die in de eigen schermen op het inlogscherm — een "bewust verschil". Dat
+klopte niet. `AdminSite.logout` is een `LogoutView` zonder `next_page`, en die valt
+terug op `settings.LOGOUT_REDIRECT_URL`; Django's afmeldpagina verschijnt alleen als
+niets die bestemming zet. Vanaf het moment dat `LOGOUT_REDIRECT_URL` werd ingesteld
+kwamen beide knoppen dus al op `/admin/login/?next=/weekoverzicht/` uit. Er viel geen
+gedragsverschil recht te trekken.
+
+Wat wél is aangepast: de uitlogknop in de admin post nu naar `/uitloggen/` in plaats
+van naar `admin:logout`, zodat de hele applicatie één uitlogroute heeft in plaats van
+twee die toevallig hetzelfde doen. Dat maakt de gelijkheid expliciet: zou
+`LOGOUT_REDIRECT_URL` ooit verdwijnen, dan kwam de afmeldpagina anders stilletjes
+terug — alleen voor wie vanuit de admin uitlogt. `admin:logout` bestaat nog (Django
+registreert die route), maar geen enkel scherm linkt er nog naar.
+`matching/tests/test_navigatie.py` legt niet alleen de bestemming vast maar ook de
+route, juist omdat de bestemming ook zonder die route zou kloppen.
+
 ## Reikwijdte van dit document
 
 Dit is een lichte basisstijl, geen uitgebreid design system — dat past bij de
 contractueel afgesproken scope (`GUIDELINES.md`, "Technology stack": Django-admin
 voor koppeltabellen/tolerantietabel; geen uitgebreid dashboard). Het
-uitzonderingenscherm (fase 5) en het weekoverzicht (fase 6) zijn de eerste twee
-schermen die deze stijl gebruiken; wijzigt de stijl bij de bouw van fase 5, dan wordt
-dit document bijgewerkt vóór fase 6 begint, zodat beide schermen er als één
-applicatie uitzien.
+uitzonderingenscherm (fase 5) en het weekoverzicht (fase 6) zijn de twee schermen die
+deze stijl gebruiken; beide zijn gebouwd (03-09-2026 respectievelijk 05-09-2026) en
+zien er als één applicatie uit. Sinds 06-09-2026 raakt deze stijl ook de
+Django-admin, maar uitsluitend in de kopbalk en uitsluitend qua bewoording en
+vindbaarheid — de admin krijgt géén RMW-huisstijl, dat blijft buiten scope.
+Wijzigt de basisstijl, dan wordt dit document bijgewerkt in dezelfde bouwstap.

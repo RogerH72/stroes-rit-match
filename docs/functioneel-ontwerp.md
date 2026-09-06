@@ -241,6 +241,19 @@ onvolledige week toont de dagen die er wél zijn plus een melding welke werkdage
 ontbreken — die ontbrekende dagen blijven buiten het weektotaal, zodat er nooit een
 stil onvolledig totaal ontstaat.
 
+**Landingspagina (06-09-2026).** Het weekoverzicht is de startpagina van de app.
+De root-URL (`/`) stuurt door naar `/weekoverzicht/` (tijdelijke redirect, geen
+301) in plaats van naar de admin; wie niet is ingelogd gaat via `/weekoverzicht/`
+naar `/admin/login/?next=/weekoverzicht/` en komt ná het inloggen dus op het
+weekoverzicht terug, niet in de admin. De admin blijft het enige inlogscherm van
+de app en de "Beheer"-link in de navigatiebalk blijft naar `/admin/` wijzen.
+`/weekoverzicht/` zonder `?monteur=` en `?week=` toont de eerste actieve monteur
+alfabetisch en diens meest recent verwerkte week — bewust níét de huidige week:
+op een maandagochtend of na een vakantie zou dat een leeg scherm opleveren, en de
+standaardweergave is juist wat iedereen via `/` en via de navigatiebalk te zien
+krijgt. Een monteur of week die wél in de URL staat maar niet bestaat blijft een
+404, geen stille terugval.
+
 ## 7. Oplevering en acceptatie (roadmap-fase 7 en 8)
 
 Oplevering als lichte, zelfstandige Docker-container, samen met Stric geplaatst in een

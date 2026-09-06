@@ -295,10 +295,25 @@ class WeekoverzichtSchermTests(TestCase):
 
     def test_defaults_to_the_last_processed_week(self):
         # No parameters at all: the screen opens on a week that has content
-        # rather than on an empty current week.
+        # rather than on an empty current week. This is the default the root
+        # URL and the navigation link both land on, so it must never be blank
+        # (see week.laatste_week_met_data for why it is not "this week").
         inhoud = self._pagina()
         self.assertIn("2026-W32", inhoud)
         self.assertIn("Jesse", inhoud)
+
+    def test_defaults_to_the_first_monteur_alphabetically(self):
+        # Dennis before Jesse, whatever order they were created in — "the first
+        # one alphabetically" is the defined default of a bare /weekoverzicht/.
+        self.assertIn("Weekoverzicht — Dennis", self._pagina())
+
+    def test_the_default_page_is_not_empty(self):
+        # The whole point of the two defaults above: someone arriving through /
+        # or through the navigation bar sees a filled week, not a blank shell
+        # with two dropdowns.
+        inhoud = self._pagina()
+        self.assertNotIn("is nog geen dag berekend", inhoud)
+        self.assertIn("Maandag 3 augustus", inhoud)
 
     def test_selects_the_monteur_from_the_url(self):
         inhoud = self._pagina(monteur=self.collega.pk, week="2026-W32")

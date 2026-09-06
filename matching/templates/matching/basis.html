@@ -49,6 +49,29 @@ the card/pill components come straight from docs/ui-spec.md.
     header.balk a { color: #fff; text-decoration: none; }
     header.balk a:hover { text-decoration: underline; }
     header.balk a.actief { text-decoration: underline; text-underline-offset: 4px; }
+    /* Who you are and how to get out, set apart from the screen links by a
+       divider: they are about the session, not about where you navigate to. */
+    header.balk .sessie {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding-left: 18px;
+      margin-left: 4px;
+      border-left: 1px solid rgba(255, 255, 255, .3);
+    }
+    header.balk .sessie .wie { font-size: 13px; color: rgba(255, 255, 255, .8); }
+    /* Logging out is a POST (Django refuses a GET logout), so it is a button
+       that has to pass for one of the links next to it. */
+    header.balk .sessie button {
+      background: none;
+      border: 0;
+      padding: 0;
+      color: #fff;
+      font: inherit;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    header.balk .sessie button:hover { text-decoration: underline; }
     main { max-width: 1120px; margin: 0 auto; padding: 24px; }
     h1 { font-size: 22px; margin: 0 0 4px; }
     p.toelichting { color: var(--grijze-tekst); margin: 0 0 20px; }
@@ -125,11 +148,23 @@ the card/pill components come straight from docs/ui-spec.md.
     {% comment %}
     One navigation for the whole application: phase 5 had a single screen and
     could get away with only a link back to the admin, phase 6 makes it two.
+    The session block on the right says who is signed in and offers the way out
+    — on every screen that extends this page, so "hoe log ik uit" never depends
+    on which screen you happen to be on.
     {% endcomment %}
     <nav>
       <a href="{% url 'weekoverzicht' %}"{% if scherm == 'weekoverzicht' %} class="actief"{% endif %}>Weekoverzicht</a>
       <a href="{% url 'uitzonderingen' %}"{% if scherm == 'uitzonderingen' %} class="actief"{% endif %}>Uitzonderingen</a>
       <a href="{% url 'admin:index' %}">Beheer</a>
+      {% if user.is_authenticated %}
+        <span class="sessie">
+          <span class="wie">{% firstof user.get_short_name user.get_username %}</span>
+          <form method="post" action="{% url 'uitloggen' %}">
+            {% csrf_token %}
+            <button type="submit">Uitloggen</button>
+          </form>
+        </span>
+      {% endif %}
     </nav>
   </header>
   <main>

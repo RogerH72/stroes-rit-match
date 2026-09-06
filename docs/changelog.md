@@ -519,3 +519,38 @@ plaats van naar een vast adres te posten. Gecontroleerd dat de nieuwe tests fale
 als de knop wordt teruggezet op `admin:logout`. `docs/ui-spec.md` is op hetzelfde
 punt gecorrigeerd.
 
+
+## 2026-09-06 — Lokale inbox-map als bind-mount in docker-compose
+
+`docker-compose.yml` mount `./data/inbox` nu op `/app/data/inbox`, op zowel `web`
+als `scheduler`, naast de bestaande named volume `rmw-data` voor de database (die
+blijft ongewijzigd).
+
+Aanleiding: `docker compose exec web python manage.py check_imports --path
+/app/data/inbox --dry-run` meldde "no recognised source files found", terwijl de
+vier bronbestanden (Syntess Relaties/Uren/Werkbonnen + de RouteVision-CSV) in
+`data/inbox` op de host klaarstonden. Oorzaak was geen fout in de detectie:
+`/app/data` was alleen de named volume, waarin enkel `db.sqlite3` staat. De map
+`/app/data/inbox` — waar `SERVERMAP_PATH` naar wijst — bestond in de container
+dus helemaal niet. Nagemeten met een tijdelijke read-only bind-mount: dan werden
+alle vier bestanden wél herkend.
+
+Na de wijziging herkent zowel de handmatige aanroep als de achtergrondpoller van
+`scheduler` de vier bestanden, alle vier met status `waiting` — correct, want de
+stabiliteitsmarge is 6 opeenvolgende ongewijzigde metingen (30 min bij een poll
+van 5 min). Voor een directe import zonder wachttijd is `--force` de aangewezen
+vlag. `--dry-run` schrijft zelf niets weg: in de wachtende tak van
+`_handle_file` wordt `record.save()` overgeslagen.
+
+Puur een voorziening voor lokaal testen. Hoe de productie-servermap
+`\\stroes-1909\atrium\Autoprint\RUUDS` op ditzelfde containerpad terechtkomt,
+blijft een open punt voor fase 7 (`DRAAIBOEK.md`). `docs/architecture.md` is
+bijgewerkt.
+
+Bij dezelfde gelegenheid gecorrigeerd: de kop "Trigger-mechanisme
+(bestandsdetectie servermap) — ontworpen, nog niet gebouwd" in
+`docs/architecture.md` was achterhaald en suggereerde dat het mechanisme nog moest
+komen. Het is gebouwd — `matching/ingest/detection.py`, het commando
+`check_imports` en `scripts/scheduler.sh` — dus de kop is nu "gebouwd", met een
+verwijzing naar die drie plekken in de inleidende regel eronder. De ontwerpkeuzes
+in de sectie zelf (polling, interval, stabiliteitsmarge) zijn ongewijzigd.

@@ -28,9 +28,15 @@ services:
       - "8000:8000"
     environment: *rmw-environment
     volumes:
-      # Keeps the SQLite database and the inbox outside the container, so a
-      # rebuild does not lose data.
+      # Keeps the SQLite database outside the container, so a rebuild does not
+      # lose data.
       - rmw-data:/app/data
+      # Local testing only: bind the project's own data/inbox folder, so files
+      # dropped there by hand are found both by a manual check_imports run and
+      # by the scheduler's background poll. On the customer server the share
+      # \\stroes-1909\atrium\Autoprint\RUUDS is mounted here read-only instead
+      # (roadmap phase 7, see DRAAIBOEK.md).
+      - ./data/inbox:/app/data/inbox
     # Apply migrations before serving; safe to repeat on every start.
     command: >
       sh -c "python manage.py migrate --noinput &&
@@ -49,6 +55,8 @@ services:
     environment: *rmw-environment
     volumes:
       - rmw-data:/app/data
+      # Same inbox as web, so the poller sees what you drop in data/inbox.
+      - ./data/inbox:/app/data/inbox
     # Waits for the web service so the migrations have run before the first check.
     depends_on:
       web:

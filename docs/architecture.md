@@ -48,9 +48,26 @@ repository); drie onderdelen daarin zijn nog niet definitief (VM-gegevens bij
 Stric, het nog te bouwen `backup_db`-commando, en §7 "eerste inrichting" die op
 de fase 4/5-beheerschermen wacht).
 
-### Trigger-mechanisme (bestandsdetectie servermap) — ontworpen, nog niet gebouwd
+### Lokaal draaien: de inbox-map (06-09-2026)
 
-Vastgelegd in een ontwerpgesprek (01-09-2026), vooruitlopend op de bouw:
+`docker-compose.yml` mount `./data/inbox` van de host op `/app/data/inbox`, op
+zowel `web` als `scheduler`. `SERVERMAP_PATH` wijst daar standaard naartoe, dus
+een bestand dat lokaal in `data/inbox` wordt neergezet, wordt zowel door een
+handmatige `check_imports`-aanroep als door de achtergrondpoller van `scheduler`
+gevonden. Zonder die bind-mount is `/app/data` alleen de named volume
+`rmw-data` — daar staat enkel de SQLite-database in — en meldt `check_imports`
+"no recognised source files found", terwijl de bestanden op de host wel
+klaarstaan.
+
+Dit is puur een testvoorziening voor lokaal draaien. Hoe de productie-servermap
+(`\\stroes-1909\atrium\Autoprint\RUUDS`) op ditzelfde pad terechtkomt, is nog
+niet belegd en blijft een open punt voor fase 7 (`DRAAIBOEK.md`).
+
+### Trigger-mechanisme (bestandsdetectie servermap) — gebouwd
+
+Vastgelegd in een ontwerpgesprek (01-09-2026), vooruitlopend op de bouw; inmiddels
+gebouwd in `matching/ingest/detection.py`, het commando `check_imports` en
+`scripts/scheduler.sh`:
 
 - **Detectie: polling, geen filesystem-events.** De servermap (`\\stroes-1909\atrium`)
   is een netwerkshare; event-gebaseerd bestandswatchen (inotify e.d.) is onbetrouwbaar

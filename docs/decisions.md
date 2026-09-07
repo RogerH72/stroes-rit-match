@@ -925,5 +925,48 @@ raden, komt er een expliciet thuisadres-veld. Drie deelbeslissingen:
    staan gewoon in de dagtabel, zonder eigen samengevatte regel — thuis-tijd
    is minder een getal dat je wil optellen dan privé-tijd.
 
-Nog niet naar Claude Code gestuurd — zie `GUIDELINES.md` punt 21/22 voor de
-actuele prioritering van openstaande punten.
+Uitgevoerd 07-09-2026, commit `67b6df4` (zie `GUIDELINES.md` punt 21).
+
+## 2026-09-07 — Thuisadres en SOORT T gebouwd; meegereden-regel en een datavoorval (Current)
+
+**Resultaat.** `Monteur` heeft nu `thuisadres` + `thuisadres_type` (straat/
+postcode, beide optioneel, dezelfde precisie en normalisatie als
+`BekendeLocatie`; een ingevulde waarde die niet normaliseert wordt geweigerd
+in plaats van stilzwijgend leeggemaakt). SOORT T (Thuis) zit op precies de
+plek in de prioriteitsvolgorde waar de oude, nu verwijderde thuisstraat-stap
+zat — vlak vóór de tolerantiecheck — maar slaat het blok op in plaats van
+het te laten vallen. T is daarnaast ook een koppelbare keuze op
+`BekendeLocatie.soort` (koppeltabel-stap staat hoger in de volgorde, dus een
+handmatige koppeling wint altijd van het veld) — dekt Rogers eigen
+"auto om de hoek"-geval. Geen apart dag-/weektotaal voor T. Kleur `#6D4C41`
+(bruin), door Claude Code gekozen. Migratie 0008: twee echte kolommen met
+default (`''`/`straat`, geen handmatige databewerking nodig) plus twee
+no-op-keuzewijzigingen. 327 tests groen.
+
+De frequentiedetectie (`home_streets_for()`, `_home_edge()`,
+`_trim_home_hops()`) is volledig verwijderd, geen terugval. Op de echte
+juni-dataset komen nu **782 van 782 ritten** in de tijdlijn terecht (was
+754 vóór `4d219c2`, 782 na deze stap) — de restbevinding uit de vorige
+sessie is dus volledig opgelost, niet alleen voor het depot. Dennis van de
+Berg's 24 en 25 juni geven nu 9 en 8 tijdblokken tegen nul voorheen.
+
+**Nieuwe regel, door Claude Code toegevoegd en hier vastgelegd (niet
+expliciet in de instructie gevraagd, wel een logische invulling):** op een
+"meegereden"-dag (zie `Instelling.meegereden_modus`) telt voor de
+thuisadres-herkenning het adres van de tijdlijn-monteur zelf, niet dat van
+de senior/bestuurder wiens ritten die dag opbouwen — diens huis is niet het
+huis van de meerijder. Zo'n stop komt dan gewoon als onverklaard (O) in de
+tijdlijn, corrigeerbaar via het uitzonderingenscherm.
+
+**Datavoorval tijdens het testen, geen bug in de bouwstap zelf.** Bij het
+opruimen van een testadres filterde Claude Code op `label__startswith='TEST '`
+— SQLite's `LIKE` is hoofdletterongevoelig voor ASCII, dus dit trof ook twee
+bestaande, echte rijen (`test 4 klant` op postcode 4104AR en `Test klant` op
+4105JC, beide SOORT K, geen depot) en verwijderde ze samen met de testdata.
+Beide zijn direct daarna hersteld uit de waarden die eerder in dezelfde
+sessie waren uitgelezen, en de matching is opnieuw gedraaid. Roger is
+gevraagd deze twee rijen na te kijken voordat er verder gebouwd wordt — zie
+`GUIDELINES.md` punt 21/22.
+
+Nog niet gepusht — zie `GUIDELINES.md` punt 22 voor de actuele
+prioritering van openstaande punten.

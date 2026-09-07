@@ -292,24 +292,36 @@ RouteVision-data komt voor de PoC uit een handmatige download, niet uit de API.
    aan de tolerantielogica, eigen regel per dag/week naast "Totaal (excl.
    reistijd)" (verschijnt alleen als er privé-tijd is). Kleur `#C2185B`
    (karmijn), door Claude Code gekozen. Migratie 0007 bevestigd een no-op.
-21. **Besloten (07-09-2026), nog niet gebouwd — vervolg op de restbevinding
-   in punt 19.** Roger stelde zelf voor: een thuisadres-veld op `Monteur` in
-   plaats van de frequentie-gok. Uitgewerkt tot drie deelbeslissingen:
-   (1) nieuwe SOORT-code **T (Thuis)** (niet hergebruik van L) — eigen kleur/
-   rij, zelfde aanpak als P: ook een keuze op `BekendeLocatie.soort`, zodat
-   een monteur die zijn bus "om de hoek zet" dat adres alsnog als T kan
-   koppelen via het bestaande scherm; (2) geen terugval meer op de
-   (nu depot-gefixte) frequentiedetectie zodra dit gebouwd is — zonder
-   ingevuld thuisadres wordt een ochtend-/avondstop gewoon zichtbaar
-   (waarschijnlijk als O) in plaats van stil geraden of weggelaten;
-   (3) geen apart weektotaal voor T, in tegenstelling tot P — de losse
-   T-blokken staan gewoon in de dagtabel. Zie `docs/decisions.md`
-   (07-09-2026).
-22. **Eerstvolgende stap:** een instructie naar de Claude Code-sessie voor
-   punt 21 (thuisadres-veld + SOORT T, inclusief het uitfaseren van de
-   frequentiedetectie uit punt 19), dán het navragen bij Wim van de
-   RouteVision-dekkingsgaten bij Dennis van de Berg en Maarten Jaarsma (punt
-   17) — dan pas verder met roadmap-fase 7 (oplevering). Het draaiboek staat klaar in `DRAAIBOEK.md`, met drie nog
+21. **Gebouwd (07-09-2026).** Thuisadres-veld op `Monteur` (`thuisadres` +
+   `thuisadres_type`, straat/postcode, beide optioneel) en nieuwe SOORT-code
+   **T (Thuis)** gecommit (`67b6df4`, 327 tests groen), precies zoals
+   besloten: T op dezelfde plek in de prioriteitsvolgorde als de oude
+   (verwijderde) thuisstraat-stap, óók koppelbaar via het bestaande
+   uitzonderingenscherm (koppeltabel wint van het veld), geen apart
+   weektotaal, kleur `#6D4C41` (bruin, door Claude Code gekozen). De
+   frequentiedetectie (`home_streets_for()`, `_trim_home_hops()`) is volledig
+   verwijderd, geen terugval. Resultaat op de echte juni-dataset: **782 van
+   782 ritten** komen nu in de tijdlijn terecht (was 754) — de restbevinding
+   uit punt 19 is daarmee volledig opgelost, niet alleen voor het depot.
+   Dennis van de Berg's 24 en 25 juni geven nu 9 en 8 tijdblokken in plaats
+   van nul.
+   **Eigen toevoeging van Claude Code, wél vastleggen als regel:** op een
+   "meegereden"-dag telt het thuisadres van de tijdlijn-monteur zelf, niet
+   dat van de senior/bestuurder wiens ritten die dag opbouwen — logisch (het
+   is diens huis niet), maar niet expliciet in de instructie gevraagd. Zie
+   `docs/decisions.md` (07-09-2026).
+   **Aandachtspunt bij het testen (geen bug, wel even nakijken):** tijdens
+   het testen op echte data zijn per ongeluk 2 bestaande `BekendeLocatie`-
+   rijen verwijderd door een hoofdletterongevoelige `LIKE`-match op een
+   testfilter (`test 4 klant` op 4104AR, `Test klant` op 4105JC — beide K,
+   geen depot) en direct daarna hersteld uit de eerder uitgelezen waarden.
+   Roger: een blik op deze twee rijen in de admin waard voordat je verder
+   gaat.
+22. **Eerstvolgende stap:** pushen (9 commits staan klaar op `main`, nog
+   niet gepusht), de twee herstelde `BekendeLocatie`-rijen uit punt 21
+   nakijken, dán het navragen bij Wim van de RouteVision-dekkingsgaten bij
+   Dennis van de Berg en Maarten Jaarsma (punt 17) — dan pas verder met
+   roadmap-fase 7 (oplevering). Het draaiboek staat klaar in `DRAAIBOEK.md`, met drie nog
    niet definitieve onderdelen (VM-gegevens, het `backup_db`-commando, §7
    "eerste inrichting"). Neem daarbij verder mee: bij het configureren van
    het echte depotadres voor SBTT het aandachtspunt uit `docs/decisions.md`

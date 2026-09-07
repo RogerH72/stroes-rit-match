@@ -64,13 +64,28 @@ class DagTijdlijn:
 # --- home address detection -------------------------------------------------
 
 
-def home_streets_for(monteur: Monteur, upto_date: dt.date | None = None) -> set[str]:
+def home_streets_for(
+    monteur: Monteur,
+    upto_date: dt.date | None = None,
+    *,
+    koppeltabellen: "Koppeltabellen | None" = None,
+) -> set[str]:
     """The streets where this monteur's days start and end — his home address.
 
     Nobody registers where a monteur lives, so it is derived: take the first
     departure and the last arrival of every day he drove, and the street that
     keeps coming back is his own. Detection, not configuration, exactly as in the
     validation script's `home_streets_for`.
+
+    The depot is the one place that has to be kept out of that. A monteur who
+    picks up his van at the magazijn starts and ends those days there, so the
+    depot street lands in this set alongside his real street — and from then on
+    `_trim_home_hops` reads every home->depot, depot->depot and depot->home ride
+    as "moving the van around at home" and drops it, taking the whole start and
+    end of such a day out of the timeline (docs/changelog.md, 07-09-2026). A
+    depot is configured, and it is by definition nobody's home, so it is excluded
+    here rather than guessed around. Both keys are checked, because a depot may
+    be configured on street or on postcode.
 
     Returns an empty set for a monteur without a driver code (he never drove).
     """
@@ -87,12 +102,45 @@ def home_streets_for(monteur: Monteur, upto_date: dt.date | None = None) -> set[
     for rit in ritten.order_by("vertrekdatum", "vertrektijd", "row_number"):
         per_day.setdefault(rit.vertrekdatum, []).append(rit)
 
+    if koppeltabellen is None:
+        koppeltabellen = Koppeltabellen.load()
+
     streets = set()
     for dag_ritten in per_day.values():
-        streets.add(normalize.street(dag_ritten[0].vertrekadres))
-        streets.add(normalize.street(dag_ritten[-1].aankomstadres))
+        eerste, laatste = dag_ritten[0], dag_ritten[-1]
+        streets.add(
+            _home_edge(eerste.vertrekadres, eerste.vertrekplaats, koppeltabellen)
+        )
+        streets.add(
+            _home_edge(laatste.aankomstadres, laatste.aankomstplaats, koppeltabellen)
+        )
     streets.discard("")
     return streets
+
+
+def _home_edge(adres: str, plaats: str, koppeltabellen: "Koppeltabellen") -> str:
+    """The street of one day edge, or "" when that edge cannot be someone's home.
+
+    Returning the empty string rather than filtering afterwards keeps the caller
+    simple: "" is discarded there anyway, together with the edges that have no
+    usable address at all.
+
+    Two edges are refused. A depot, because it is configured and is by definition
+    nobody's home. And a "street" without a single letter in it — RouteVision
+    writes "-" for a stop it could not resolve, and that placeholder was becoming
+    a home street of its own, after which every ride between two unresolved
+    addresses was dropped as a hop around the house.
+    """
+    straat = normalize.street(adres)
+    if not any(teken.isalpha() for teken in straat):
+        return ""
+
+    postcode = normalize.postcode(plaats)
+    if straat in koppeltabellen.depot_per_straat or (
+        postcode in koppeltabellen.depot_per_postcode
+    ):
+        return ""
+    return straat
 
 
 # --- the lookup tables one day is classified against ------------------------
@@ -233,14 +281,15 @@ def build_day(
         return None
 
     ritten = _day_rides(bronmonteur, datum)
+    if koppeltabellen is None:
+        koppeltabellen = Koppeltabellen.load()
     if home_streets is None:
-        home_streets = home_streets_for(bronmonteur)
+        # Needs the koppeltabellen, to keep the depot out of the home streets.
+        home_streets = home_streets_for(bronmonteur, koppeltabellen=koppeltabellen)
     ritten = _trim_home_hops(ritten, home_streets)
     if not ritten:
         return None
 
-    if koppeltabellen is None:
-        koppeltabellen = Koppeltabellen.load()
     uren = DagUren.load(monteur, datum, koppeltabellen.depot_streets)
     werkbonnen = WerkbonPostcodes.load(monteur, datum)
 

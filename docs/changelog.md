@@ -659,3 +659,66 @@ aantallen (1190 urenregels, 853 tijdblokken, 4 importbestanden), een preview van
 week 33 telt 407 rijen zonder er één te verwijderen, en de bevestigde reset van een
 lege periode doorloopt de hele keten zonder iets te raken. De augustus-dataset is
 bij het testen intact gebleven.
+
+## 2026-09-07 — Bugfix: begin en einde van de dag verdwenen uit de tijdlijn
+
+Gemeld symptoom, gereproduceerd op echte data en consistent over meerdere
+monteurs: alleen het middenstuk van een dag kwam in `Tijdblok` terecht. De
+ochtendrit naar het depot plus het verblijf daar, en aan het eind het verblijf op
+het depot plus de rit naar huis, ontbraken structureel — ongeacht of het om een
+rit van drie minuten of een verblijf van bijna vijf uur ging. De `Rit`-tabel zelf
+was compleet; de import was dus niet de oorzaak.
+
+**Werkelijke oorzaak: het depot belandde tussen de "thuisstraten".**
+`home_streets_for()` leidt het thuisadres af uit de eerste vertrek- en de laatste
+aankomstplaats van elke dag die een monteur reed. Die verzameling werd echter
+zonder enige frequentietoets samengevoegd — terwijl de docstring van de functie
+al wél "de straat die steeds terugkomt" beloofde. Een monteur die zijn bus bij
+het magazijn ophaalt, begint of eindigt daar een aantal dagen, en daarmee stond
+`randweg` permanent tussen zijn thuisstraten. `_trim_home_hops()` gooit een rit
+weg zodra vertrek én aankomst allebei op een thuisstraat liggen — bedoeld voor
+"even de bus verzetten voor de deur" — en dat gold vanaf dat moment ook voor élke
+rit van huis naar depot, van depot naar depot en van depot naar huis, op alle
+dagen.
+
+Bij Dennis van de Berg (002) waren dat 4 van de 50 dagranden op `randweg`, genoeg
+om op 02-06-2026 vier van de zes ritten te laten verdwijnen: precies de gemelde
+ritten 2, 11, 30 en 33. Zijn feitelijke thuisstraat (`beesdseweg`) was goed voor
+38 van die 50 dagranden.
+
+**Fix.** Het depot wordt uitgesloten bij het afleiden van het thuisadres — het is
+geconfigureerd (`is_depot`), en het is per definitie niemands huis. Er wordt op
+zowel straat als postcode gecontroleerd, omdat een depot op beide manieren
+ingericht kan zijn. Bewust géén frequentiedrempel geïntroduceerd: dat zou een
+nieuwe business rule zijn (zie het openstaande punt hieronder).
+
+In dezelfde functie meegenomen: een "straat" zonder één letter erin telt niet
+meer als thuisstraat. RouteVision schrijft `-` voor een stop die het niet heeft
+kunnen bepalen, en die placeholder werd zo een thuisstraat op zichzelf, waarna
+elke rit tussen twee onbepaalde adressen wegviel. Dit raakte Jesse Verkerk (005),
+die daardoor 5 ritten miste; die dagen zijn nu compleet.
+
+**Verificatie op de echte juni-dataset (Docker).** De tijdlijn van Dennis van de
+Berg op 02-06-2026 toont nu alle 6 ritten, met het ochtendverblijf op het depot
+(06:52–12:01) en het avondverblijf (17:32–22:15) als L-blokken. Over de hele
+dataset ging het aantal tijdblokken van 1169 naar 1356, en van de 782 ritten
+komen er nu 754 in de tijdlijn terug tegen 715 daarvoor.
+
+Regressietests toegevoegd in `matching/tests/test_timeline.py`
+(`DepotAanDeDagrandenTests`), die de exacte rittenreeks van 02-06-2026 nabouwen —
+inclusief de tweede dag die het depot in de thuisstraten bracht, want die
+vervuiling loopt over dagen heen: de dag zelf begint en eindigt gewoon thuis en
+zou het probleem alleen nooit hebben laten zien. 308 tests groen.
+
+**Openstaand punt (besluit van Roger nodig).** Het onderliggende patroon is
+breder dan het depot: `home_streets_for()` neemt nog steeds élke dagrand mee,
+hoe zelden ook. Daardoor gelden bij Dennis ook `rolweg` (6 van 50 dagranden) en
+`forêtweg` (2 van 50) als thuis, en bij Maarten Jaarsma `marsweg` (8 van 46).
+Over de juni-dataset vallen zo nog 28 ritten over 12 dagen weg, waarvan een deel
+terecht (echte ritjes binnen de eigen straat) en een deel niet. Het scherpste
+geval: Dennis 24-06 en 25-06 leveren nul tijdblokken op terwijl hij beide dagen
+8 uur boekte — alle ritten van die dagen lopen tussen Rolweg-adressen. Een
+frequentiedrempel zou dit oplossen, maar wélke drempel is een business rule die
+niet is vastgelegd; bij Jesse Verkerk zou een strenge drempel bijvoorbeeld
+`burgemeester deysstraat` (11 van 34 dagranden) laten vervallen, en of dat een
+tweede thuisadres is weet alleen SBTT. Apart te besluiten.

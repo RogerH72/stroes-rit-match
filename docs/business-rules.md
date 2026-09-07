@@ -17,6 +17,16 @@ Gebouwd t/m roadmap-fase 3 (03-09-2026, commit `eea759c`, 143 tests groen — zi
 - Matchingregels, gevalideerd op echte data: postcode-exact is niet genoeg →
   straatnaam-fallback; een depotbezoek vóór werk wordt herkend (op straatniveau, zie
   het aandachtspunt in `docs/database.md` en `docs/decisions.md`, 03-09-2026).
+- **Het thuisadres wordt afgeleid, niet vastgelegd** (bijgesteld 07-09-2026): niemand
+  registreert waar een monteur woont, dus de app leidt het af uit de eerste vertrek-
+  en de laatste aankomstplaats van elke dag die hij reed. Twee soorten dagranden
+  tellen daarbij níét mee: het depot (een monteur die zijn bus bij het magazijn
+  ophaalt begint en eindigt daar, maar het magazijn is niemands huis) en een adres
+  dat RouteVision niet heeft kunnen bepalen (`-`). Zonder die twee uitzonderingen
+  belandden het depot en de placeholder tussen de "thuisstraten", waarna elke rit
+  van huis naar depot, van depot naar depot en van depot naar huis werd weggegooid
+  als "rondje met de bus om het huis" — en verdween het begin en einde van zo'n dag
+  volledig uit de tijdlijn. Zie `docs/changelog.md` (07-09-2026).
 - **Werktijd bepalen uit ritgegevens (leidend), niet uit de Werktijd/Reistijd-velden
   van de werkbon** — bevestigd door Wim (mailwisseling 27/28-08-2026, herbevestigd
   02-09-2026), omdat monteurs die velden niet consequent invullen en er geen

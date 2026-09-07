@@ -49,6 +49,14 @@ er een antwoord "ja" is, staat het vast en stopt de app met verder zoeken:
    handmatig aangewezen en onthoudt de app daarna vanzelf.
 5. **Is dit het huisadres van de monteur?** Dan telt dat niet mee als
    werktijd — dat is gewoon het begin of einde van de dag.
+
+   Het huisadres staat nergens ingevuld; de app leidt het af uit waar de
+   dagen van die monteur beginnen en eindigen. Het magazijn telt daarbij
+   bewust niet mee: wie zijn bus bij de zaak ophaalt begint en eindigt daar
+   ook, maar het magazijn is natuurlijk niemands huis. Ging dat mis, dan
+   werden de rit naar het magazijn, de tijd daar en de rit naar huis gezien
+   als "rondje om het huis" en verdwenen ze uit het dagoverzicht. Dat is op
+   07-09-2026 verholpen.
 6. **Niets van dit alles:** dan blijft de stop onverklaard. Duurde de stop
    langer dan de ingestelde grens (nu 15 minuten), dan wordt hij zichtbaar
    gemaakt als "onverklaard", zodat iemand het kan uitzoeken. Was de stop

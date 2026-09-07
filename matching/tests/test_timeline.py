@@ -89,6 +89,68 @@ class HomeStreetTests(TestCase):
         )
         self.assertEqual(home_streets_for(monteur), {"j. bosschaartstraat"})
 
+    def test_the_depot_is_not_mistaken_for_home(self):
+        # A monteur who picks up his van at the magazijn starts that day there.
+        # Without the depot being excluded, "randweg" joins his home streets and
+        # every depot leg of every other day is then read as a hop around the
+        # house (docs/changelog.md, 07-09-2026).
+        monteur = factories.monteur("M5", "005", "M5")
+        factories.bekende_locatie(
+            LocatieType.STRAAT, "Randweg", Soort.LOCATIE, "SBTT-Magazijn",
+            is_depot=True,
+        )
+        factories.rit(
+            "M5", DAG, "06:17", "06:27",
+            vertrekadres=DEPOT_ADRES, vertrekplaats=DEPOT_PLAATS,
+            aankomstadres=KLANT_ADRES, aankomstplaats=KLANT_PLAATS,
+        )
+        factories.rit(
+            "M5", DAG, "16:00", "16:30",
+            vertrekadres=KLANT_ADRES, vertrekplaats=KLANT_PLAATS,
+            aankomstadres=THUIS_ADRES, aankomstplaats=THUIS_PLAATS,
+        )
+
+        self.assertEqual(home_streets_for(monteur), {"j. bosschaartstraat"})
+
+    def test_a_depot_configured_on_postcode_is_excluded_too(self):
+        # A depot may be keyed on postcode instead of street, and then the street
+        # of that same address must still not count as home.
+        monteur = factories.monteur("M5", "005", "M5")
+        factories.bekende_locatie(
+            LocatieType.POSTCODE, "4104AC", Soort.LOCATIE, "SBTT-Magazijn",
+            is_depot=True,
+        )
+        factories.rit(
+            "M5", DAG, "06:17", "06:27",
+            vertrekadres=DEPOT_ADRES, vertrekplaats=DEPOT_PLAATS,
+            aankomstadres=KLANT_ADRES, aankomstplaats=KLANT_PLAATS,
+        )
+        factories.rit(
+            "M5", DAG, "16:00", "16:30",
+            vertrekadres=KLANT_ADRES, vertrekplaats=KLANT_PLAATS,
+            aankomstadres=THUIS_ADRES, aankomstplaats=THUIS_PLAATS,
+        )
+
+        self.assertEqual(home_streets_for(monteur), {"j. bosschaartstraat"})
+
+    def test_an_unresolved_address_never_becomes_a_home_street(self):
+        # RouteVision writes "-" for a stop it could not resolve. Left in, that
+        # placeholder became a home street of its own and every ride between two
+        # unresolved addresses was dropped as a hop around the house.
+        monteur = factories.monteur("M5", "005", "M5")
+        factories.rit(
+            "M5", DAG, "06:17", "06:27",
+            vertrekadres="-", vertrekplaats="-",
+            aankomstadres=KLANT_ADRES, aankomstplaats=KLANT_PLAATS,
+        )
+        factories.rit(
+            "M5", DAG, "16:00", "16:30",
+            vertrekadres=KLANT_ADRES, vertrekplaats=KLANT_PLAATS,
+            aankomstadres="-", aankomstplaats="-",
+        )
+
+        self.assertEqual(home_streets_for(monteur), set())
+
     def test_a_monteur_without_a_driver_code_has_no_home_streets(self):
         junior = factories.monteur("Junior", "009")
         self.assertEqual(home_streets_for(junior), set())
@@ -664,3 +726,128 @@ class MeegeredenOverlapTests(TestCase):
             self.senior_a, dt.date(2026, 8, 1), dt.date(2026, 8, 20)
         )
         eigen.clean()  # does not raise
+
+
+class DepotAanDeDagrandenTests(TestCase):
+    """The whole start and end of a day must survive a visit to the magazijn.
+
+    Reproduces the real case that exposed the bug: Dennis van de Berg (002) on
+    2026-06-02. He keeps his van at home, but on *other* days he starts or ends
+    at the magazijn — enough to put "randweg" among his detected home streets.
+    From then on `_trim_home_hops` read every home->depot, depot->depot and
+    depot->home ride as moving the van around the house and dropped it, so this
+    day arrived in the timeline with only its middle two rides left.
+
+    The contamination is deliberately cross-day here, exactly as in the real
+    data: this day itself both starts and ends at home, so on its own it would
+    never have produced the bug.
+    """
+
+    THUIS = ("Beesdseweg 3a-18", "4116 GE Buren")
+    THUIS_TERUG = ("Beesdseweg 3a-20", "4116 GE Buren")
+    DEPOT_1B = ("Randweg 1b", "4104 AC Culemborg")
+    DEPOT_6 = ("Randweg 6", "4104 AC Culemborg")
+    DEPOT_6D = ("Randweg 6d", "4104 AC Culemborg")
+    KLANT = ("Kruiwiel 18", "4126 RH Hei- en Boeicop")
+
+    def setUp(self):
+        self.monteur = factories.monteur("Berg D", "002", "Dennis van de Berg")
+        factories.bekende_locatie(
+            LocatieType.STRAAT, "Randweg", Soort.LOCATIE, "SBTT-Magazijn",
+            is_depot=True,
+        )
+
+    def _rit(self, datum, vertrek, aankomst, van, naar):
+        factories.rit(
+            "Dennis van de Berg", datum, vertrek, aankomst,
+            vertrekadres=van[0], vertrekplaats=van[1],
+            aankomstadres=naar[0], aankomstplaats=naar[1],
+        )
+
+    def _dag_die_bij_het_depot_begint(self):
+        """An earlier day that starts at the magazijn — the contaminating one."""
+        vorige = DAG - dt.timedelta(days=1)
+        self._rit(vorige, "07:00", "07:30", self.DEPOT_6, self.KLANT)
+        self._rit(vorige, "16:00", "16:40", self.KLANT, self.THUIS)
+
+    def _de_zes_ritten(self):
+        """2026-06-02: home -> depot -> customer -> depot -> home."""
+        self._rit(DAG, "06:49", "06:52", self.THUIS, self.DEPOT_1B)
+        self._rit(DAG, "12:01", "12:10", self.DEPOT_1B, self.DEPOT_6)
+        self._rit(DAG, "12:10", "12:27", self.DEPOT_6, self.KLANT)
+        self._rit(DAG, "17:11", "17:29", self.KLANT, self.DEPOT_6D)
+        self._rit(DAG, "17:31", "17:33", self.DEPOT_6D, self.DEPOT_6)
+        self._rit(DAG, "22:15", "22:19", self.DEPOT_6, self.THUIS_TERUG)
+
+    def test_the_depot_stays_out_of_the_detected_home_streets(self):
+        self._dag_die_bij_het_depot_begint()
+        self._de_zes_ritten()
+
+        self.assertEqual(home_streets_for(self.monteur), {"beesdseweg"})
+
+    def test_every_ride_of_the_day_ends_up_in_the_timeline(self):
+        self._dag_die_bij_het_depot_begint()
+        self._de_zes_ritten()
+
+        tijdlijn = build_day(self.monteur, DAG)
+
+        reistijden = [b for b in tijdlijn.blokken if b.soort == Soort.REISTIJD]
+        self.assertEqual(len(reistijden), 6)
+        self.assertEqual(
+            [(b.start_tijd.strftime("%H:%M"), b.eind_tijd.strftime("%H:%M"))
+             for b in reistijden],
+            [
+                ("06:49", "06:52"),
+                ("12:01", "12:10"),
+                ("12:10", "12:27"),
+                ("17:11", "17:29"),
+                ("17:31", "17:33"),
+                ("22:15", "22:19"),
+            ],
+        )
+
+    def test_the_day_runs_from_the_first_departure_to_the_last_arrival(self):
+        self._dag_die_bij_het_depot_begint()
+        self._de_zes_ritten()
+
+        blokken = build_day(self.monteur, DAG).blokken
+
+        self.assertEqual(blokken[0].start_tijd.strftime("%H:%M"), "06:49")
+        self.assertEqual(blokken[-1].eind_tijd.strftime("%H:%M"), "22:19")
+
+    def test_the_stays_at_the_depot_are_reported_as_depot_time(self):
+        # The morning stay (06:52-12:01) and the evening one (17:33-22:15) were
+        # both lost with their rides; they are depot visits, not work.
+        self._dag_die_bij_het_depot_begint()
+        self._de_zes_ritten()
+
+        blokken = build_day(self.monteur, DAG).blokken
+        depot = [b for b in blokken if b.omschrijving == "SBTT-Magazijn"]
+
+        # Four, not three: the 12:10 turnaround between the two depot addresses
+        # is a zero-minute stop, and the depot branch has no minimum duration —
+        # existing behaviour, unrelated to the day edges this test is about.
+        self.assertEqual(len(depot), 4)
+        self.assertIn(
+            ("06:52", "12:01"),
+            [(b.start_tijd.strftime("%H:%M"), b.eind_tijd.strftime("%H:%M")) for b in depot],
+        )
+        self.assertIn(
+            ("17:33", "22:15"),
+            [(b.start_tijd.strftime("%H:%M"), b.eind_tijd.strftime("%H:%M")) for b in depot],
+        )
+
+    def test_a_real_hop_around_the_house_is_still_dropped(self):
+        # The home rule itself has to keep working: moving the van between two
+        # addresses on his own street is not a ride worth reporting.
+        self._dag_die_bij_het_depot_begint()
+        self._rit(DAG, "07:00", "07:05", self.THUIS, self.THUIS_TERUG)
+        self._rit(DAG, "07:10", "07:40", self.THUIS_TERUG, self.KLANT)
+        self._rit(DAG, "16:00", "16:30", self.KLANT, self.THUIS)
+
+        reistijden = [
+            b for b in build_day(self.monteur, DAG).blokken
+            if b.soort == Soort.REISTIJD
+        ]
+
+        self.assertEqual(len(reistijden), 2)

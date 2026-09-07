@@ -74,7 +74,9 @@ def run_matching(
         for datum in dagen:
             bronmonteur = resolve_bronmonteur(monteur, datum)
             if bronmonteur.pk not in home_streets_cache:
-                home_streets_cache[bronmonteur.pk] = home_streets_for(bronmonteur)
+                home_streets_cache[bronmonteur.pk] = home_streets_for(
+                    bronmonteur, koppeltabellen=koppeltabellen
+                )
 
             tijdlijn = build_day(
                 monteur,

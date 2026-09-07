@@ -172,6 +172,17 @@ Via Django-admin worden de koppeltabellen onderhouden:
 - De tolerantietabel per activiteit.
 - Het statusveld "laatste succesvolle run" (zie §3a).
 
+**Data resetten (vastgelegd 07-09-2026, zie `docs/decisions.md`).** Een aparte
+beheeractie, los van de reguliere Django bulk-delete-acties op de importtabellen
+(die bewust dichtstaan — zie §3a/`docs/decisions.md`). Twee modi: "volledig
+leegmaken" (Uren, Rit, Relatie, WerkbonControle, Tijdblok, ImportedFile — de
+koppeltabellen blijven altijd ongemoeid) en "periode verwijderen" (van–tot datum,
+alleen Uren/Rit/WerkbonControle/Tijdblok; Relatie en ImportedFile blijven daarbuiten,
+zodat een periode-reset niet stilletjes de verwerkt-status van een bronbestand
+wijzigt). Beide tonen eerst een preview en vereisen een expliciete bevestiging;
+alleen beschikbaar voor superusers. Herimporteren/herberekenen na een reset blijft,
+net als bij "Matching nu draaien", een bewuste, aparte stap. Nog niet gebouwd.
+
 De precieze schermindeling is nog niet uitgewerkt.
 
 ## 5. Uitzonderingenscherm (roadmap-fase 5)

@@ -729,3 +729,47 @@ van een feature zonder échte data) verandert niet.
 Expliciet vastgelegd op verzoek van Roger: mocht dit in de toekomst tóch geprobeerd
 worden (een bare `runserver` tegen échte SBTT-data), dan hoort daarop gewezen te
 worden dat dit zo is afgesproken — zie ook `CLAUDE.md`, "Development principles".
+
+## 2026-09-07 — Beheeractie "Data resetten" toegevoegd: volledig leegmaken of periode verwijderen (Current)
+
+Decision: er komt een aparte, bewuste beheeractie ("Data resetten") in de admin, los
+van de generieke Django bulk-delete-acties op de importtabellen (die vandaag terecht
+dichtgezet zijn, zie de aanvulling op het besluit "MatchmotorStatus wordt read-only
+in de admin" hierboven). Twee modi:
+
+1. **Volledig leegmaken** — verwijdert alle rijen uit Uren, Rit, Relatie,
+   WerkbonControle, Tijdblok én ImportedFile (dezelfde 6 tabellen als bij de
+   handmatige reset van vandaag, zie het besluit "Schone herimport +
+   herberekening" hierboven). Koppeltabellen (Monteur, BekendeLocatie,
+   Instelling, MeegeredenKoppeling, ToleranceRegel, MatchmotorStatus) blijven
+   altijd ongemoeid.
+2. **Periode verwijderen** (van–tot datum) — filtert en verwijdert Uren, Rit,
+   WerkbonControle en Tijdblok op datum. Relatie (klant/leverancier-stamgegevens
+   zonder periode-begrip) en ImportedFile (per bestand, niet per periode) blijven
+   buiten deze modus: een periode-reset "vergeet" dus niet dat een bronbestand al
+   verwerkt is, en een her-import van hetzelfde bestand voor die periode blijft de
+   bestaande handmatige `--reprocess`-stap vereisen.
+
+Beide modi tonen eerst een preview (aantal rijen per tabel dat verwijderd gaat
+worden) en vereisen een expliciete bevestiging voordat er definitief iets
+verdwijnt. Net als bij "Matching nu draaien" (fase 4) is herimporteren/
+herberekenen na een reset een bewuste, aparte vervolgstap — geen automatisch
+gevolg van de reset-actie zelf.
+
+Toegang: alleen superusers (dus voorlopig alleen Roger), niet elke ingelogde
+beheerder. Dit is bewust een technisch/troubleshooting-hulpmiddel, geen
+SBTT-personeelsfunctie; mocht Wim dit ooit zelf nodig hebben, is dat een apart te
+nemen besluit.
+
+Reasoning: de bugfix van vandaag (`has_delete_permission` toevoegen) herstelde
+terecht het bedoelde read-only-gedrag van deze tabellen, maar liet daarmee ook
+geen enkele weg meer open om bewust een schone lei te maken — nodig voor testen
+(zoals vandaag, waar een volledige reset nodig was om de twee bugs te kunnen
+verifiëren) en potentieel voor het corrigeren van een foutief geïmporteerde
+periode. De generieke Django `delete_selected`-actie is hiervoor sowieso
+ongeschikt gebleken (de `DATA_UPLOAD_MAX_NUMBER_FIELDS`-limiet bij meer dan 1000
+rijen, zie hierboven), dus een eigen, doelgerichte actie — met preview en
+bevestiging in plaats van rij-voor-rij selecteren — is zowel veiliger als
+bruikbaarder. Het periode-scherm sluit ImportedFile bewust uit om het principe
+"nooit automatisch/stilletjes herverwerken" (besluit van 01-09-2026, "Trigger-
+mechanisme servermap") niet te doorbreken.

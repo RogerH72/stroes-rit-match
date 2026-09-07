@@ -253,8 +253,21 @@ RouteVision-data komt voor de PoC uit een handmatige download, niet uit de API.
      correct als "onvolledige week", maar dit is een openstaande dekkingsvraag
      over de RouteVision-export zelf, met Wim na te lopen — zie punt 18.
    Zie `docs/changelog.md` en `docs/decisions.md` (07-09-2026).
-18. **Eerstvolgende stap:** de uitgebreide analyse van de matchresultaten op
-   de nu schone echte augustus-data, inclusief het navragen bij Wim van de
+18. **Besloten (07-09-2026).** Beheeractie "Data resetten" toegevoegd aan het
+   ontwerp: twee modi in de admin, los van de (nu terecht dichtgezette)
+   generieke bulk-delete — "volledig leegmaken" (Uren, Rit, Relatie,
+   WerkbonControle, Tijdblok, ImportedFile) en "periode verwijderen" (van–tot
+   datum, alleen Uren/Rit/WerkbonControle/Tijdblok; Relatie en ImportedFile
+   blijven erbuiten, zodat een periode-reset nooit stilletjes ImportedFile's
+   verwerkt-status wijzigt). Beide modi tonen eerst een preview en vereisen
+   een expliciete bevestiging, zijn alleen beschikbaar voor superusers, en
+   herimporteren/herberekenen erna blijft een bewuste, aparte stap. Zie
+   `docs/decisions.md` (07-09-2026) voor de volledige onderbouwing en
+   `docs/functioneel-ontwerp.md` §4. Instructie naar de Claude Code-sessie
+   gereed, nog niet verstuurd.
+19. **Eerstvolgende stap:** eerst de "Data resetten"-actie (punt 18) laten
+   bouwen, daarna de uitgebreide analyse van de matchresultaten op de nu
+   schone echte augustus-data, inclusief het navragen bij Wim van de
    RouteVision-dekkingsgaten bij Dennis van de Berg en Maarten Jaarsma (punt
    17) — dan pas verder met roadmap-fase 7 (oplevering). Het draaiboek staat
    klaar in `DRAAIBOEK.md`, met drie nog niet definitieve onderdelen

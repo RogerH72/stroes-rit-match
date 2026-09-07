@@ -554,3 +554,59 @@ komen. Het is gebouwd — `matching/ingest/detection.py`, het commando
 `check_imports` en `scripts/scheduler.sh` — dus de kop is nu "gebouwd", met een
 verwijzing naar die drie plekken in de inleidende regel eronder. De ontwerpkeuzes
 in de sectie zelf (polling, interval, stabiliteitsmarge) zijn ongewijzigd.
+
+## 2026-09-07 — Schone herimport + herberekening, en twee bugs uit de eerste echte-data-test
+
+Na de eerste test op echte SBTT-data (06-09-2026) is de augustus-testdataset
+volledig opnieuw ingelezen en doorgerekend, om twee losse eindjes te controleren:
+monteur Dennis van de Berg (medewerkernr 002) stond op inactief en werd daardoor
+overgeslagen door `run_matching` (Roger heeft hem inmiddels weer actief gezet), en
+de ImportedFile-lijst toonde dubbele regels. Alles is via Docker gedaan
+(`docker compose exec web python manage.py ...`), conform het besluit van
+07-09-2026.
+
+**Bug 1 — Excel-lockbestanden werden als bronbestand herkend (echt, opgelost).**
+De dubbele regels in ImportedFile bleken Excel's eigen tijdelijke lockbestanden:
+zodra je een bronbestand opent, zet Office er een verborgen kopie naast met een
+`~$`-prefix ("~$20260826 Download uit Syntess Uren  26 8 2026.xlsx", 165 bytes).
+Dat bestand eindigt op `.xlsx` en bevat het trefwoord "Uren", dus de bewust losse
+herkenning in `matching/ingest/filenames.py` pakte het op als een tweede
+Uren-export. `classify_filename()` weigert nu elke bestandsnaam die met `~$`
+begint (`LOCK_FILE_PREFIX`). Er stond al een test op `~$Uren.xlsx.tmp`, maar die
+slaagde alleen op de `.tmp`-extensie — precies de vorm die Office níet gebruikt.
+
+**Bug 2 — de read-only admin-tabellen lieten verwijderen wél toe (echt, opgelost).**
+Het besluit van 03-09-2026 legde vast dat `Uren`, `Rit`, `Relatie`,
+`WerkbonControle` en `Tijdblok` alleen-lezen zijn in de admin, maar in
+`matching/admin.py` waren alleen `has_add_permission` en `has_change_permission`
+op False gezet. `has_delete_permission` ontbrak, dus "verwijder geselecteerde
+items" stond gewoon in de acties-dropdown. Toegevoegd aan `ReadOnlyImportAdmin`
+en `TijdblokAdmin`; Django filtert de acties op dit recht, dus de actie is nu
+helemaal niet meer zichtbaar.
+
+De Bad Request die Roger zag was een bijverschijnsel, geen bescherming: de
+bevestigingspagina van `delete_selected` rendert één verborgen veld per
+geselecteerde rij, en 1190 urenregels overschrijdt `DATA_UPLOAD_MAX_NUMBER_FIELDS`
+(1000) — `TooManyFieldsSent` geeft bij `DEBUG=0` een kale 400. Nagemeten: mét
+1190 velden een 400, met 50 velden een 200. Dat betekent dat de verwijdering op
+een kleinere selectie wél was doorgegaan; de foutmelding verborg een werkend
+verwijderpad. Sinds de fix blijven ook die 50 rijen staan.
+
+**De reset zelf.** Verwijderd via de ORM in de container: alle rijen in `Uren`,
+`Rit`, `Relatie`, `WerkbonControle`, `Tijdblok` en `ImportedFile`. Ongemoeid
+gelaten: `Monteur` (inclusief de door Roger handmatig gecorrigeerde `actief` en
+`bestuurder_code`), `BekendeLocatie`, `Instelling`, `MeegeredenKoppeling`,
+`ToleranceRegel` en `MatchmotorStatus` — voor en na geteld om dat te bevestigen.
+Daarna `check_imports --force` (2546 relaties, 1190 urenregels, 2471 werkbonnen,
+528 ritten) en `run_matching --force` (62 dagen, 853 tijdblokken, status succes).
+
+Resultaat: vier ImportedFile-rijen, geen dubbelen, geen `~$`-regels. Dennis heeft
+nu 152 tijdblokken uit 133 urenregels en staat in het weekoverzicht; week 32 toont
+"Gefactureerd 42,50 uur", wat exact overeenkomt met de som uit Uren.xlsx voor
+medewerkernr 002 in die week.
+
+Bij deze controle opgevallen, buiten de scope van deze fixes: de RouteVision-
+export bevat voor Dennis alleen ritten van 03-08 t/m 24-08, met een gat in week 33
+(ma t/m vr, terwijl er wel 8 uur per dag geboekt is). Ook Maarten Jaarsma stopt op
+15-08. Het weekoverzicht meldt dit netjes als "onvolledige week", maar het is een
+dekkingsvraag over de RouteVision-export zelf om met Roger na te lopen.

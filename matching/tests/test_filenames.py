@@ -52,6 +52,26 @@ class ClassifyFilenameTests(SimpleTestCase):
             with self.subTest(filename=filename):
                 self.assertIsNone(classify_filename(filename))
 
+    def test_office_lock_files_are_ignored(self):
+        # Opening a source file in Excel drops a "~$"-prefixed lock file beside
+        # it, named after the export and ending in .xlsx — loose matching picked
+        # those up as a second copy of the export itself.
+        for filename in (
+            "~$20260826 Download uit Syntess Uren  26 8 2026.xlsx",
+            "~$20260826 Download uit Syntess Werkbonnen  26 8 2026.xlsx",
+            "~$20260826 Download uit Syntess Relaties  26 8 2026.xlsx",
+            "~$Ritten.csv",
+        ):
+            with self.subTest(filename=filename):
+                self.assertIsNone(classify_filename(filename))
+
+    def test_a_lock_file_is_recognised_by_its_own_name_not_its_folder(self):
+        # The prefix check reads the filename, so a share path that happens to
+        # contain "~$" higher up does not disqualify a real export.
+        self.assertEqual(
+            classify_filename(r"\server\~$archief\Uren.xlsx"), SourceKind.UREN
+        )
+
     def test_a_full_path_is_classified_on_its_filename(self):
         self.assertEqual(
             classify_filename(r"\\stroes-1909\atrium\Autoprint\RUUDS\Uren.xlsx"),

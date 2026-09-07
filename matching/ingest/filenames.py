@@ -18,7 +18,9 @@ setting, which overrides it without touching this module).
 
 Loose is not the same as sloppy: the keyword has to sit on a word boundary, or
 "Facturen 2026.xlsx" would be picked up as an Uren export because it happens to
-end in "uren".
+end in "uren". And a name that is loose enough to match a dated Syntess export is
+also loose enough to match Excel's own lock file for that export, so the "~$"
+prefix is rejected outright (see LOCK_FILE_PREFIX).
 """
 
 from __future__ import annotations
@@ -55,6 +57,15 @@ FILE_PATTERNS: dict[str, tuple[str, tuple[str, ...]]] = {
 }
 
 
+# Microsoft Office writes a hidden lock file next to every open document, named
+# after it with a "~$" prefix ("~$Uren 26 8 2026.xlsx"). It is a real .xlsx-named
+# file of a few hundred bytes, so every pattern below happily matches it — which
+# is how simply opening a source file in Excel produced a phantom second
+# ImportedFile row for it. Nothing on the share that starts with this prefix is
+# ever one of our exports.
+LOCK_FILE_PREFIX = "~$"
+
+
 def _patterns() -> dict[str, tuple[str, tuple[str, ...]]]:
     """The active pattern table, overridable per deployment via settings."""
     return getattr(settings, "RMW_FILE_PATTERNS", None) or FILE_PATTERNS
@@ -67,6 +78,9 @@ def classify_filename(filename: str) -> str | None:
     writer leaves behind — is simply ignored rather than treated as an error.
     """
     name = Path(filename).name
+    if name.startswith(LOCK_FILE_PREFIX):
+        return None
+
     suffix = Path(name).suffix.lower()
 
     matches = [

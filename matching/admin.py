@@ -46,6 +46,17 @@ class ReadOnlyImportAdmin(admin.ModelAdmin):
     def has_change_permission(self, request, obj=None):
         return False
 
+    def has_delete_permission(self, request, obj=None):
+        # Deleting mattered as much as editing and was the one hole left open:
+        # these rows are a copy of the share, so a row deleted here comes back
+        # on the next reprocess while the matching in between silently misses
+        # it. Saying "no" here also takes "delete selected" out of the actions
+        # dropdown altogether (Django filters actions on this permission), which
+        # is what the screen needs — trying it on a full Urenregels table posted
+        # one hidden field per row and hit DATA_UPLOAD_MAX_NUMBER_FIELDS, so the
+        # offer ended in a bare 400 rather than a refusal.
+        return False
+
 
 @admin.register(ImportedFile)
 class ImportedFileAdmin(admin.ModelAdmin):
@@ -193,6 +204,12 @@ class TijdblokAdmin(admin.ModelAdmin):
         return False
 
     def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        # Same reason as the read-only import admins: run_matching owns these
+        # rows, so deleting one here only makes the timeline wrong until the
+        # next run puts it back.
         return False
 
     list_display = (

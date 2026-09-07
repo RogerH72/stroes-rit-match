@@ -94,6 +94,13 @@ gebouwd in `matching/ingest/detection.py`, het commando `check_imports` en
   dag/monteur die de app toch al moet opslaan om het weekoverzicht te tonen). Geen
   aparte "verwerkt"-map en geen bestanden die worden verplaatst of verwijderd op de
   servermap — zie `docs/decisions.md` voor de afweging.
+- **Office-lockbestanden worden overgeslagen (07-09-2026).** De herkenning is
+  bewust los (één trefwoord plus de verwachte extensie), en daardoor herkende zij
+  ook Excel's eigen tijdelijke lockbestand naast een geopend bronbestand — dat
+  heet immers hetzelfde, met een `~$`-prefix, en eindigt op `.xlsx`. Elke
+  bestandsnaam die met `~$` begint wordt nu geweigerd, zodat het openen van een
+  bronbestand tijdens het testen geen spookregel in ImportedFile meer oplevert
+  (`LOCK_FILE_PREFIX` in `matching/ingest/filenames.py`).
 - **Servermap-locatie bevestigd (mailwisseling Wim, 27/28-08-2026):**
   `\\stroes-1909\atrium\Autoprint\RUUDS`. De exacte bestandsnaam-conventie van de
   automatische productie-export (Syntess/RouteVision) is nog niet bekend — de

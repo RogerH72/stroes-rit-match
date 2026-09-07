@@ -540,6 +540,14 @@ is. Consistent met waarom `Tijdblok` al read-only is: "de manier om de uitkomst
 te veranderen is een koppeltabel aan te passen en de matching opnieuw te
 draaien", niet het resultaat zelf handmatig te bewerken.
 
+Aanvulling 07-09-2026: "read-only" omvat ook verwijderen. Dat stond hier al
+impliciet ("alleen bekijken"), maar was in de code alleen voor
+`MatchmotorStatus` en `Instelling` waargemaakt — `Uren`, `Rit`, `Relatie`,
+`WerkbonControle` en `Tijdblok` misten `has_delete_permission`, waardoor
+"verwijder geselecteerde items" in de admin gewoon beschikbaar was. Dit is
+gerepareerd als bug, niet als nieuw besluit; zie `docs/changelog.md`
+(07-09-2026).
+
 ## 2026-09-03 — Lichte visuele stijl vastgelegd voor fase 5 (Current)
 
 Decision: het uitzonderingenscherm (fase 5) wordt gebouwd als onderdeel van de

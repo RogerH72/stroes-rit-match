@@ -273,13 +273,14 @@ naar boven gekomen, geen van beide al gebouwd:
   berekening (som van `Uren.Aantal` tegenover de SOORT=W-duur) blijft
   ongewijzigd, alleen de naam. Bevestigd, wacht op een instructie naar de
   Claude Code-sessie.
-- Vermoedelijke bug, bevestigd bij meerdere monteurs: alleen het middenstuk van
-  de dag — vanaf de eerste rit naar een klant/werkbon-adres tot en met de
-  laatste rit terug bij het depotgebied — komt in de tijdlijn terecht. Zowel
-  het ochtenddeel (rit naar het depot + verblijf) als het einde van de dag
+- Bug, bevestigd bij meerdere monteurs: alleen het middenstuk van de dag —
+  vanaf de eerste rit naar een klant/werkbon-adres tot en met de laatste rit
+  terug bij het depotgebied — komt in de tijdlijn terecht. Zowel het
+  ochtenddeel (rit naar het depot + verblijf) als het einde van de dag
   (verblijf bij het depot + rit naar huis) ontbreken structureel (geconstateerd
-  bij monteur Dennis van de Berg, 2026-06-02). Nog niet vastgesteld of dit een
-  import-bug is of een reconstructie-bug. Nog niet onderzocht in code.
+  bij monteur Dennis van de Berg, 2026-06-02). De ritten staan wél correct in
+  de `Rit`-tabel (import is dus correct) — de bug zit aantoonbaar in de
+  tijdlijnreconstructie. Precieze oorzaak nog niet onderzocht in code.
 
 ## 7. Oplevering en acceptatie (roadmap-fase 7 en 8)
 

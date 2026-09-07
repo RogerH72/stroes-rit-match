@@ -273,19 +273,20 @@ RouteVision-data komt voor de PoC uit een handmatige download, niet uit de API.
    "Data resetten"-functie (punt 18): volledige reset, opnieuw ingelezen en
    herberekend, en de resultaten doorgenomen. Twee bevindingen, nog niet naar
    Claude Code gestuurd — Roger test eerst verder:
-   - **Vermoedelijke bug, bevestigd bij meerdere monteurs:** alleen het
-     middenstuk van de dag komt in de tijdlijn terecht — vanaf de eerste rit
-     naar een klant/werkbon-adres tot en met de laatste rit terug bij het
-     depotgebied. Zowel het ochtenddeel (rit naar het depot + het verblijf
-     daar) als het einde van de dag (verblijf bij het depot + rit naar huis)
-     ontbreken structureel. Concreet uitgewerkt op monteur Dennis van de Berg
-     (002), 2026-06-02: van de 6 ritten die dag komen alleen de middelste 2
-     (12:10–12:27 en 17:11–17:29, rond het werkbonbezoek) in het weekoverzicht
-     terecht; de andere 4 (thuis→depot 's ochtends + het verblijf daar,
-     en depot→thuis 's avonds + het verblijf daar) niet. Roger heeft ook de
-     `Rit`-tabel in de Django-admin nagelopen: deze ritten staan daar evenmin
-     in — nog niet vastgesteld of dit een import-bug is of een
-     reconstructie-bug. Zie `docs/decisions.md` (07-09-2026, avond).
+   - **Bug, bevestigd bij meerdere monteurs, zit in de tijdlijnreconstructie:**
+     alleen het middenstuk van de dag komt in de tijdlijn terecht — vanaf de
+     eerste rit naar een klant/werkbon-adres tot en met de laatste rit terug
+     bij het depotgebied. Zowel het ochtenddeel (rit naar het depot + het
+     verblijf daar) als het einde van de dag (verblijf bij het depot + rit
+     naar huis) ontbreken structureel. Concreet uitgewerkt op monteur Dennis
+     van de Berg (002), 2026-06-02: van de 6 ritten die dag komen alleen de
+     middelste 2 (12:10–12:27 en 17:11–17:29, rond het werkbonbezoek) in het
+     weekoverzicht terecht; de andere 4 (thuis→depot 's ochtends + het
+     verblijf daar, en depot→thuis 's avonds + het verblijf daar) niet. Roger
+     heeft de `Rit`-tabel in de Django-admin nagelopen: deze ritten staan daar
+     wél correct in (de import is dus correct) — de bug zit aantoonbaar in het
+     opbouwen van de tijdblokken. Precieze oorzaak nog niet onderzocht in
+     code. Zie `docs/decisions.md` (07-09-2026, avond).
    - **Bevestigd, nog niet gebouwd:** het label "Gefactureerd" in het
      weekoverzicht (dag- en weektotalen) wordt "Totaal (excl. reistijd)" —
      de berekening zelf (som van `Uren.Aantal` tegenover de SOORT=W-duur,

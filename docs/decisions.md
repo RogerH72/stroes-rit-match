@@ -794,7 +794,7 @@ op het eigen bedrijfsadres" (zie `docs/business-rules.md`). Alleen de naam ervoo
 was onjuist — "Gefactureerd" suggereert facturatie aan de klant, terwijl het feitelijk
 alle geboekte uren van die dag zijn, ongeacht of ze declarabel zijn.
 
-## 2026-09-07 (avond) — Bevinding: begin en einde van de dag ontbreken in de tijdlijn, bevestigd bij meerdere monteurs (Current, nog niet onderzocht)
+## 2026-09-07 (avond) — Bevinding: begin en einde van de dag ontbreken in de tijdlijn, bug zit in de tijdlijnreconstructie (Current, oorzaak nog niet gevonden)
 
 Bevinding, geen besluit: bij dezelfde testronde bleek het patroon breder dan
 aanvankelijk gedacht en dus structureel, niet incidenteel — Roger heeft dit bij
@@ -822,14 +822,14 @@ depot) en alles erna (het depot-verblijf en de rit naar huis aan het eind van
 de dag) ontbreekt, ongeacht of het om een korte rit of een verblijf van uren
 gaat.
 
-Roger heeft ook de `Rit`-tabel in Django-admin (het ingelezen resultaat, niet de
-RouteVision-brondata zelf) nagelopen: deze ontbrekende ritten staan daar evenmin
-in. Zijn eigen inschatting is dat het probleem eerder in de tijdlijnreconstructie
-zit dan in het inlezen zelf, maar dat is nog niet in code bevestigd — het is dus
-nog open of dit een import-bug is (ritten komen niet in `Rit` terecht), een
-reconstructie-bug (ritten staan wel in `Rit` maar leveren geen `Tijdblok` op), of
-allebei. Dit moet Claude Code in code vaststellen, niet aannemen.
+Correctie op een eerdere aanname (Roger, 07-09-2026): de `Rit`-tabel in Django-admin
+(het ingelezen resultaat, niet de RouteVision-brondata zelf) bevat deze ritten wél —
+de import verwerkt alle ritten correct. Het probleem zit dus aantoonbaar bij het
+opbouwen van de tijdblokken (de tijdlijnreconstructie), niet bij het inlezen. In
+principe zou elke rit die in `Rit` staat een plek moeten krijgen in het
+weekoverzicht; dat gebeurt nu niet voor het begin- en eindstuk van de dag.
 
-Nog niet onderzocht in code — deze Cowork-sessie heeft geen codetoegang. Wacht op
-een instructie naar de Claude Code-sessie, nadat Roger de huidige testronde heeft
+Nog niet onderzocht in code — deze Cowork-sessie heeft geen codetoegang. De precieze
+oorzaak in de reconstructielogica moet Claude Code vaststellen. Wacht op een
+instructie naar de Claude Code-sessie, nadat Roger de huidige testronde heeft
 afgerond. Zie ook `docs/functioneel-ontwerp.md` §6.

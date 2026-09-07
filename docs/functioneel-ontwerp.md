@@ -273,10 +273,13 @@ naar boven gekomen, geen van beide al gebouwd:
   berekening (som van `Uren.Aantal` tegenover de SOORT=W-duur) blijft
   ongewijzigd, alleen de naam. Bevestigd, wacht op een instructie naar de
   Claude Code-sessie.
-- Vermoedelijke bug: het ochtenddeel van een dag kan volledig ontbreken in de
-  gereconstrueerde tijdlijn (geconstateerd bij monteur Dennis van de Berg,
-  2026-06-02) — geen classificatiefout (SOORT L en O staan op nul), het blok
-  lijkt niet aangemaakt te worden. Nog niet onderzocht in code.
+- Vermoedelijke bug, bevestigd bij meerdere monteurs: alleen het middenstuk van
+  de dag — vanaf de eerste rit naar een klant/werkbon-adres tot en met de
+  laatste rit terug bij het depotgebied — komt in de tijdlijn terecht. Zowel
+  het ochtenddeel (rit naar het depot + verblijf) als het einde van de dag
+  (verblijf bij het depot + rit naar huis) ontbreken structureel (geconstateerd
+  bij monteur Dennis van de Berg, 2026-06-02). Nog niet vastgesteld of dit een
+  import-bug is of een reconstructie-bug. Nog niet onderzocht in code.
 
 ## 7. Oplevering en acceptatie (roadmap-fase 7 en 8)
 

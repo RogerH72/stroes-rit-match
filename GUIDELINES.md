@@ -273,14 +273,19 @@ RouteVision-data komt voor de PoC uit een handmatige download, niet uit de API.
    "Data resetten"-functie (punt 18): volledige reset, opnieuw ingelezen en
    herberekend, en de resultaten doorgenomen. Twee bevindingen, nog niet naar
    Claude Code gestuurd — Roger test eerst verder:
-   - **Vermoedelijke bug:** het ochtenddeel van de dag ontbreekt soms volledig
-     uit de gereconstrueerde tijdlijn. Concreet geval: monteur Dennis van de
-     Berg (002), 2026-06-02 — hij was volgens RouteVision van 06:52 tot 12:01
-     op "Randweg 1b" (bij het depotgebied), maar het weekoverzicht toont pas
-     een eerste regel vanaf 12:10. De SOORT-samenvatting van die dag toont
-     zowel L als O op nul, dus het blok is niet verkeerd geclassificeerd —
-     het lijkt helemaal niet aangemaakt te zijn. Zie `docs/decisions.md`
-     (07-09-2026, avond).
+   - **Vermoedelijke bug, bevestigd bij meerdere monteurs:** alleen het
+     middenstuk van de dag komt in de tijdlijn terecht — vanaf de eerste rit
+     naar een klant/werkbon-adres tot en met de laatste rit terug bij het
+     depotgebied. Zowel het ochtenddeel (rit naar het depot + het verblijf
+     daar) als het einde van de dag (verblijf bij het depot + rit naar huis)
+     ontbreken structureel. Concreet uitgewerkt op monteur Dennis van de Berg
+     (002), 2026-06-02: van de 6 ritten die dag komen alleen de middelste 2
+     (12:10–12:27 en 17:11–17:29, rond het werkbonbezoek) in het weekoverzicht
+     terecht; de andere 4 (thuis→depot 's ochtends + het verblijf daar,
+     en depot→thuis 's avonds + het verblijf daar) niet. Roger heeft ook de
+     `Rit`-tabel in de Django-admin nagelopen: deze ritten staan daar evenmin
+     in — nog niet vastgesteld of dit een import-bug is of een
+     reconstructie-bug. Zie `docs/decisions.md` (07-09-2026, avond).
    - **Bevestigd, nog niet gebouwd:** het label "Gefactureerd" in het
      weekoverzicht (dag- en weektotalen) wordt "Totaal (excl. reistijd)" —
      de berekening zelf (som van `Uren.Aantal` tegenover de SOORT=W-duur,

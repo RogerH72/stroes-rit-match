@@ -794,17 +794,41 @@ op het eigen bedrijfsadres" (zie `docs/business-rules.md`). Alleen de naam ervoo
 was onjuist — "Gefactureerd" suggereert facturatie aan de klant, terwijl het feitelijk
 alle geboekte uren van die dag zijn, ongeacht of ze declarabel zijn.
 
-## 2026-09-07 (avond) — Bevinding: ochtendblok ontbreekt in de tijdlijn (Current, nog niet onderzocht)
+## 2026-09-07 (avond) — Bevinding: begin en einde van de dag ontbreken in de tijdlijn, bevestigd bij meerdere monteurs (Current, nog niet onderzocht)
 
-Bevinding, geen besluit: tijdens dezelfde testronde bleek de gereconstrueerde
-dagtijdlijn van monteur Dennis van de Berg (medewerkernr. 002) op 2026-06-02 het
-hele ochtenddeel te missen. Volgens de RouteVision-ritdata was hij van 06:52 tot
-12:01 (bijna 5 uur 9 min) op "Randweg 1b, Culemborg" (vlak bij het depotgebied
-Randweg 6/6d), gevolgd door een korte rit naar Randweg 6 — pas daarna verschijnt de
-eerste regel in het weekoverzicht (Reistijd 12:10–12:27 naar Kruiwiel 18,
-Geldermalsen). De SOORT-samenvatting van die dag toont zowel L als O op nul: het
-blok is dus niet verkeerd geclassificeerd, het lijkt helemaal niet als `Tijdblok`
-aangemaakt te zijn.
+Bevinding, geen besluit: bij dezelfde testronde bleek het patroon breder dan
+aanvankelijk gedacht en dus structureel, niet incidenteel — Roger heeft dit bij
+meerdere monteurs nagelopen en het is consistent. Concreet uitgewerkt op de dag
+van monteur Dennis van de Berg (medewerkernr. 002), 2026-06-02, aan de hand van
+de volledige RouteVision-ritdata voor die dag (6 ritten, `Reis van de dag`
+2/11/13/28/30/33):
+
+- Rit 2 (06:49–06:52, thuis → Randweg 1b) en het verblijf tot 12:01 op Randweg
+  1b, en rit 11 (12:01–12:10, Randweg 1b → Randweg 6) — ontbreken (al eerder
+  vastgelegd hierboven, zie de vorige bevinding).
+- Rit 13 (12:10–12:27, Randweg 6 → Kruiwiel 18) en het verblijf bij de klant
+  tot 17:11 — **komen wél goed in het weekoverzicht terecht** (Reistijd +
+  W-blok WB260779).
+- Rit 28 (17:11–17:29, Kruiwiel 18 → Randweg 6d) — **komt wél goed terecht**
+  (laatste zichtbare regel: Reistijd 17:11–17:29).
+- Rit 30 (17:31–17:32:54, Randweg 6d → Randweg 6), het verblijf op Randweg 6
+  tot 22:15 (bijna 4 uur 43 min), en rit 33 (22:15:18–22:19:24, Randweg 6 →
+  thuis) — **ontbreken**, net als het ochtenddeel.
+
+Het patroon is dus symmetrisch: alleen het middenstuk van de dag — vanaf de
+eerste rit naar een klant/werkbon-adres tot en met de laatste rit terug bij het
+depotgebied — komt in de tijdlijn terecht. Alles ervoor (de ochtend bij het
+depot) en alles erna (het depot-verblijf en de rit naar huis aan het eind van
+de dag) ontbreekt, ongeacht of het om een korte rit of een verblijf van uren
+gaat.
+
+Roger heeft ook de `Rit`-tabel in Django-admin (het ingelezen resultaat, niet de
+RouteVision-brondata zelf) nagelopen: deze ontbrekende ritten staan daar evenmin
+in. Zijn eigen inschatting is dat het probleem eerder in de tijdlijnreconstructie
+zit dan in het inlezen zelf, maar dat is nog niet in code bevestigd — het is dus
+nog open of dit een import-bug is (ritten komen niet in `Rit` terecht), een
+reconstructie-bug (ritten staan wel in `Rit` maar leveren geen `Tijdblok` op), of
+allebei. Dit moet Claude Code in code vaststellen, niet aannemen.
 
 Nog niet onderzocht in code — deze Cowork-sessie heeft geen codetoegang. Wacht op
 een instructie naar de Claude Code-sessie, nadat Roger de huidige testronde heeft

@@ -317,6 +317,28 @@ weektotaal én per dag — net als de vergelijking hierboven een apart getal, ge
 aftrek op "Totaal (excl. reistijd)". De regel verschijnt alleen wanneer er
 privé-tijd is, zodat een week zonder privé-stops er onveranderd uitziet.
 
+**Besloten (07-09-2026), nog niet gebouwd — "Aansluiting per werkbon".** De
+bestaande "Totaal (excl. reistijd)" vs. "op locatie"-vergelijking hierboven is
+één geblendet cijfer per dag; Wim kan er niet uit afleiden of er, per specifieke
+werkbon, tijd is besteed die niet gedeclareerd is — en dat was feitelijk het doel
+van de app (zie `docs/decisions.md`, 07-09-2026). Nieuw, onder elk dagoverzicht,
+náást de bestaande regel:
+
+- Eén rij per werkbon die die dag voorkomt (in `Uren.xlsx` en/of als een
+  SOORT=W-tijdblok), altijd alle werkbonnen — ook zonder verschil, zodat een
+  ontbrekende koppeling in beide richtingen opvalt: Gedeclareerd (`Uren.Aantal`)
+  — Op locatie (SOORT=W-duur) — Verschil.
+- Eén losse regel "Klant (niet aan werkbon gekoppeld)" met de totale SOORT=K-duur
+  die dag — een K-adres heeft geen koppeling met een werkbonnummer, dus dit kan
+  niet per werkbon, maar telt wel mee in het dagtotaal onderaan.
+- Bewust buiten scope: SOORT L en C (Roger sprak specifiek over klant-tijd), en
+  een weekniveau-versie van deze tabel — alleen per dag, zoals gevraagd.
+
+Andere vraag dan de bestaande volledigheidscontrole (Werkbonnen.xlsx-check, §3b):
+die beoordeelt een werkbon over zijn hele levensduur ("ooit afgerond zonder
+uren"), deze aansluiting vergelijkt per dag twee al aanwezige bronnen, nu per
+werkbon in plaats van geblendet.
+
 ## 7. Oplevering en acceptatie (roadmap-fase 7 en 8)
 
 Oplevering als lichte, zelfstandige Docker-container, samen met Stric geplaatst in een

@@ -317,9 +317,27 @@ RouteVision-data komt voor de PoC uit een handmatige download, niet uit de API.
    geen depot) en direct daarna hersteld uit de eerder uitgelezen waarden.
    Roger: een blik op deze twee rijen in de admin waard voordat je verder
    gaat.
-22. **Eerstvolgende stap:** pushen (9 commits staan klaar op `main`, nog
-   niet gepusht), de twee herstelde `BekendeLocatie`-rijen uit punt 21
-   nakijken, dán het navragen bij Wim van de RouteVision-dekkingsgaten bij
+22. **Gedaan (07-09-2026).** Gepusht naar `origin/main`, en de twee per
+   ongeluk verwijderde/herstelde `BekendeLocatie`-rijen uit punt 21 zijn door
+   Roger gecontroleerd — in orde.
+23. **Besloten (07-09-2026), nog niet gebouwd.** Roger miste de eigenlijke
+   kern van de opdracht: kunnen zien welke uren nog niet op een werkbon
+   gedeclareerd zijn. De bestaande dag-/weekvergelijking ("Totaal (excl.
+   reistijd)" vs. "op locatie", besluit 05-09-2026) is daarvoor te grof —
+   één geblendet cijfer per dag, niet per werkbon. Nieuw: onder elk
+   dagoverzicht een **"Aansluiting per werkbon"**-tabel, náást de bestaande
+   regel (niet ter vervanging): per werkbon die die dag voorkomt (in
+   `Uren.xlsx` en/of als `Tijdblok`-SOORT=W die dag) een rij Gedeclareerd
+   (`Uren.Aantal`-som) vs. Op locatie (`Tijdblok`-W-duur-som) vs. Verschil —
+   **altijd alle werkbonnen van die dag**, ook zonder verschil, zodat een
+   werkbon die in de tijdlijn ontbreekt (of andersom) meteen opvalt. Plus
+   één losse regel **"Klant (niet aan werkbon gekoppeld)"** met de totale
+   SOORT=K-tijd die dag — er is geen datakoppeling tussen een K-adres en een
+   werkbonnummer, dus dat kan niet per werkbon, maar telt wel mee in het
+   dagtotaal onderaan (Gedeclareerd vs. Op locatie inclusief K). Zie
+   `docs/decisions.md` (07-09-2026).
+24. **Eerstvolgende stap:** een instructie naar de Claude Code-sessie voor
+   punt 23, dán het navragen bij Wim van de RouteVision-dekkingsgaten bij
    Dennis van de Berg en Maarten Jaarsma (punt 17) — dan pas verder met
    roadmap-fase 7 (oplevering). Het draaiboek staat klaar in `DRAAIBOEK.md`, met drie nog
    niet definitieve onderdelen (VM-gegevens, het `backup_db`-commando, §7

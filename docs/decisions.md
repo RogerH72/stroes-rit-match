@@ -968,5 +968,56 @@ sessie waren uitgelezen, en de matching is opnieuw gedraaid. Roger is
 gevraagd deze twee rijen na te kijken voordat er verder gebouwd wordt — zie
 `GUIDELINES.md` punt 21/22.
 
-Nog niet gepusht — zie `GUIDELINES.md` punt 22 voor de actuele
-prioritering van openstaande punten.
+Gepusht en gecontroleerd door Roger — de twee rijen zijn in orde (zie
+`GUIDELINES.md` punt 22).
+
+## 2026-09-07 — Besluit: aansluiting per werkbon tussen RouteVision-tijd en Syntess-uren (Current)
+
+**Aanleiding (Roger).** De bestaande dag-/weekvergelijking ("Totaal (excl.
+reistijd)" vs. "op locatie", besluit 05-09-2026) is één geblendet cijfer per
+dag — de som van alle `Uren.Aantal` die dag tegenover de som van alle
+SOORT=W-tijdblokken die dag, ongeacht welke werkbon. Daarmee kan Wim niet
+zien of er, per werkbon, tijd is doorgebracht die niet gedeclareerd is — en
+dat was feitelijk het hele doel van de app.
+
+**Besluit.** Onder elk dagoverzicht komt een nieuwe tabel, **"Aansluiting per
+werkbon"**, náást de bestaande dag-/weekregel (niet ter vervanging — die
+blijft als snel totaalcijfer bestaan):
+
+1. **Eén rij per werkbon die die dag voorkomt** — in `Uren.xlsx` en/of als
+   `Tijdblok`(SOORT=W) die dag, dus de vereniging van beide bronnen, niet het
+   snijvlak. Kolommen: Gedeclareerd (som `Uren.Aantal` voor die werkbon/
+   datum) — Op locatie (som duur van de SOORT=W-tijdblokken met die
+   werkbon-referentie, die datum) — Verschil.
+2. **Altijd alle werkbonnen van die dag, niet alleen de afwijkende.** Een
+   werkbon die in `Uren.xlsx` staat maar geen enkel SOORT=W-tijdblok
+   oplevert (of andersom: tijd op locatie zonder boeking) moet meteen
+   opvallen, niet verborgen zijn omdat er toevallig "geen rij" stond.
+3. **Klant-tijd (SOORT K) telt mee, als losse regel.** Een BekendeLocatie
+   met SOORT K heeft geen koppeling met een werkbonnummer — die koppeling
+   bestaat niet in de data (K komt uit de "overige BekendeLocatie"-stap,
+   volledig los van `Uren.xlsx.Werkbon`). Daarom geen aparte "Gedeclareerd"-
+   waarde bij K, maar wél een losse regel **"Klant (niet aan werkbon
+   gekoppeld)"** onder de werkbon-rijen, met de totale SOORT=K-duur die dag.
+   Deze regel telt mee in het dagtotaal onderaan de tabel (Gedeclareerd
+   totaal vs. Op locatie totaal inclusief K) — dát dagtotaal is het
+   eigenlijke antwoord op Rogers vraag: is er tijd besteed die nergens op
+   gedeclareerd is.
+
+**Bewust niet meegenomen (geen scope-uitbreiding zonder overleg):** SOORT L
+(Locatie) en C (Crediteur) tellen niet mee — Roger sprak specifiek over
+"uren die we aan een klant gekoppeld hebben", niet over locaties of
+crediteuren. Ook geen weekniveau-versie van deze tabel — alleen "onder ieder
+dagoverzicht", zoals gevraagd; een weektotaal kan later alsnog, als apart
+besluit.
+
+**Verhouding tot de bestaande volledigheidscontrole (Werkbonnen.xlsx-check,
+besluit 02-09-2026).** Andere vraag, geen duplicaat: die controle signaleert
+op werkbon-niveau (de hele levensduur van de werkbon) of een afgeronde
+werkbon ooit uren heeft gekregen. Deze nieuwe aansluiting werkt per dag en
+vergelijkt twee onafhankelijke, al aanwezige bronnen (geboekte uren vs.
+gereconstrueerde ritdata) — precies zoals de bestaande dag-vergelijking al
+deed, alleen nu per werkbon in plaats van geblendet.
+
+Nog niet naar Claude Code gestuurd — zie `GUIDELINES.md` punt 23/24 voor de
+actuele prioritering van openstaande punten.

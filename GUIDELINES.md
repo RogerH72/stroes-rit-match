@@ -269,47 +269,45 @@ RouteVision-data komt voor de PoC uit een handmatige download, niet uit de API.
    formulier toont de juiste aantallen, een preview verwijdert niets, en een
    bevestigde reset op een lege periode doorloopt de hele keten — de dataset
    bleef intact. Zie `docs/changelog.md` en `docs/decisions.md` (07-09-2026).
-19. **Gedaan (07-09-2026, avond).** Eerste uitgebreide testronde na de nieuwe
-   "Data resetten"-functie (punt 18): volledige reset, opnieuw ingelezen en
-   herberekend, en de resultaten doorgenomen. Twee bevindingen, nog niet naar
-   Claude Code gestuurd — Roger test eerst verder:
-   - **Bug, bevestigd bij meerdere monteurs, zit in de tijdlijnreconstructie:**
-     alleen het middenstuk van de dag komt in de tijdlijn terecht — vanaf de
-     eerste rit naar een klant/werkbon-adres tot en met de laatste rit terug
-     bij het depotgebied. Zowel het ochtenddeel (rit naar het depot + het
-     verblijf daar) als het einde van de dag (verblijf bij het depot + rit
-     naar huis) ontbreken structureel. Concreet uitgewerkt op monteur Dennis
-     van de Berg (002), 2026-06-02: van de 6 ritten die dag komen alleen de
-     middelste 2 (12:10–12:27 en 17:11–17:29, rond het werkbonbezoek) in het
-     weekoverzicht terecht; de andere 4 (thuis→depot 's ochtends + het
-     verblijf daar, en depot→thuis 's avonds + het verblijf daar) niet. Roger
-     heeft de `Rit`-tabel in de Django-admin nagelopen: deze ritten staan daar
-     wél correct in (de import is dus correct) — de bug zit aantoonbaar in het
-     opbouwen van de tijdblokken. Precieze oorzaak nog niet onderzocht in
-     code. Zie `docs/decisions.md` (07-09-2026, avond).
-   - **Bevestigd, nog niet gebouwd:** het label "Gefactureerd" in het
-     weekoverzicht (dag- en weektotalen) wordt "Totaal (excl. reistijd)" —
-     de berekening zelf (som van `Uren.Aantal` tegenover de SOORT=W-duur,
-     besluit 05-09-2026) verandert niet, alleen de naam, want niet alle
-     geboekte uren (bijv. magazijntijd) worden ook echt aan een klant
-     gefactureerd. Zie `docs/decisions.md` (07-09-2026, avond) en
-     `docs/functioneel-ontwerp.md` §6.
-20. **Besloten (07-09-2026, avond), nog niet gebouwd.** Een vierde
-   handmatige SOORT-classificatie **P (Privé)** komt naast K/L/C: voor
-   onverklaarde (O-)stops die overduidelijk privé zijn, koppelbaar via
-   hetzelfde bestaande koppelformulier (§5) — geen nieuw scherm. Drie
-   deelbeslissingen: (1) adres-classificatie net als K/L/C, dus geldt voor
-   elke monteur die bij dat adres stopt, geen monteur-specifieke koppeling;
-   (2) alleen voor stops die nu al als O verschijnen, geen wijziging aan de
-   tolerantiedrempel voor kortere (?)-stops; (3) P telt niet mee in "Totaal
-   (excl. reistijd)" maar krijgt een eigen, zichtbare regel. De kleur van P
-   in het codepalet (`docs/ui-spec.md`) laat Roger over aan Claude Code, binnen
-   de bestaande paletlogica. Zie `docs/decisions.md` (07-09-2026, avond) en
-   `docs/functioneel-ontwerp.md` §5/§6.
-21. **Eerstvolgende stap:** Roger test verder op de echte data. Zodra hij
-   klaar is met deze testronde: één instructie naar de Claude Code-sessie
-   voor het bug-onderzoek (punt 19), de label-wijziging (punt 19) en de
-   P-classificatie (punt 20) samen, dán het navragen bij Wim van de
+19. **Gebouwd (07-09-2026).** De tijdlijnbug uit de vorige testronde is
+   gefixt en gecommit (`4d219c2`, 308 tests groen): het depot belandde tussen
+   de automatisch afgeleide "thuisstraten" van een monteur, waardoor
+   `_trim_home_hops()` elke rit tussen huis en depot wegzag als "de bus voor
+   de deur verzetten" — op de hele dataset ging het aantal tijdblokken van
+   1169 naar 1356. Geverifieerd op Dennis van de Berg, 2026-06-02: alle 6
+   ritten weer zichtbaar. Zie `docs/changelog.md` (07-09-2026) voor de
+   volledige analyse.
+   **Restbevinding, leidt tot punt 21 hieronder:** dezelfde detectie mist nog
+   steeds een frequentietoets — een straat die een monteur maar een enkele
+   keer als dagrand had (bijv. Rolweg/Forêtweg bij Dennis, Marsweg bij
+   Maarten Jaarsma) telt óók mee als "thuis", waardoor 28 ritten over 12
+   dagen nog wegvallen; het scherpste geval: twee volledig lege dagen bij
+   Dennis (24/25-06-2026) terwijl hij wél 8 uur boekte.
+   De label-wijziging "Gefactureerd" → "Totaal (excl. reistijd)" is ook
+   gebouwd en gecommit (`bf1c077`, 309 tests groen), op de pagina, in de
+   Excel-export en in de dagregel "… → locatie". Berekening ongewijzigd.
+20. **Gebouwd (07-09-2026).** SOORT-classificatie **P (Privé)** gecommit
+   (`117a648`, 320 tests groen), precies zoals besloten: vierde keuze op
+   `BekendeLocatie.soort`, via het bestaande koppelformulier, geen wijziging
+   aan de tolerantielogica, eigen regel per dag/week naast "Totaal (excl.
+   reistijd)" (verschijnt alleen als er privé-tijd is). Kleur `#C2185B`
+   (karmijn), door Claude Code gekozen. Migratie 0007 bevestigd een no-op.
+21. **Besloten (07-09-2026), nog niet gebouwd — vervolg op de restbevinding
+   in punt 19.** Roger stelde zelf voor: een thuisadres-veld op `Monteur` in
+   plaats van de frequentie-gok. Uitgewerkt tot drie deelbeslissingen:
+   (1) nieuwe SOORT-code **T (Thuis)** (niet hergebruik van L) — eigen kleur/
+   rij, zelfde aanpak als P: ook een keuze op `BekendeLocatie.soort`, zodat
+   een monteur die zijn bus "om de hoek zet" dat adres alsnog als T kan
+   koppelen via het bestaande scherm; (2) geen terugval meer op de
+   (nu depot-gefixte) frequentiedetectie zodra dit gebouwd is — zonder
+   ingevuld thuisadres wordt een ochtend-/avondstop gewoon zichtbaar
+   (waarschijnlijk als O) in plaats van stil geraden of weggelaten;
+   (3) geen apart weektotaal voor T, in tegenstelling tot P — de losse
+   T-blokken staan gewoon in de dagtabel. Zie `docs/decisions.md`
+   (07-09-2026).
+22. **Eerstvolgende stap:** een instructie naar de Claude Code-sessie voor
+   punt 21 (thuisadres-veld + SOORT T, inclusief het uitfaseren van de
+   frequentiedetectie uit punt 19), dán het navragen bij Wim van de
    RouteVision-dekkingsgaten bij Dennis van de Berg en Maarten Jaarsma (punt
    17) — dan pas verder met roadmap-fase 7 (oplevering). Het draaiboek staat klaar in `DRAAIBOEK.md`, met drie nog
    niet definitieve onderdelen (VM-gegevens, het `backup_db`-commando, §7

@@ -865,5 +865,65 @@ functioneel gekozen om in een dichte tabel goed van elkaar te onderscheiden te
 zijn; P voegt daar een achtste kleur aan toe die net zo goed te onderscheiden moet
 zijn, binnen diezelfde paletlogica.
 
-Nog niet gebouwd, nog niet naar Claude Code gestuurd — zie `GUIDELINES.md` punt 20
-voor de actuele prioritering van openstaande punten.
+Gebouwd 07-09-2026, commit `117a648` (zie `GUIDELINES.md` punt 20).
+
+## 2026-09-07 — Bugfix en uitbreiding gebouwd; nieuwe restbevinding over thuisdetectie (Current)
+
+De instructie op basis van de drie besluiten hierboven is uitgevoerd door de
+Claude Code-sessie, in drie losse commits, elk met eigen tests en documentatie-
+bijwerking, niet gepusht:
+
+- `4d219c2` — de tijdlijnbug (begin/einde van de dag ontbrak): root cause was
+  dat `home_streets_for()` het thuisadres afleidt uit elke dag-rand zonder
+  frequentietoets, waardoor een depotstraat waar een monteur zijn bus ophaalt
+  permanent als "thuis" meetelde. `_trim_home_hops()` gooide vervolgens elke
+  rit tussen huis/depot weg. Fix: het depot (`is_depot`, op straat én
+  postcode) wordt nu uitgesloten bij het afleiden van het thuisadres. Als
+  bijvangst ook gefixt: een "straat" zonder letters (RouteVision schrijft `-`
+  voor een onbepaalde stop) telde ook als thuisstraat en liet ritten tussen
+  twee onbepaalde adressen verdwijnen (trof Jesse Verkerk, 5 ritten). 308
+  tests groen. Op de echte juni-dataset: 1169 → 1356 tijdblokken; Dennis van
+  de Berg (002), 02-06-2026 toont weer alle 6 ritten.
+- `bf1c077` — label "Gefactureerd" → "Totaal (excl. reistijd)", op de pagina,
+  in de Excel-export en in de dagregel. Berekening ongewijzigd. 309 tests
+  groen.
+- `117a648` — SOORT P (Privé): vierde keuze op `BekendeLocatie.soort`, geen
+  wijziging aan `_classify_stop()` nodig (P valt vanzelf in de bestaande
+  "overige BekendeLocatie"-stap), eigen regel per dag/week (verschijnt alleen
+  bij privé-tijd), kleur `#C2185B` (karmijn, gekozen door Claude Code — bewust
+  geen rood, dat zou naast het amberkleurige O lezen als "erger dan
+  onverklaard"). Migratie 0007 bevestigd een no-op (`sqlmigrate` toont
+  `-- (no-op)` voor beide `AlterField`-operaties). 320 tests groen.
+
+**Restbevinding uit de `4d219c2`-analyse, nog niet gebouwd.** Dezelfde
+detectie kent nog steeds geen frequentietoets: elke dag-rand, hoe zelden ook,
+telt mee als kandidaat-thuisstraat. Bij Dennis van de Berg gelden zo ook
+`rolweg` (6 van 50 dagranden) en `forêtweg` (2 van 50) als thuis, bij Maarten
+Jaarsma `marsweg` (8 van 46). Over de juni-dataset vallen hierdoor nog 28
+ritten over 12 dagen weg — deels terecht (echte ritjes in de eigen straat),
+deels niet. Scherpste geval: Dennis van de Berg produceert op 24-06 en 25-06
+nul tijdblokken terwijl hij beide dagen 8 uur boekte; alle ritten die dagen
+lopen tussen Rolweg-adressen.
+
+**Besluit (Roger, 07-09-2026):** in plaats van een frequentiedrempel te
+raden, komt er een expliciet thuisadres-veld. Drie deelbeslissingen:
+
+1. **Nieuwe SOORT-code T (Thuis), niet hergebruik van L.** Eigen kleur en rij
+   in de legenda/het codepalet (`docs/ui-spec.md`), net als P een keuze op
+   `BekendeLocatie.soort` — zodat het geval dat Roger zelf noemde ("de
+   monteur zet zijn auto om de hoek") ook afgedekt is: zo'n nabijgelegen
+   adres is dan alsnog als T te koppelen via het bestaande
+   uitzonderingenscherm (§5), naast het nieuwe, primaire thuisadres-veld op
+   `Monteur`.
+2. **Geen terugval meer op de (inmiddels depot-gefixte) frequentiedetectie**
+   zodra dit gebouwd is. Een monteur zonder ingevuld thuisadres krijgt zijn
+   ochtend-/avondstops gewoon zichtbaar in de tijdlijn (waarschijnlijk als O,
+   afhankelijk van de tolerantiedrempel) in plaats van dat het systeem stil
+   blijft gokken of ze laat vallen — corrigeerbaar via het bestaande scherm,
+   in plaats van onzichtbaar fout.
+3. **Geen apart weektotaal voor T**, in tegenstelling tot P. De T-blokken
+   staan gewoon in de dagtabel, zonder eigen samengevatte regel — thuis-tijd
+   is minder een getal dat je wil optellen dan privé-tijd.
+
+Nog niet naar Claude Code gestuurd — zie `GUIDELINES.md` punt 21/22 voor de
+actuele prioritering van openstaande punten.

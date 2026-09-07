@@ -489,3 +489,127 @@ class LegeInrichtingTests(TestCase):
     def test_export_has_nothing_to_export(self):
         antwoord = self.client.get(reverse("weekoverzicht_excel"))
         self.assertEqual(antwoord.status_code, 404)
+
+
+class PriveTests(TestCase):
+    """SOORT P: an address someone marked private (07-09-2026).
+
+    P is a hand-assigned classification like K/L/C, so it needs no new rule in
+    the engine — it rides along in the "rest of the koppeltabel" step. What is
+    new is that its time is reported on its own: not as work, and not as a
+    deduction from anything either.
+    """
+
+    def setUp(self):
+        self.monteur = factories.monteur("Jesse", "005", "M5")
+        factories.bekende_locatie(
+            LocatieType.POSTCODE, "4104 AC", Soort.LOCATIE, "Magazijn", is_depot=True
+        )
+        _werkdag("M5", MAANDAG)
+        factories.urenregel(
+            "005", MAANDAG, "WB260908",
+            adres=KLANT[0], postcode="4196 HB", plaats="TRICHT", aantal="2.50",
+        )
+
+    def _overzicht(self):
+        run_matching(force=True)
+        return week.bouw_weekoverzicht(self.monteur, *WEEK)
+
+    def _markeer_vreemd_adres_als_prive(self):
+        # VREEMD is the hour-long stop of _werkdag that would otherwise be O.
+        factories.bekende_locatie(
+            LocatieType.POSTCODE, "4104 AR", Soort.PRIVE, "Sportschool"
+        )
+
+    def test_an_address_linked_as_prive_classifies_its_stop_as_p(self):
+        self._markeer_vreemd_adres_als_prive()
+        dag = self._overzicht().dagen[0]
+
+        soorten = [regel.blok.soort for regel in dag.regels]
+        self.assertIn(Soort.PRIVE, soorten)
+        self.assertNotIn(Soort.ONVERKLAARD, soorten)
+
+    def test_prive_time_is_reported_as_its_own_figure(self):
+        self._markeer_vreemd_adres_als_prive()
+        overzicht = self._overzicht()
+
+        # The VREEMD stop lasts an hour in _werkdag.
+        self.assertEqual(overzicht.dagen[0].prive_uren, Decimal("1.00"))
+        self.assertEqual(overzicht.prive_uren, Decimal("1.00"))
+
+    def test_prive_time_does_not_touch_the_hours_comparison(self):
+        zonder = self._overzicht()
+        geboekt, op_locatie = zonder.gefactureerde_uren, zonder.uren_op_locatie
+
+        self._markeer_vreemd_adres_als_prive()
+        met = self._overzicht()
+
+        # Marking an address private must not move the work figures a millimetre
+        # in either direction — it is a number beside them, not a correction.
+        self.assertEqual(met.gefactureerde_uren, geboekt)
+        self.assertEqual(met.uren_op_locatie, op_locatie)
+        self.assertEqual(met.verschil, zonder.verschil)
+
+    def test_a_week_without_prive_stops_reports_zero(self):
+        overzicht = self._overzicht()
+        self.assertEqual(overzicht.prive_uren, Decimal("0.00"))
+
+    def test_p_has_its_own_colour_distinct_from_the_other_seven(self):
+        kleuren = week.SOORT_KLEUREN
+        self.assertIn(Soort.PRIVE, kleuren)
+        self.assertEqual(len(set(kleuren.values())), len(Soort))
+
+    def test_p_is_totalled_with_the_other_soorten(self):
+        self._markeer_vreemd_adres_als_prive()
+        overzicht = self._overzicht()
+
+        codes = [totaal.code for totaal in overzicht.totalen]
+        self.assertIn(Soort.PRIVE.value, codes)
+        prive = next(t for t in overzicht.totalen if t.code == Soort.PRIVE.value)
+        self.assertEqual(prive.minuten, 60)
+
+
+class PriveWeergaveTests(TestCase):
+    """The privé figure has to reach both renderings, page and Excel."""
+
+    def setUp(self):
+        self.monteur = factories.monteur("Jesse", "005", "M5")
+        factories.bekende_locatie(
+            LocatieType.POSTCODE, "4104 AC", Soort.LOCATIE, "Magazijn", is_depot=True
+        )
+        factories.bekende_locatie(
+            LocatieType.POSTCODE, "4104 AR", Soort.PRIVE, "Sportschool"
+        )
+        _werkdag("M5", MAANDAG)
+        run_matching(force=True)
+
+        self.gebruiker = User.objects.create_user("kijker", "k@sbtt.nl", "geheim")
+        self.client.force_login(self.gebruiker)
+
+    def _pagina(self):
+        antwoord = self.client.get(
+            reverse("weekoverzicht"),
+            {"monteur": self.monteur.pk, "week": "2026-W32"},
+        )
+        return antwoord.content.decode()
+
+    def test_the_page_shows_the_prive_figure(self):
+        inhoud = self._pagina()
+        self.assertIn("Privé", inhoud)
+        self.assertIn("#C2185B", inhoud)
+
+    def test_the_page_says_it_is_not_deducted(self):
+        # The wording matters: without it the number reads as a correction on
+        # the totals above it.
+        self.assertIn("niet van de", self._pagina())
+
+    def test_the_excel_export_carries_the_same_figure(self):
+        overzicht = week.bouw_weekoverzicht(self.monteur, *WEEK)
+        boek = openpyxl.load_workbook(io.BytesIO(bouw_werkboek(overzicht)))
+        blad = boek.active
+        cellen = [
+            cel.value for rij in blad.iter_rows() for cel in rij if cel.value is not None
+        ]
+
+        self.assertIn("Privé (SOORT P)", cellen)
+        self.assertIn(1, cellen)  # one hour privé, written as a number

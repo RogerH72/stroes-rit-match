@@ -742,3 +742,46 @@ waarde verandert niet, en hernoemen zou de Excel-export en elke test raken voor
 wat een labelwijziging is. Bij het veld staat nu een comment dat het scherm een
 andere naam gebruikt, zodat de twee niet stilletjes uit elkaar lopen. Een test
 controleert dat pagina en export hetzelfde label voeren. 309 tests groen.
+
+## 2026-09-07 — Nieuwe SOORT-classificatie P (Privé)
+
+Uitvoering van het besluit van vandaag (`docs/decisions.md` 07-09-2026 avond,
+`docs/functioneel-ontwerp.md` §5/§6). Naast K, L en C kan een adres nu als
+**P (Privé)** worden gekoppeld. Zonder die keuze bleef een stop die duidelijk
+privé was als O (onverklaard) in het uitzonderingenscherm staan, zonder manier om
+hem af te handelen.
+
+**Mechanisme, ongewijzigd ten opzichte van K/L/C.** P is een vierde keuze op
+`BekendeLocatie.soort` en wordt toegekend via hetzelfde koppelformulier
+(`/uitzonderingen/koppelen/<precisie>/<waarde>/`) — geen nieuw scherm. In
+`_classify_stop()` was geen enkele wijziging nodig: die stap leest `locatie.soort`
+al rechtstreeks, dus P valt vanzelf op dezelfde plaats in de prioriteitsvolgorde
+als K/L/C. Ook de tolerantielogica is ongemoeid: alleen stops die al als O
+verschijnen zijn koppelbaar. En net als bij K/L/C geldt een classificatie voor
+elke monteur die daar stopt, niet per monteur.
+
+**Totalen.** Privé-tijd komt uit de tijdblokken, niet uit `Uren.xlsx`, en raakt
+"Totaal (excl. reistijd)" dus per definitie niet. Nieuw is dat ze een eigen,
+zichtbaar getal krijgt: `prive_uren` per dag en per week, op de pagina onder de
+vergelijking en in de Excel-export als de regel "Privé (SOORT P)". Nadrukkelijk
+géén aftrek op de bestaande getallen — privé-tijd is geen werk, maar ook geen
+tekort. Een test legt vast dat het koppelen van een adres als P de
+geboekte/op-locatie/verschil-cijfers geen millimeter beweegt. De regel verschijnt
+alleen als er privé-tijd is, zodat een week zonder privé-stops er onveranderd
+uitziet.
+
+**Kleur: `#C2185B`.** De keuze was aan Claude Code gelaten. Van de kleurencirkel
+waren teal, blauw, violet, groen, amber en twee grijstinten bezet; de rode helft
+was vrij. Bewust karmijn en geen echt rood: rood naast de amberkleurige O zou
+lezen als "erger dan onverklaard", terwijl een P-stop juist het tegenovergestelde
+is — een stop die verklaard is. Donker genoeg voor de witte codeletter (circa
+6:1 contrast met wit) en ver genoeg van het violet van C om in een dichte tabel
+uit elkaar te blijven.
+
+**Migratie `0007_alter_bekendelocatie_soort_alter_tijdblok_soort`: een no-op.**
+Zoals verwacht bij het toevoegen van een keuze aan een bestaand `CharField`
+(`max_length=1`, en "P" is één teken). Nagemeten met `sqlmigrate`: beide
+`AlterField`-operaties leveren letterlijk `-- (no-op)` op, dus er verandert niets
+aan het schema en de bestaande gegevens worden niet aangeraakt.
+
+320 tests groen.

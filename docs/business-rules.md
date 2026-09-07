@@ -8,6 +8,7 @@ Gebouwd t/m roadmap-fase 3 (03-09-2026, commit `eea759c`, 143 tests groen — zi
 - Tijdlijn-reconstructie per monteur per dag (`matching/timeline/engine.py`,
   `build_day()`), persistent opgeslagen in `Tijdblok`.
 - Classificatie in SOORT-codes per tijdblok (K=klant, L=locatie, C=crediteur,
+  P=privé (07-09-2026),
   W=werkbon, ?=onbekend, O=onverklaard) volgens de gevalideerde prioriteitsvolgorde:
   depot-`BekendeLocatie` (L) → eigen Uren-regel op postcode/straat (W) → overige
   `BekendeLocatie` op straat/postcode (K/L/C) → thuisadres (laten vallen) →

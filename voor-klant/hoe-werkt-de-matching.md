@@ -44,9 +44,17 @@ er een antwoord "ja" is, staat het vast en stopt de app met verder zoeken:
    gekeken naar het adres uit de planning. Dit vangnet hebben we onlangs
    toegevoegd, juist om dit soort gemiste gevallen alsnog automatisch te
    herkennen.
-4. **Is het een ander bekend adres** — een klant, een leverancier, of nog een
-   eigen locatie die niet het hoofddepot is? Die adressen worden één keer
-   handmatig aangewezen en onthoudt de app daarna vanzelf.
+4. **Is het een ander bekend adres** — een klant, een leverancier, nog een
+   eigen locatie die niet het hoofddepot is, of een privé-adres? Die adressen
+   worden één keer handmatig aangewezen en onthoudt de app daarna vanzelf.
+
+   "Privé" (code **P**) is op 07-09-2026 toegevoegd. Daarvóór bleef een stop
+   die duidelijk privé was als "onverklaard" in de lijst staan, omdat er geen
+   manier was om hem als privé af te handelen. Privé-tijd telt niet mee als
+   werktijd; ze wordt apart getoond, als een eigen getal naast de totalen —
+   niet ervan afgetrokken. Let op: een adres krijgt één classificatie voor
+   iedereen, net als bij klant, locatie en leverancier. Merk je een adres als
+   privé aan, dan geldt dat dus voor elke monteur die daar ooit stopt.
 5. **Is dit het huisadres van de monteur?** Dan telt dat niet mee als
    werktijd — dat is gewoon het begin of einde van de dag.
 
@@ -73,6 +81,7 @@ label per moment — precies de indeling die Wim zelf al in Excel had bedacht:
 | **K** | Klantbezoek |
 | **L** | Bezoek aan een eigen locatie (bijv. het depot) |
 | **C** | Bezoek aan een leverancier |
+| **P** | Privé — geen werktijd (sinds 07-09-2026) |
 | **W** | Werk op een specifieke werkbon |
 | **R** | Onderweg (reistijd) |
 | **O** | Onverklaarde stop — de moeite waard om te bekijken |

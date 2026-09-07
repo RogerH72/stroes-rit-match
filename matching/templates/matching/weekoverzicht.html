@@ -79,6 +79,16 @@ comparison is shown per day as well as per week.
       font-size: 14px;
     }
     .vergelijking .uitleg { color: var(--grijze-tekst); font-size: 13px; margin-top: 2px; }
+    /* Separated by a rule rather than a second card: it belongs to the same
+       comparison block, but is a figure of its own and not part of the sum. */
+    .vergelijking .prive {
+      border-top: 1px solid var(--rand);
+      margin-top: 8px;
+      padding-top: 8px;
+      color: var(--grijze-tekst);
+      font-size: 13px;
+    }
+    .vergelijking .prive b { color: var(--tekst); }
     .waarschuwingskaart {
       background: #FDF3E3;
       border: 1px solid var(--waarschuwing);
@@ -216,6 +226,15 @@ comparison is shown per day as well as per week.
           tellen nooit als W (een stop op het depot wordt als L herkend), en uren
           die één persoon voor een heel team boekt staan volledig op zijn naam.
         </div>
+        {% if overzicht.prive_uren %}
+          {# A number of its own, never subtracted from the totals above: privé
+             time is not work, but it is not a shortfall either. #}
+          <div class="prive">
+            <b>Privé {{ overzicht.prive_uren }} uur</b> — tijd op een adres dat
+            als privé is aangemerkt. Telt niet mee als werktijd en is niet van de
+            getallen hierboven afgetrokken.
+          </div>
+        {% endif %}
       </div>
 
       {% for dag in overzicht.dagen %}
@@ -267,6 +286,9 @@ comparison is shown per day as well as per week.
               {{ dag.gefactureerde_uren }} → {{ dag.uren_op_locatie }} u
               ({{ dag.verschil }})
             </span>
+            {% if dag.prive_uren %}
+              <span class="vergelijk"><b>Privé</b> {{ dag.prive_uren }} u</span>
+            {% endif %}
           </div>
         </details>
       {% endfor %}

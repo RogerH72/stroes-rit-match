@@ -147,6 +147,7 @@ def _weektotaal(blad: Worksheet, overzicht: WeekOverzicht, *, start: int) -> int
         gefactureerd=overzicht.gefactureerde_uren,
         op_locatie=overzicht.uren_op_locatie,
         verschil=overzicht.verschil,
+        prive=overzicht.prive_uren,
     )
     return regel + 1
 
@@ -191,6 +192,7 @@ def _dag(blad: Worksheet, dag: DagOverzicht, *, start: int) -> int:
         gefactureerd=dag.gefactureerde_uren,
         op_locatie=dag.uren_op_locatie,
         verschil=dag.verschil,
+        prive=dag.prive_uren,
     )
     return regel + 1
 
@@ -205,6 +207,7 @@ def _totaalblok(
     gefactureerd: Decimal,
     op_locatie: Decimal,
     verschil: Decimal,
+    prive: Decimal = Decimal("0.00"),
 ) -> int:
     """Per-SOORT totals, the overall total, and the hours comparison.
 
@@ -232,11 +235,20 @@ def _totaalblok(
     _cel(blad, regel, KOL_OMSCHRIJVING, totaal_label, bold=True)
     regel += 1
 
-    for label, waarde, formaat in (
+    regels = [
         ("Totaal (excl. reistijd) (Uren.xlsx)", gefactureerd, UREN_FORMAAT),
         ("Uren op locatie (SOORT W)", op_locatie, UREN_FORMAAT),
         ("Verschil", verschil, VERSCHIL_FORMAAT),
-    ):
+    ]
+    if prive:
+        # Below the difference, and never folded into it: privé time is not work
+        # and is not a shortfall either, so it is reported next to the comparison
+        # rather than inside it (docs/decisions.md, 07-09-2026 avond). Left out
+        # entirely when there is none, so a week without privé stops reads the
+        # same as it always did.
+        regels.append(("Privé (SOORT P)", prive, UREN_FORMAAT))
+
+    for label, waarde, formaat in regels:
         # Real numbers, not "8,50 u" text: this is the figure a planner wants to
         # sort, filter and total further in his own sheet.
         cel = _cel(blad, regel, KOL_TIJD, float(waarde), centreren=True)

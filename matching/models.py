@@ -346,16 +346,23 @@ class WerkbonControle(SourceRow):
 class Soort(models.TextChoices):
     """The SOORT-codes of a time block.
 
-    Fixed list from the weekly overview SBTT designed themselves in Excel
-    (docs/functioneel-ontwerp.md §3b) — not ours to extend or rename.
+    K/L/C/W/?/O/R come from the weekly overview SBTT designed themselves in Excel
+    (docs/functioneel-ontwerp.md §3b) — those are not ours to rename. P was added
+    on 07-09-2026 (docs/decisions.md): without it an obviously private stop had no
+    way of being cleared and stayed in the uitzonderingen list as O forever.
 
-    Only K, L and C are ever chosen by hand (on a BekendeLocatie); W, ?, O and R
-    always follow from the matching itself.
+    Only K, L, C and P are ever chosen by hand (on a BekendeLocatie); W, ?, O and
+    R always follow from the matching itself.
+
+    Declaration order is display order everywhere the codes are totalled or
+    listed (SOORT_VOLGORDE), so P sits with the other hand-assigned codes rather
+    than at the end.
     """
 
     KLANT = "K", "Klant"
     LOCATIE = "L", "Locatie"
     CREDITEUR = "C", "Crediteur"
+    PRIVE = "P", "Privé"
     WERKBON = "W", "Werkbon"
     ONBEKEND = "?", "Onbekend"
     ONVERKLAARD = "O", "Onverklaard"
@@ -363,7 +370,7 @@ class Soort(models.TextChoices):
 
 
 #: The subset a user may assign to an address by hand; see Soort above.
-HANDMATIGE_SOORTEN = (Soort.KLANT, Soort.LOCATIE, Soort.CREDITEUR)
+HANDMATIGE_SOORTEN = (Soort.KLANT, Soort.LOCATIE, Soort.CREDITEUR, Soort.PRIVE)
 
 
 class Monteur(models.Model):

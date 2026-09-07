@@ -199,6 +199,37 @@ class KoppelenTests(TestCase):
         form = self.client.get(self.url).context["form"]
         self.assertNotIn("is_depot", form.fields)
 
+    def test_the_form_offers_prive_alongside_k_l_and_c(self):
+        # P was added on 07-09-2026 so an obviously private stop can be cleared
+        # from this list instead of staying an O forever; it is assigned through
+        # this same form, with no screen of its own.
+        form = self.client.get(self.url).context["form"]
+        keuzes = [waarde for waarde, _ in form.fields["soort"].choices if waarde]
+
+        self.assertEqual(
+            keuzes, [Soort.KLANT, Soort.LOCATIE, Soort.CREDITEUR, Soort.PRIVE]
+        )
+
+    def test_linking_an_address_as_prive_clears_it_from_the_list(self):
+        response = self.client.post(
+            self.url,
+            {
+                "type": LocatieType.POSTCODE,
+                "waarde": "4104AR",
+                "soort": Soort.PRIVE,
+                "label": "Sportschool",
+            },
+        )
+        self.assertRedirects(response, reverse("uitzonderingen"))
+
+        self.assertEqual(BekendeLocatie.objects.get().soort, Soort.PRIVE)
+        self.assertFalse(
+            Tijdblok.objects.filter(soort=Soort.ONVERKLAARD, postcode="4104AR").exists()
+        )
+        self.assertEqual(
+            Tijdblok.objects.filter(soort=Soort.PRIVE, postcode="4104AR").count(), 2
+        )
+
     def test_a_successful_post_creates_the_location_and_recomputes(self):
         response = self.client.post(
             self.url,

@@ -80,7 +80,7 @@ uitzonderingen-eenklik-scherm), niet de tabellen zelf._
   voor de matching.
 - **BekendeLocatie** — postcode/straat → SOORT + label. Vervangt het
   demo-koppelbestand (`locaties_demo.csv`) uit de PoC. **`soort` is een keuzeveld met
-  uitsluitend K (Klant), L (Locatie) of C (Crediteur) als opties** — dit zijn de
+  uitsluitend K (Klant), L (Locatie), C (Crediteur) of P (Privé, 07-09-2026) als opties** — dit zijn de
   SOORT-codes die een gebruiker aan een adres kan toekennen. W, ? , O en R volgen
   altijd automatisch uit de matchlogica zelf (W = matcht een werkbon, ? = korte
   onbekende stop, O = onverklaarde stop boven de drempel, R = reistijd) en zijn dus

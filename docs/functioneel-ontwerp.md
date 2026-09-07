@@ -98,6 +98,7 @@ Elk tijdblok in de tijdlijn krijgt een SOORT-code:
 | K | Klant |
 | L | Locatie |
 | C | Crediteur |
+| P | Privé (toegevoegd 07-09-2026) |
 | W | Werkbon |
 | ? | Onbekend |
 | O | Onverklaard |
@@ -224,14 +225,13 @@ ontworpen. `/uitzonderingen/` toont de gegroepeerde lijst, `/uitzonderingen/
 koppelen/<precisie>/<waarde>/` het bevestigingsformulier. Bereikbaar via een link
 op het matchmotor-statusscherm in de admin.
 
-**Uitbreiding besloten (07-09-2026, avond, zie `docs/decisions.md`), nog niet
-gebouwd.** Naast K/L/C komt een vierde keuze op `BekendeLocatie.soort`: **P
-(Privé)**, voor onverklaarde stops die overduidelijk privé zijn. Zelfde
-koppelformulier, zelfde mechanisme en beperking als K/L/C (adres-classificatie,
-geldt voor elke monteur die er stopt) — geen nieuw scherm, geen wijziging aan de
-tolerantielogica voor kortere (?)-stops. De kleur van P in het codepalet
-(`docs/ui-spec.md`) is bewust aan Claude Code overgelaten, binnen de bestaande
-paletlogica.
+**Uitbreiding gebouwd (07-09-2026, zie `docs/decisions.md`).** Naast K/L/C is er
+een vierde keuze op `BekendeLocatie.soort`: **P (Privé)**, voor onverklaarde
+stops die overduidelijk privé zijn. Zelfde koppelformulier, zelfde mechanisme en
+beperking als K/L/C (adres-classificatie, geldt voor elke monteur die er stopt) —
+geen nieuw scherm, geen wijziging aan de tolerantielogica voor kortere
+(?)-stops, en geen nieuwe stap in de prioriteitsvolgorde: P valt in de bestaande
+"overige `BekendeLocatie`"-stap. Kleur `#C2185B` (`docs/ui-spec.md`).
 
 ## 6. Weekoverzicht (roadmap-fase 6)
 
@@ -274,28 +274,31 @@ standaardweergave is juist wat iedereen via `/` en via de navigatiebalk te zien
 krijgt. Een monteur of week die wél in de URL staat maar niet bestaat blijft een
 404, geen stille terugval.
 
-**Testbevindingen (07-09-2026, avond, zie `docs/decisions.md`).** Tijdens een
-uitgebreide testronde na de "Data resetten"-functie (zie §4) zijn twee punten
-naar boven gekomen, geen van beide al gebouwd:
+**Testbevindingen (07-09-2026, avond, zie `docs/decisions.md`), beide gebouwd op
+07-09-2026.** Tijdens een uitgebreide testronde na de "Data resetten"-functie
+(zie §4) kwamen twee punten naar boven:
 
-- Het label "Gefactureerd" hierboven wordt "Totaal (excl. reistijd)" — de
-  berekening (som van `Uren.Aantal` tegenover de SOORT=W-duur) blijft
-  ongewijzigd, alleen de naam. Bevestigd, wacht op een instructie naar de
-  Claude Code-sessie.
-- Bug, bevestigd bij meerdere monteurs: alleen het middenstuk van de dag —
-  vanaf de eerste rit naar een klant/werkbon-adres tot en met de laatste rit
-  terug bij het depotgebied — komt in de tijdlijn terecht. Zowel het
-  ochtenddeel (rit naar het depot + verblijf) als het einde van de dag
-  (verblijf bij het depot + rit naar huis) ontbreken structureel (geconstateerd
-  bij monteur Dennis van de Berg, 2026-06-02). De ritten staan wél correct in
-  de `Rit`-tabel (import is dus correct) — de bug zit aantoonbaar in de
-  tijdlijnreconstructie. Precieze oorzaak nog niet onderzocht in code.
+- Het label "Gefactureerd" hierboven heet nu "Totaal (excl. reistijd)", op de
+  pagina en in de Excel-export. De berekening (som van `Uren.Aantal` tegenover
+  de SOORT=W-duur) is ongewijzigd; alleen de naam klopte niet, omdat lang niet
+  elk geboekt uur ook doorbelast wordt.
+- Bug, bevestigd bij meerdere monteurs: alleen het middenstuk van de dag kwam in
+  de tijdlijn terecht; zowel het ochtenddeel (rit naar het depot + verblijf) als
+  het einde van de dag (verblijf bij het depot + rit naar huis) ontbrak
+  structureel. Oorzaak bleek het afleiden van het thuisadres: het depot belandde
+  tussen de "thuisstraten", waarna elke rit van huis naar depot, depot naar
+  depot en depot naar huis werd weggegooid als ritje om het eigen huis. Het
+  depot wordt nu uitgesloten bij die detectie. Zie `docs/changelog.md` en
+  `docs/business-rules.md` (07-09-2026). Eén punt uit dezelfde analyse staat nog
+  open: de detectie kent nog steeds geen frequentiedrempel, waardoor een straat
+  waar toevallig één dag begon of eindigde ook als thuis geldt — een
+  business-rule-keuze die apart genomen moet worden.
 
-**Uitbreiding besloten (07-09-2026, avond, zie `docs/decisions.md`), nog niet
-gebouwd.** De nieuwe SOORT-classificatie P (Privé, zie §5) krijgt in het
-weekoverzicht een eigen, zichtbare regel naast het weektotaal — net als de
-"gefactureerd vs. op locatie"-vergelijking hierboven een apart getal, geen
-aftrek op "Totaal (excl. reistijd)".
+**Uitbreiding gebouwd (07-09-2026).** De nieuwe SOORT-classificatie P (Privé,
+zie §5) heeft in het weekoverzicht een eigen, zichtbare regel naast het
+weektotaal én per dag — net als de vergelijking hierboven een apart getal, geen
+aftrek op "Totaal (excl. reistijd)". De regel verschijnt alleen wanneer er
+privé-tijd is, zodat een week zonder privé-stops er onveranderd uitziet.
 
 ## 7. Oplevering en acceptatie (roadmap-fase 7 en 8)
 

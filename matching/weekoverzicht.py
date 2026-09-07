@@ -51,6 +51,14 @@ SOORT_KLEUREN = {
     Soort.KLANT: "#0E7C86",
     Soort.LOCATIE: "#2563B0",
     Soort.CREDITEUR: "#8250B5",
+    # P (07-09-2026) fills the one gap left in the palette's hue circle: teal,
+    # blue, violet, green, amber and two greys were taken, so the red half was
+    # free. Crimson rather than a true red on purpose — red next to the amber O
+    # would read as "worse than unexplained", while a P stop is the opposite, a
+    # stop that has been explained away. Dark enough for the white code letter
+    # (about 6:1 against white), and far enough from the violet C to stay apart
+    # in a dense table.
+    Soort.PRIVE: "#C2185B",
     Soort.WERKBON: "#1F8A4C",
     Soort.ONBEKEND: "#8A94A2",
     Soort.ONVERKLAARD: "#D97706",
@@ -207,6 +215,23 @@ class DagOverzicht:
         )
 
     @property
+    def prive_uren(self) -> Decimal:
+        """Time at an address linked as P, in hours.
+
+        Reported on its own, next to the comparison rather than inside it: it is
+        not work, so it may not raise the booked-hours figure, and it is not a
+        shortfall either, so subtracting it from anything would misstate the day
+        (docs/decisions.md, 07-09-2026 avond).
+        """
+        return _naar_uren(
+            sum(
+                regel.blok.duur_minuten
+                for regel in self.regels
+                if regel.blok.soort == Soort.PRIVE
+            )
+        )
+
+    @property
     def verschil(self) -> Decimal:
         """Booked minus on-location. Positive: more booked than driven to."""
         return self.gefactureerde_uren - self.uren_op_locatie
@@ -279,6 +304,10 @@ class WeekOverzicht:
     @property
     def uren_op_locatie(self) -> Decimal:
         return sum((dag.uren_op_locatie for dag in self.dagen), start=Decimal("0.00"))
+
+    @property
+    def prive_uren(self) -> Decimal:
+        return sum((dag.prive_uren for dag in self.dagen), start=Decimal("0.00"))
 
     @property
     def verschil(self) -> Decimal:

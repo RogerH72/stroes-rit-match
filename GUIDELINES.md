@@ -269,17 +269,37 @@ RouteVision-data komt voor de PoC uit een handmatige download, niet uit de API.
    formulier toont de juiste aantallen, een preview verwijdert niets, en een
    bevestigde reset op een lege periode doorloopt de hele keten — de dataset
    bleef intact. Zie `docs/changelog.md` en `docs/decisions.md` (07-09-2026).
-19. **Eerstvolgende stap:** de uitgebreide analyse van de matchresultaten op
-   de nu schone echte augustus-data, inclusief het navragen bij Wim van de
-   RouteVision-dekkingsgaten bij Dennis van de Berg en Maarten Jaarsma (punt
-   17) — dan pas verder met roadmap-fase 7 (oplevering). Het draaiboek staat
-   klaar in `DRAAIBOEK.md`, met drie nog niet definitieve onderdelen
-   (VM-gegevens, het `backup_db`-commando, §7 "eerste inrichting"). Neem
-   daarbij verder mee: bij het configureren van het echte depotadres voor
-   SBTT het aandachtspunt uit `docs/decisions.md` (03-09-2026) over het
-   straat-niveau depotrisico, en bij de oplevering (fase 7/8) dat de
-   instructie aan Wim expliciet foutherstel via "Bekende locaties" moet
-   uitleggen (`docs/decisions.md`, 03-09-2026).
+19. **Gedaan (07-09-2026, avond).** Eerste uitgebreide testronde na de nieuwe
+   "Data resetten"-functie (punt 18): volledige reset, opnieuw ingelezen en
+   herberekend, en de resultaten doorgenomen. Twee bevindingen, nog niet naar
+   Claude Code gestuurd — Roger test eerst verder:
+   - **Vermoedelijke bug:** het ochtenddeel van de dag ontbreekt soms volledig
+     uit de gereconstrueerde tijdlijn. Concreet geval: monteur Dennis van de
+     Berg (002), 2026-06-02 — hij was volgens RouteVision van 06:52 tot 12:01
+     op "Randweg 1b" (bij het depotgebied), maar het weekoverzicht toont pas
+     een eerste regel vanaf 12:10. De SOORT-samenvatting van die dag toont
+     zowel L als O op nul, dus het blok is niet verkeerd geclassificeerd —
+     het lijkt helemaal niet aangemaakt te zijn. Zie `docs/decisions.md`
+     (07-09-2026, avond).
+   - **Bevestigd, nog niet gebouwd:** het label "Gefactureerd" in het
+     weekoverzicht (dag- en weektotalen) wordt "Totaal (excl. reistijd)" —
+     de berekening zelf (som van `Uren.Aantal` tegenover de SOORT=W-duur,
+     besluit 05-09-2026) verandert niet, alleen de naam, want niet alle
+     geboekte uren (bijv. magazijntijd) worden ook echt aan een klant
+     gefactureerd. Zie `docs/decisions.md` (07-09-2026, avond) en
+     `docs/functioneel-ontwerp.md` §6.
+20. **Eerstvolgende stap:** Roger test verder op de echte data. Zodra hij
+   klaar is met deze testronde: een instructie naar de Claude Code-sessie
+   voor het bug-onderzoek (punt 19) en de label-wijziging samen, dán het
+   navragen bij Wim van de RouteVision-dekkingsgaten bij Dennis van de Berg
+   en Maarten Jaarsma (punt 17) — dan pas verder met roadmap-fase 7
+   (oplevering). Het draaiboek staat klaar in `DRAAIBOEK.md`, met drie nog
+   niet definitieve onderdelen (VM-gegevens, het `backup_db`-commando, §7
+   "eerste inrichting"). Neem daarbij verder mee: bij het configureren van
+   het echte depotadres voor SBTT het aandachtspunt uit `docs/decisions.md`
+   (03-09-2026) over het straat-niveau depotrisico, en bij de oplevering
+   (fase 7/8) dat de instructie aan Wim expliciet foutherstel via "Bekende
+   locaties" moet uitleggen (`docs/decisions.md`, 03-09-2026).
 
 **Vervallen:** de eerder voorziene live-PoC-fase met 1-2 monteurs bij de klant (~1
 week, in overleg met Wim) — het akkoord van 31-08-2026 betrof al de volledige

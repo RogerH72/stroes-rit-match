@@ -773,3 +773,39 @@ bevestiging in plaats van rij-voor-rij selecteren — is zowel veiliger als
 bruikbaarder. Het periode-scherm sluit ImportedFile bewust uit om het principe
 "nooit automatisch/stilletjes herverwerken" (besluit van 01-09-2026, "Trigger-
 mechanisme servermap") niet te doorbreken.
+
+
+## 2026-09-07 (avond) — Label "Gefactureerd" wordt "Totaal (excl. reistijd)" in het weekoverzicht (Current)
+
+Decision: het label "Gefactureerd" in de dag- en weektotalen van het weekoverzicht
+(web én Excel-export) wordt "Totaal (excl. reistijd)". De onderliggende berekening
+verandert niet — nog steeds de som van `Uren.Aantal` per datum/week, tegenover de
+opgetelde duur van de SOORT=W-tijdblokken (zie `docs/functioneel-ontwerp.md` §6,
+besluit 05-09-2026). Nog niet gebouwd: wacht op een instructie naar de Claude
+Code-sessie, samen met het bug-onderzoek hieronder, zodra Roger klaar is met de
+huidige testronde.
+
+Reasoning: tijdens een uitgebreide testronde op 2 juni-data (monteur Dennis van de
+Berg) bleek het label misleidend voor uren die wel geboekt zijn maar nooit aan een
+klant gefactureerd worden — met name een magazijnbezoek 's ochtends, dat wél in
+Uren.xlsx staat maar nooit een werkbon-adres (SOORT W) oplevert. Het getal zelf
+klopte al: dit is precies de op 05-09-2026 gedocumenteerde verklaring "uren geboekt
+op het eigen bedrijfsadres" (zie `docs/business-rules.md`). Alleen de naam ervoor
+was onjuist — "Gefactureerd" suggereert facturatie aan de klant, terwijl het feitelijk
+alle geboekte uren van die dag zijn, ongeacht of ze declarabel zijn.
+
+## 2026-09-07 (avond) — Bevinding: ochtendblok ontbreekt in de tijdlijn (Current, nog niet onderzocht)
+
+Bevinding, geen besluit: tijdens dezelfde testronde bleek de gereconstrueerde
+dagtijdlijn van monteur Dennis van de Berg (medewerkernr. 002) op 2026-06-02 het
+hele ochtenddeel te missen. Volgens de RouteVision-ritdata was hij van 06:52 tot
+12:01 (bijna 5 uur 9 min) op "Randweg 1b, Culemborg" (vlak bij het depotgebied
+Randweg 6/6d), gevolgd door een korte rit naar Randweg 6 — pas daarna verschijnt de
+eerste regel in het weekoverzicht (Reistijd 12:10–12:27 naar Kruiwiel 18,
+Geldermalsen). De SOORT-samenvatting van die dag toont zowel L als O op nul: het
+blok is dus niet verkeerd geclassificeerd, het lijkt helemaal niet als `Tijdblok`
+aangemaakt te zijn.
+
+Nog niet onderzocht in code — deze Cowork-sessie heeft geen codetoegang. Wacht op
+een instructie naar de Claude Code-sessie, nadat Roger de huidige testronde heeft
+afgerond. Zie ook `docs/functioneel-ontwerp.md` §6.

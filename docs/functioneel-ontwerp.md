@@ -265,6 +265,19 @@ standaardweergave is juist wat iedereen via `/` en via de navigatiebalk te zien
 krijgt. Een monteur of week die wél in de URL staat maar niet bestaat blijft een
 404, geen stille terugval.
 
+**Testbevindingen (07-09-2026, avond, zie `docs/decisions.md`).** Tijdens een
+uitgebreide testronde na de "Data resetten"-functie (zie §4) zijn twee punten
+naar boven gekomen, geen van beide al gebouwd:
+
+- Het label "Gefactureerd" hierboven wordt "Totaal (excl. reistijd)" — de
+  berekening (som van `Uren.Aantal` tegenover de SOORT=W-duur) blijft
+  ongewijzigd, alleen de naam. Bevestigd, wacht op een instructie naar de
+  Claude Code-sessie.
+- Vermoedelijke bug: het ochtenddeel van een dag kan volledig ontbreken in de
+  gereconstrueerde tijdlijn (geconstateerd bij monteur Dennis van de Berg,
+  2026-06-02) — geen classificatiefout (SOORT L en O staan op nul), het blok
+  lijkt niet aangemaakt te worden. Nog niet onderzocht in code.
+
 ## 7. Oplevering en acceptatie (roadmap-fase 7 en 8)
 
 Oplevering als lichte, zelfstandige Docker-container, samen met Stric geplaatst in een

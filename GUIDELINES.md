@@ -320,26 +320,29 @@ RouteVision-data komt voor de PoC uit een handmatige download, niet uit de API.
 22. **Gedaan (07-09-2026).** Gepusht naar `origin/main`, en de twee per
    ongeluk verwijderde/herstelde `BekendeLocatie`-rijen uit punt 21 zijn door
    Roger gecontroleerd — in orde.
-23. **Besloten (07-09-2026), nog niet gebouwd.** Roger miste de eigenlijke
-   kern van de opdracht: kunnen zien welke uren nog niet op een werkbon
-   gedeclareerd zijn. De bestaande dag-/weekvergelijking ("Totaal (excl.
-   reistijd)" vs. "op locatie", besluit 05-09-2026) is daarvoor te grof —
-   één geblendet cijfer per dag, niet per werkbon. Nieuw: onder elk
-   dagoverzicht een **"Aansluiting per werkbon"**-tabel, náást de bestaande
-   regel (niet ter vervanging): per werkbon die die dag voorkomt (in
-   `Uren.xlsx` en/of als `Tijdblok`-SOORT=W die dag) een rij Gedeclareerd
-   (`Uren.Aantal`-som) vs. Op locatie (`Tijdblok`-W-duur-som) vs. Verschil —
-   **altijd alle werkbonnen van die dag**, ook zonder verschil, zodat een
-   werkbon die in de tijdlijn ontbreekt (of andersom) meteen opvalt. Plus
-   één losse regel **"Klant (niet aan werkbon gekoppeld)"** met de totale
-   SOORT=K-tijd die dag — er is geen datakoppeling tussen een K-adres en een
-   werkbonnummer, dus dat kan niet per werkbon, maar telt wel mee in het
-   dagtotaal onderaan (Gedeclareerd vs. Op locatie inclusief K). Zie
-   `docs/decisions.md` (07-09-2026).
-24. **Eerstvolgende stap:** een instructie naar de Claude Code-sessie voor
-   punt 23, dán het navragen bij Wim van de RouteVision-dekkingsgaten bij
-   Dennis van de Berg en Maarten Jaarsma (punt 17) — dan pas verder met
-   roadmap-fase 7 (oplevering). Het draaiboek staat klaar in `DRAAIBOEK.md`, met drie nog
+23. **Gebouwd (07-09-2026).** "Aansluiting per werkbon" gecommit
+   (`69c151b`, 23 tests erbij, 343 groen), op de pagina én in de Excel-export,
+   precies zoals besloten (alle werkbonnen van de dag, losse K-regel, geen
+   L/C, geen weekversie). **Eigen toevoeging van Claude Code, wél vastleggen
+   als regel:** 256 van de 462 urenregels in de juni-data hebben géén
+   werkbonnummer (kantoor, verlof, reisuren, magazijnonderhoud) — zonder een
+   aparte regel daarvoor zou het tabeltotaal niet aansluiten op de bestaande
+   dagregel erboven. Er is daarom een tweede losse regel bijgekomen: **"Zonder
+   werkbonnummer (indirect)"**, met die geboekte-maar-niet-aan-een-werkbon-
+   gebonden uren. Een kant die niet van toepassing is toont een
+   gedachtestreepje, nooit 0,00 (0,00 zou beweren dat de vraag gesteld is en
+   leeg terugkwam). Geen migratie nodig (pure weergave-aggregatie), geen
+   nieuwe kleur (bestaande waarschuwingskleur `#D97706`, alleen bij een
+   werkelijk verschil, niet op de totaalregel — anders licht de kolom op door
+   centverschillen). Geverifieerd op de echte juni-data: Jesse Verkerk 17
+   juni toont WB260917 met 1,50 gedeclareerd tegen 0,00 op locatie; Dennis
+   van de Berg 6 juni toont 0,38 uur klant-tijd zonder enige boeking — beide
+   gevallen die in de oude, geblendete dagregel onzichtbaar wegvielen. Zie
+   `docs/decisions.md` en `docs/changelog.md` (07-09-2026).
+24. **Eerstvolgende stap:** het navragen bij Wim van de RouteVision-
+   dekkingsgaten bij Dennis van de Berg en Maarten Jaarsma (punt 17) — dan
+   pas verder met roadmap-fase 7 (oplevering). Vergeet niet eerst nog te
+   pushen (2 commits staan klaar op `main`). Het draaiboek staat klaar in `DRAAIBOEK.md`, met drie nog
    niet definitieve onderdelen (VM-gegevens, het `backup_db`-commando, §7
    "eerste inrichting"). Neem daarbij verder mee: bij het configureren van
    het echte depotadres voor SBTT het aandachtspunt uit `docs/decisions.md`

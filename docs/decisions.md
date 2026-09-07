@@ -1019,5 +1019,50 @@ vergelijkt twee onafhankelijke, al aanwezige bronnen (geboekte uren vs.
 gereconstrueerde ritdata) — precies zoals de bestaande dag-vergelijking al
 deed, alleen nu per werkbon in plaats van geblendet.
 
-Nog niet naar Claude Code gestuurd — zie `GUIDELINES.md` punt 23/24 voor de
-actuele prioritering van openstaande punten.
+Uitgevoerd 07-09-2026, commit `69c151b` (zie `GUIDELINES.md` punt 23).
+
+## 2026-09-07 — Aansluiting per werkbon gebouwd; extra regel voor uren zonder werkbonnummer (Current)
+
+**Resultaat.** Precies zoals besloten: de tabel "Aansluiting per werkbon"
+staat nu onder elk dagoverzicht, náást de bestaande dag-vergelijking, op de
+pagina én in de Excel-export. Alle werkbonnen van de dag krijgen een regel
+(ook de kloppende), kolommen Op locatie / Gedeclareerd / Verschil, plus de
+losse regel "Klant (niet aan werkbon gekoppeld)" met de SOORT=K-duur. Geen
+migratie nodig — beide bronnen (`Uren.Werkbon`/`Aantal` en de werkbon-
+referentie op SOORT=W `Tijdblok`-rijen) bestonden al, dit is aggregatie op
+weergavemoment. 23 tests erbij, 343 groen.
+
+**Eigen toevoeging van Claude Code, hier vastgelegd als regel.** Bij het
+bouwen bleek dat 256 van de 462 urenregels in de juni-dataset géén
+werkbonnummer dragen — Kantoor, Verlof, Reisuren, Magazijn onderhoud en
+dergelijke. Zonder daar een regel voor toe te voegen, zou het totaal van de
+nieuwe tabel niet aansluiten op de bestaande dagregel erboven (die wél al
+deze uren meetelt). Er is daarom een tweede losse regel toegevoegd: **"Zonder
+werkbonnummer (indirect)"**, met die geboekte-maar-ongekoppelde uren als
+losse "Gedeclareerd"-waarde, geen "Op locatie"-kant (die kan er per
+constructie niet zijn — geen werkbonnummer betekent geen W-blok om aan te
+haken). Een logische, goed onderbouwde aanvulling, niet expliciet gevraagd
+maar noodzakelijk om de tabel intern kloppend te maken — vastgelegd zodat het
+niet als losse verrassing terugkomt.
+
+**Twee kleine, eveneens niet vooraf besproken maar voor de hand liggende
+keuzes:**
+
+- **Een niet-toepasselijke kant toont een gedachtestreepje, nooit 0,00.**
+  0,00 zou beweren dat er gemeten is en niets uitkwam; een streepje zegt dat
+  de vraag hier niet gesteld wordt (bijv. geen "Op locatie" bij de indirecte
+  regel, geen "Gedeclareerd" bij de klant-regel).
+- **Geen nieuwe kleur.** Een werkelijk verschil krijgt de bestaande
+  waarschuwingskleur (`#D97706`, dezelfde als SOORT O), maar bewust niet op
+  de totaalregel — een gereconstrueerde dag heeft vrijwel altijd een verschil
+  van een paar centen door afronding, en die zou anders de hele kolom laten
+  oplichten zonder dat er iets aan de hand is.
+
+**Geverifieerd op de echte juni-dataset (Docker).** Jesse Verkerk, 17 juni:
+werkbon WB260917 toont 1,50 gedeclareerd tegen 0,00 op locatie. Dennis van de
+Berg, 6 juni: 0,38 uur klant-tijd zonder enige boeking. Beide gevallen vielen
+in de oude, geblendete dagregel volledig weg — precies het probleem dat deze
+tabel moest oplossen.
+
+Nog niet gepusht — zie `GUIDELINES.md` punt 24 voor de actuele prioritering
+van openstaande punten.

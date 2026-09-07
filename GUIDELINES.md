@@ -302,9 +302,10 @@ RouteVision-data komt voor de PoC uit een handmatige download, niet uit de API.
    elke monteur die bij dat adres stopt, geen monteur-specifieke koppeling;
    (2) alleen voor stops die nu al als O verschijnen, geen wijziging aan de
    tolerantiedrempel voor kortere (?)-stops; (3) P telt niet mee in "Totaal
-   (excl. reistijd)" maar krijgt een eigen, zichtbare regel. Nog open: de
-   kleur van P in het codepalet (`docs/ui-spec.md`). Zie `docs/decisions.md`
-   (07-09-2026, avond) en `docs/functioneel-ontwerp.md` §5/§6.
+   (excl. reistijd)" maar krijgt een eigen, zichtbare regel. De kleur van P
+   in het codepalet (`docs/ui-spec.md`) laat Roger over aan Claude Code, binnen
+   de bestaande paletlogica. Zie `docs/decisions.md` (07-09-2026, avond) en
+   `docs/functioneel-ontwerp.md` §5/§6.
 21. **Eerstvolgende stap:** Roger test verder op de echte data. Zodra hij
    klaar is met deze testronde: één instructie naar de Claude Code-sessie
    voor het bug-onderzoek (punt 19), de label-wijziging (punt 19) en de

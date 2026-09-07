@@ -229,8 +229,9 @@ gebouwd.** Naast K/L/C komt een vierde keuze op `BekendeLocatie.soort`: **P
 (Privé)**, voor onverklaarde stops die overduidelijk privé zijn. Zelfde
 koppelformulier, zelfde mechanisme en beperking als K/L/C (adres-classificatie,
 geldt voor elke monteur die er stopt) — geen nieuw scherm, geen wijziging aan de
-tolerantielogica voor kortere (?)-stops. Kleur in het codepalet
-(`docs/ui-spec.md`) nog te kiezen.
+tolerantielogica voor kortere (?)-stops. De kleur van P in het codepalet
+(`docs/ui-spec.md`) is bewust aan Claude Code overgelaten, binnen de bestaande
+paletlogica.
 
 ## 6. Weekoverzicht (roadmap-fase 6)
 

@@ -133,8 +133,9 @@ Gebouwd t/m roadmap-fase 3 (03-09-2026, commit `eea759c`, 143 tests groen — zi
 - **SOORT-classificatie P (Privé)** — besloten 07-09-2026 (avond), vierde keuze
   op `BekendeLocatie.soort` naast K/L/C, zelfde koppelmechanisme als het
   uitzonderingenscherm nu al biedt. Telt niet mee in "Totaal (excl. reistijd)",
-  krijgt een eigen regel in het weekoverzicht. Kleur in het codepalet nog te
-  kiezen. Zie `docs/decisions.md` en `docs/functioneel-ontwerp.md` §5/§6.
+  krijgt een eigen regel in het weekoverzicht. Kleur in het codepalet aan
+  Claude Code overgelaten, binnen de bestaande paletlogica. Zie
+  `docs/decisions.md` en `docs/functioneel-ontwerp.md` §5/§6.
 
 ## Superseded
 

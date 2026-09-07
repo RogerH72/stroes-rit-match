@@ -859,12 +859,11 @@ Drie deelbeslissingen, bevestigd door Roger:
    hoeveel tijd een monteur die dag/week privé onderweg was, zonder dat het als
    werktijd meetelt.
 
-Nog open, niet in deze sessie besloten: de kleur van P in het codepalet
-(`docs/ui-spec.md`, `SOORT_KLEUREN`) — de bestaande zeven kleuren zijn functioneel
-gekozen om in een dichte tabel goed van elkaar te onderscheiden te zijn; P voegt
-daar een achtste kleur aan toe die net zo goed te onderscheiden moet zijn. Te
-kiezen vóór dit naar Claude Code gaat, of over te laten aan Claude Code binnen de
-bestaande paletlogica.
+De kleur van P in het codepalet (`docs/ui-spec.md`, `SOORT_KLEUREN`) laat Roger
+bewust over aan Claude Code (07-09-2026, avond) — de bestaande zeven kleuren zijn
+functioneel gekozen om in een dichte tabel goed van elkaar te onderscheiden te
+zijn; P voegt daar een achtste kleur aan toe die net zo goed te onderscheiden moet
+zijn, binnen diezelfde paletlogica.
 
 Nog niet gebouwd, nog niet naar Claude Code gestuurd — zie `GUIDELINES.md` punt 20
 voor de actuele prioritering van openstaande punten.

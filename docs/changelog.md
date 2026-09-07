@@ -785,3 +785,85 @@ Zoals verwacht bij het toevoegen van een keuze aan een bestaand `CharField`
 aan het schema en de bestaande gegevens worden niet aangeraakt.
 
 320 tests groen.
+
+## 2026-09-07 — Thuisadres wordt ingevuld in plaats van geraden; nieuwe SOORT T (Thuis)
+
+Vervolg op `4d219c2`. Die commit haalde het depot uit de afgeleide thuisstraten,
+maar liet de detectie zelf staan — en die kende geen frequentietoets: élke
+dagrand telde mee als kandidaat-thuisstraat. Bij Dennis van de Berg golden zo ook
+`rolweg` (6 van 50 dagranden) en `forêtweg` (2 van 50) als thuis, bij Maarten
+Jaarsma `marsweg` (8 van 46). `_trim_home_hops()` gooide vervolgens elke rit weg
+waarvan vertrek én aankomst op zo'n straat lagen: nog altijd 28 ritten over 12
+dagen, waarvan tweemaal een hele werkdag (Dennis, 24 en 25 juni — nul tijdblokken
+bij 8 geboekte uren).
+
+Besluit van Roger: geen drempel raden, maar het adres opvragen. Zonder SBTT's
+eigen kennis van elke monteur is een toevallige dagrand niet te onderscheiden van
+een echt tweede vast adres, en elke misser was onzichtbaar.
+
+**`Monteur.thuisadres` + `thuisadres_type`.** Dezelfde precisiekeuze als
+`BekendeLocatie` (straatnaam of postcode, straat als voorkeur) en dezelfde
+normalisatie uit `matching/timeline/normalize.py`, zodat één adres overal
+hetzelfde betekent. Beide velden optioneel. Een ingevulde waarde die niet
+normaliseert (bijvoorbeeld "geen postcode" onder precisie postcode) wordt
+geweigerd in plaats van stilzwijgend leeggemaakt — een veld dat ingevuld lijkt en
+niets matcht is erger dan een leeg veld. Te beheren in het bestaande
+Monteur-scherm, dat nu ook op de precisiekeuze filtert.
+
+**Nieuwe SOORT T (Thuis), met twee bronnen.** Primair het `thuisadres`-veld: die
+stap staat op precies dezelfde plek in de prioriteitsvolgorde als de oude
+thuisstraat-stap (net vóór de tolerantiecheck), maar slaat het blok nu op in
+plaats van het te laten vallen. Secundair is T ook een vijfde keuze op
+`BekendeLocatie.soort`, koppelbaar via hetzelfde uitzonderingenscherm als K/L/C/P
+— voor het geval dat de bus om de hoek staat en dat adres dus nooit gelijk is aan
+het opgegeven huisadres. Omdat de koppeltabel-stap boven de thuisadres-stap
+staat, wint een handmatige koppeling van het veld.
+
+**Detectie volledig vervallen, zonder terugval.** `home_streets_for()`,
+`_home_edge()` en `_trim_home_hops()` zijn verwijderd, net als de
+`home_streets`-parameter van `build_day()` en `_classify_stop()` en de cache in
+de runner. Er wordt dus niets meer weggefilterd vóór een dag wordt opgebouwd:
+elke rit is per constructie een blok. Een monteur zonder ingevuld thuisadres
+krijgt zijn ochtend- en avondstops gewoon te zien, meestal als O — zichtbaar en
+corrigeerbaar, in plaats van onzichtbaar fout.
+
+Op een meegereden dag wordt het thuisadres van de monteur zelf gebruikt, niet dat
+van de bestuurder wiens ritten de dag opbouwen: het huis van die senior is niet
+het thuis van deze monteur. Het verschijnt dan als gewone onverklaarde stop, en
+is desgewenst als T te koppelen.
+
+**Geen eigen dag- of weektotaal voor T**, anders dan bij P: T-blokken staan in de
+dagtabel en tellen mee in het SOORT-totaal, verder niets. Thuis-tijd is minder
+een getal dat je wil optellen dan privé-tijd.
+
+**Kleur `#6D4C41`.** Met negen codes is de kleurencirkel vrijwel vol; wat
+ongebruikt was, is de gedempte warm-donkere hoek, dus T is een bruin. Het leest
+als rustig in plaats van als signaal — wat een stop thuis ook is — en de lage
+verzadiging en donkerte houden het uit elkaar met de enige buur in dezelfde
+kleurfamilie, het felle amber van O.
+
+**Migratie `0008`.** Twee echte kolommen (`thuisadres`, `thuisadres_type`) en
+twee choices-only wijzigingen. Nagemeten met `sqlmigrate`: de `AddField`-operaties
+zijn echte schemawijzigingen (SQLite bouwt de tabel opnieuw op) en vullen
+bestaande rijen met de opgegeven defaults — `''` voor het adres en `'straat'`
+voor de precisie, dus geen datamigratie nodig en geen vragen bij
+`makemigrations`. De beide `AlterField`-operaties op `soort` leveren opnieuw
+letterlijk `-- (no-op)`, hetzelfde patroon als migratie 0007.
+
+**Tests.** De regressietests uit `4d219c2` (`DepotAanDeDagrandenTests`) toetsten
+het mechanisme dat hier verdwijnt; ze zijn herschreven tot `DagrandenTests`, die
+dezelfde echte dag van 02-06-2026 nabouwt maar nu bewaakt dat elke rit een blok
+wordt en wat de dagranden worden. `HomeStreetTests` is vervangen door
+`ThuisadresTests` (normalisatie, lege waarde, geweigerde waarde, precisie).
+Verder: T via het koppelformulier, T zonder eigen weektotaal, en een test dat een
+monteur zónder thuisadres een gewone O krijgt in plaats van een gok. 327 groen.
+
+**Verificatie op de echte juni-dataset (Docker).** Van 782 ritten komen er nu
+**782** in de tijdlijn terecht — het verschil van 28 ritten over 12 dagen is weg.
+Het totaal ging van 86 dagen/1356 tijdblokken naar 88 dagen/1408; de twee extra
+dagen zijn precies Dennis' 24 en 25 juni, die eerder nul blokken opleverden en nu
+9 respectievelijk 8 tellen. Met `Beesdseweg` als testthuisadres kreeg Dennis 6
+T-blokken (203 min) op de juiste adressen (Beesdseweg 3a-18 t/m 3a-21); met
+postcode `4104AV` als T gekoppeld werden 24 en 25 juni volledige dagen van elf
+blokken. Beide testwaarden zijn daarna weer verwijderd en de matching opnieuw
+gedraaid, zodat de dataset staat zoals hij stond.

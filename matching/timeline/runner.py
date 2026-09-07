@@ -26,7 +26,6 @@ from matching.timeline.engine import (
     DagTijdlijn,
     Koppeltabellen,
     build_day,
-    home_streets_for,
 )
 from matching.timeline.meegereden import bron_bestuurder_codes, resolve_bronmonteur
 
@@ -61,9 +60,6 @@ def run_matching(
     """
     result = MatchResult(dry_run=dry_run)
     koppeltabellen = Koppeltabellen.load()
-    # Home streets are a property of the driver, not of the day, so they are
-    # detected once per bronmonteur instead of per day.
-    home_streets_cache: dict[int, set[str]] = {}
 
     for monteur in _selected_monteurs(medewerker_nummer):
         dagen = _dates_for(monteur, van, tot)
@@ -73,16 +69,10 @@ def run_matching(
 
         for datum in dagen:
             bronmonteur = resolve_bronmonteur(monteur, datum)
-            if bronmonteur.pk not in home_streets_cache:
-                home_streets_cache[bronmonteur.pk] = home_streets_for(
-                    bronmonteur, koppeltabellen=koppeltabellen
-                )
-
             tijdlijn = build_day(
                 monteur,
                 datum,
                 koppeltabellen=koppeltabellen,
-                home_streets=home_streets_cache[bronmonteur.pk],
                 bronmonteur=bronmonteur,
             )
             if tijdlijn is None:

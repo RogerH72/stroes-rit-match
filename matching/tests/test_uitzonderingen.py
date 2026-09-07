@@ -199,15 +199,40 @@ class KoppelenTests(TestCase):
         form = self.client.get(self.url).context["form"]
         self.assertNotIn("is_depot", form.fields)
 
-    def test_the_form_offers_prive_alongside_k_l_and_c(self):
-        # P was added on 07-09-2026 so an obviously private stop can be cleared
-        # from this list instead of staying an O forever; it is assigned through
-        # this same form, with no screen of its own.
+    def test_the_form_offers_every_hand_assigned_soort(self):
+        # P and T were both added on 07-09-2026 so an obviously private or
+        # at-home stop can be cleared from this list instead of staying an O
+        # forever; both are assigned through this same form, with no screen of
+        # their own. W/?/O/R never appear — those follow from the matching.
         form = self.client.get(self.url).context["form"]
         keuzes = [waarde for waarde, _ in form.fields["soort"].choices if waarde]
 
         self.assertEqual(
-            keuzes, [Soort.KLANT, Soort.LOCATIE, Soort.CREDITEUR, Soort.PRIVE]
+            keuzes,
+            [Soort.KLANT, Soort.LOCATIE, Soort.CREDITEUR, Soort.PRIVE, Soort.THUIS],
+        )
+
+    def test_linking_an_address_as_thuis_clears_it_from_the_list(self):
+        # Roger's case: the van is parked around the corner from the actual home
+        # address, so it never matches Monteur.thuisadres — but it can be linked
+        # here, and then it counts for every monteur who stops there.
+        response = self.client.post(
+            self.url,
+            {
+                "type": LocatieType.POSTCODE,
+                "waarde": "4104AR",
+                "soort": Soort.THUIS,
+                "label": "Parkeerplek om de hoek",
+            },
+        )
+        self.assertRedirects(response, reverse("uitzonderingen"))
+
+        self.assertEqual(BekendeLocatie.objects.get().soort, Soort.THUIS)
+        self.assertFalse(
+            Tijdblok.objects.filter(soort=Soort.ONVERKLAARD, postcode="4104AR").exists()
+        )
+        self.assertEqual(
+            Tijdblok.objects.filter(soort=Soort.THUIS, postcode="4104AR").count(), 2
         )
 
     def test_linking_an_address_as_prive_clears_it_from_the_list(self):

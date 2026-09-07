@@ -613,3 +613,79 @@ class PriveWeergaveTests(TestCase):
 
         self.assertIn("Privé (SOORT P)", cellen)
         self.assertIn(1, cellen)  # one hour privé, written as a number
+
+
+class ThuisWeergaveTests(TestCase):
+    """SOORT T: a code like any other in the table, with no summary of its own.
+
+    Deliberately unlike P (07-09-2026, docs/decisions.md): time at home is less
+    of a number you want totalled than privé time is, so T gets a colour and a
+    row in the day table and nothing beside the week figures.
+    """
+
+    def setUp(self):
+        self.monteur = factories.monteur(
+            "Jesse", "005", "M5", thuisadres=THUIS[0]
+        )
+        factories.bekende_locatie(
+            LocatieType.POSTCODE, "4104 AC", Soort.LOCATIE, "Magazijn", is_depot=True
+        )
+        # Home -> customer -> home, so the day has a stop at home in the middle.
+        _rit("M5", MAANDAG, "07:00", "07:30", THUIS, KLANT)
+        _rit("M5", MAANDAG, "09:30", "10:00", KLANT, THUIS)
+        _rit("M5", MAANDAG, "12:00", "12:30", THUIS, KLANT)
+        _rit("M5", MAANDAG, "16:00", "16:30", KLANT, THUIS)
+        run_matching(force=True)
+
+        self.gebruiker = User.objects.create_user("kijker", "k@sbtt.nl", "geheim")
+        self.client.force_login(self.gebruiker)
+
+    def _pagina(self):
+        return self.client.get(
+            reverse("weekoverzicht"),
+            {"monteur": self.monteur.pk, "week": "2026-W32"},
+        ).content.decode()
+
+    def test_the_stop_at_home_is_classified_as_thuis(self):
+        overzicht = week.bouw_weekoverzicht(self.monteur, *WEEK)
+        soorten = [regel.blok.soort for regel in overzicht.dagen[0].regels]
+
+        self.assertIn(Soort.THUIS, soorten)
+
+    def test_t_has_a_colour_of_its_own(self):
+        self.assertIn(Soort.THUIS, week.SOORT_KLEUREN)
+        self.assertEqual(len(set(week.SOORT_KLEUREN.values())), len(Soort))
+        self.assertIn(week.SOORT_KLEUREN[Soort.THUIS], self._pagina())
+
+    def test_t_is_totalled_per_soort_like_every_other_code(self):
+        overzicht = week.bouw_weekoverzicht(self.monteur, *WEEK)
+        codes = [totaal.code for totaal in overzicht.totalen]
+
+        self.assertIn(Soort.THUIS.value, codes)
+
+    def test_t_gets_no_summary_line_of_its_own(self):
+        # P has one ("Privé ... uur"); T deliberately does not.
+        overzicht = week.bouw_weekoverzicht(self.monteur, *WEEK)
+
+        self.assertFalse(hasattr(overzicht, "thuis_uren"))
+        self.assertNotIn("Thuis 2", self._pagina())
+
+    def test_t_does_not_touch_the_hours_comparison(self):
+        overzicht = week.bouw_weekoverzicht(self.monteur, *WEEK)
+
+        # Only the customer stops count as time on location; home never does.
+        self.assertEqual(overzicht.uren_op_locatie, Decimal("0.00"))
+        self.assertEqual(overzicht.prive_uren, Decimal("0.00"))
+
+    def test_the_excel_export_has_no_thuis_summary_row_either(self):
+        overzicht = week.bouw_weekoverzicht(self.monteur, *WEEK)
+        boek = openpyxl.load_workbook(io.BytesIO(bouw_werkboek(overzicht)))
+        cellen = [
+            cel.value
+            for rij in boek.active.iter_rows()
+            for cel in rij
+            if cel.value is not None
+        ]
+
+        self.assertIn("Thuis", cellen)  # the per-SOORT total row
+        self.assertNotIn("Thuis (SOORT T)", cellen)  # but no comparison row

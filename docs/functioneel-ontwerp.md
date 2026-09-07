@@ -99,6 +99,7 @@ Elk tijdblok in de tijdlijn krijgt een SOORT-code:
 | L | Locatie |
 | C | Crediteur |
 | P | Privé (toegevoegd 07-09-2026) |
+| T | Thuis (toegevoegd 07-09-2026) |
 | W | Werkbon |
 | ? | Onbekend |
 | O | Onverklaard |
@@ -166,7 +167,11 @@ Via Django-admin worden de koppeltabellen onderhouden:
 - Bekende locaties (met marge/tolerantie).
 - Monteur–voertuig, inclusief de "meegereden"-instelling met haar drie standen
   (vast / periode-gebonden / uit Syntess — de laatste voorlopig uitgeschakeld, zie
-  §3b).
+  §3b), en sinds 07-09-2026 het **thuisadres** van de monteur (straatnaam of
+  postcode, straat als voorkeur). Optioneel: is het leeg, dan worden zijn stops
+  thuis niet als T herkend maar gewoon als onverklaard getoond, corrigeerbaar via
+  §5. Het scherm is te filteren op de precisiekeuze, zodat te zien is wie er nog
+  geen adres heeft.
 - Personeelsnummer–naam.
 - Klant/leverancier-relaties (mogelijk overbodig zodra RVS Solutions dit oplost, zie
   hierboven).
@@ -233,6 +238,13 @@ geen nieuw scherm, geen wijziging aan de tolerantielogica voor kortere
 (?)-stops, en geen nieuwe stap in de prioriteitsvolgorde: P valt in de bestaande
 "overige `BekendeLocatie`"-stap. Kleur `#C2185B` (`docs/ui-spec.md`).
 
+**Vijfde keuze T (Thuis), gebouwd 07-09-2026.** Naast K/L/C/P is ook **T** via
+dit formulier te koppelen. T heeft twee bronnen: primair het `thuisadres`-veld op
+`Monteur` (zie §4 en `docs/database.md`), en daarnaast dit koppelformulier — voor
+het geval dat de bus om de hoek staat en dat adres dus nooit gelijk is aan het
+opgegeven huisadres. Zoals bij elke `BekendeLocatie` geldt zo'n koppeling voor
+elke monteur die daar stopt.
+
 ## 6. Weekoverzicht (roadmap-fase 6)
 
 Het eindresultaat per monteur, beschikbaar als webpagina én als Excel-export, in de
@@ -289,13 +301,18 @@ krijgt. Een monteur of week die wél in de URL staat maar niet bestaat blijft ee
   tussen de "thuisstraten", waarna elke rit van huis naar depot, depot naar
   depot en depot naar huis werd weggegooid als ritje om het eigen huis. Het
   depot wordt nu uitgesloten bij die detectie. Zie `docs/changelog.md` en
-  `docs/business-rules.md` (07-09-2026). Eén punt uit dezelfde analyse staat nog
-  open: de detectie kent nog steeds geen frequentiedrempel, waardoor een straat
-  waar toevallig één dag begon of eindigde ook als thuis geldt — een
-  business-rule-keuze die apart genomen moet worden.
+  `docs/business-rules.md` (07-09-2026). Het restpunt uit diezelfde analyse — de
+  detectie kende geen frequentiedrempel, waardoor een straat waar toevallig één
+  dag begon of eindigde ook als thuis gold — is later die dag opgelost door de
+  detectie helemaal te vervangen door een ingevuld `thuisadres` op `Monteur` en
+  de nieuwe SOORT-code T. Sindsdien komt elke rit uit `Rit` in de tijdlijn
+  terecht: op de juni-dataset 782 van 782.
 
-**Uitbreiding gebouwd (07-09-2026).** De nieuwe SOORT-classificatie P (Privé,
-zie §5) heeft in het weekoverzicht een eigen, zichtbare regel naast het
+**Uitbreiding gebouwd (07-09-2026).** T (Thuis, zie §5) krijgt in het
+weekoverzicht bewust géén eigen regel: T-blokken staan gewoon in de dagtabel en
+tellen mee in het SOORT-totaal, meer niet — thuis-tijd is minder een getal dat je
+wil optellen dan privé-tijd. P (Privé,
+zie §5) heeft in het weekoverzicht wél een eigen, zichtbare regel naast het
 weektotaal én per dag — net als de vergelijking hierboven een apart getal, geen
 aftrek op "Totaal (excl. reistijd)". De regel verschijnt alleen wanneer er
 privé-tijd is, zodat een week zonder privé-stops er onveranderd uitziet.

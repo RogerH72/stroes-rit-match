@@ -59,6 +59,12 @@ SOORT_KLEUREN = {
     # (about 6:1 against white), and far enough from the violet C to stay apart
     # in a dense table.
     Soort.PRIVE: "#C2185B",
+    # T (07-09-2026). Eight codes in, the hue circle is nearly full; what was
+    # left unused is the desaturated warm-dark corner, so T is a brown. It reads
+    # as quiet rather than as a signal, which is what a stop at home is, and its
+    # low saturation and darkness keep it apart from the one neighbour it shares
+    # a hue family with — the bright amber O.
+    Soort.THUIS: "#6D4C41",
     Soort.WERKBON: "#1F8A4C",
     Soort.ONBEKEND: "#8A94A2",
     Soort.ONVERKLAARD: "#D97706",

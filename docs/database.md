@@ -78,9 +78,14 @@ uitzonderingen-eenklik-scherm), niet de tabellen zelf._
   (`Rit.Bestuurder`), plus naam en kenteken. Zonder deze koppeling kunnen `Uren` en
   `Rit` niet eens bij elkaar gelegd worden — dit is de eerste, noodzakelijke schakel
   voor de matching.
+- **Monteur** heeft sinds 07-09-2026 `thuisadres` + `thuisadres_type` (dezelfde
+  precisiekeuze als `BekendeLocatie`: straat of postcode, straat als voorkeur, en
+  dezelfde normalisatie via `matching/timeline/normalize.py`). Beide optioneel —
+  een leeg thuisadres matcht niets. Vervangt het afleiden van het thuisadres uit
+  de ritdata, dat volledig is vervallen (zie `docs/business-rules.md`).
 - **BekendeLocatie** — postcode/straat → SOORT + label. Vervangt het
   demo-koppelbestand (`locaties_demo.csv`) uit de PoC. **`soort` is een keuzeveld met
-  uitsluitend K (Klant), L (Locatie), C (Crediteur) of P (Privé, 07-09-2026) als opties** — dit zijn de
+  uitsluitend K (Klant), L (Locatie), C (Crediteur), P (Privé) of T (Thuis) als opties** — dit zijn de
   SOORT-codes die een gebruiker aan een adres kan toekennen. W, ? , O en R volgen
   altijd automatisch uit de matchlogica zelf (W = matcht een werkbon, ? = korte
   onbekende stop, O = onverklaarde stop boven de drempel, R = reistijd) en zijn dus

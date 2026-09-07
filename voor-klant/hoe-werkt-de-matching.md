@@ -45,7 +45,7 @@ er een antwoord "ja" is, staat het vast en stopt de app met verder zoeken:
    toegevoegd, juist om dit soort gemiste gevallen alsnog automatisch te
    herkennen.
 4. **Is het een ander bekend adres** — een klant, een leverancier, nog een
-   eigen locatie die niet het hoofddepot is, of een privé-adres? Die adressen
+   eigen locatie die niet het hoofddepot is, een privé-adres of een thuisadres? Die adressen
    worden één keer handmatig aangewezen en onthoudt de app daarna vanzelf.
 
    "Privé" (code **P**) is op 07-09-2026 toegevoegd. Daarvóór bleef een stop
@@ -55,16 +55,24 @@ er een antwoord "ja" is, staat het vast en stopt de app met verder zoeken:
    niet ervan afgetrokken. Let op: een adres krijgt één classificatie voor
    iedereen, net als bij klant, locatie en leverancier. Merk je een adres als
    privé aan, dan geldt dat dus voor elke monteur die daar ooit stopt.
-5. **Is dit het huisadres van de monteur?** Dan telt dat niet mee als
-   werktijd — dat is gewoon het begin of einde van de dag.
+5. **Is dit het huisadres van de monteur?** Dan krijgt de stop code **T
+   (Thuis)**: dat is het begin of einde van de dag, geen werktijd — maar hij
+   staat wél gewoon in het dagoverzicht.
 
-   Het huisadres staat nergens ingevuld; de app leidt het af uit waar de
-   dagen van die monteur beginnen en eindigen. Het magazijn telt daarbij
-   bewust niet mee: wie zijn bus bij de zaak ophaalt begint en eindigt daar
-   ook, maar het magazijn is natuurlijk niemands huis. Ging dat mis, dan
-   werden de rit naar het magazijn, de tijd daar en de rit naar huis gezien
-   als "rondje om het huis" en verdwenen ze uit het dagoverzicht. Dat is op
-   07-09-2026 verholpen.
+   Het huisadres wordt per monteur ingevuld in het beheerscherm (straatnaam of
+   postcode). Tot 07-09-2026 probeerde de app het zelf te raden, uit de plek
+   waar iemands dagen begonnen en eindigden. Dat ging mis zodra een dag een
+   keer ergens anders begon — bij het magazijn, of waar de bus die avond stond.
+   Zo'n adres gold daarna permanent als "thuis", en ritten daartussen werden
+   weggelaten als "rondje om het huis". In één geval verdween daardoor een hele
+   werkdag uit het overzicht terwijl er wel acht uur geboekt was. Daarom is het
+   raden vervangen door een invulveld.
+
+   Is het huisadres van een monteur nog niet ingevuld, dan verdwijnt er niets:
+   zijn stops thuis komen dan als "onverklaard" in de lijst, waar ze gewoon te
+   corrigeren zijn. Zet hij zijn bus om de hoek in plaats van voor de deur, dan
+   is dat adres net als een klant of leverancier één keer aan te wijzen — als
+   "Thuis" — en onthoudt de app dat daarna.
 6. **Niets van dit alles:** dan blijft de stop onverklaard. Duurde de stop
    langer dan de ingestelde grens (nu 15 minuten), dan wordt hij zichtbaar
    gemaakt als "onverklaard", zodat iemand het kan uitzoeken. Was de stop
@@ -82,6 +90,7 @@ label per moment — precies de indeling die Wim zelf al in Excel had bedacht:
 | **L** | Bezoek aan een eigen locatie (bijv. het depot) |
 | **C** | Bezoek aan een leverancier |
 | **P** | Privé — geen werktijd (sinds 07-09-2026) |
+| **T** | Thuis — begin of einde van de dag (sinds 07-09-2026) |
 | **W** | Werk op een specifieke werkbon |
 | **R** | Onderweg (reistijd) |
 | **O** | Onverklaarde stop — de moeite waard om te bekijken |

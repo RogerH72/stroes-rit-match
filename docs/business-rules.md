@@ -8,26 +8,35 @@ Gebouwd t/m roadmap-fase 3 (03-09-2026, commit `eea759c`, 143 tests groen — zi
 - Tijdlijn-reconstructie per monteur per dag (`matching/timeline/engine.py`,
   `build_day()`), persistent opgeslagen in `Tijdblok`.
 - Classificatie in SOORT-codes per tijdblok (K=klant, L=locatie, C=crediteur,
-  P=privé (07-09-2026),
+  P=privé en T=thuis (beide 07-09-2026),
   W=werkbon, ?=onbekend, O=onverklaard) volgens de gevalideerde prioriteitsvolgorde:
   depot-`BekendeLocatie` (L) → eigen Uren-regel op postcode/straat (W) → overige
-  `BekendeLocatie` op straat/postcode (K/L/C) → thuisadres (laten vallen) →
+  `BekendeLocatie` op straat/postcode (K/L/C/P/T) → het thuisadres van de monteur
+  (T, sinds 07-09-2026 opgeslagen in plaats van laten vallen) →
   tolerantiecheck (O of ?). R (reistijd) volgt uit de tussenliggende ritten. Conform
   het eindresultaat dat de klant zelf al in Excel had ontworpen; sinds fase 6
   (05-09-2026) toont het weekoverzicht deze codes ook daadwerkelijk.
 - Matchingregels, gevalideerd op echte data: postcode-exact is niet genoeg →
   straatnaam-fallback; een depotbezoek vóór werk wordt herkend (op straatniveau, zie
   het aandachtspunt in `docs/database.md` en `docs/decisions.md`, 03-09-2026).
-- **Het thuisadres wordt afgeleid, niet vastgelegd** (bijgesteld 07-09-2026): niemand
-  registreert waar een monteur woont, dus de app leidt het af uit de eerste vertrek-
-  en de laatste aankomstplaats van elke dag die hij reed. Twee soorten dagranden
-  tellen daarbij níét mee: het depot (een monteur die zijn bus bij het magazijn
-  ophaalt begint en eindigt daar, maar het magazijn is niemands huis) en een adres
-  dat RouteVision niet heeft kunnen bepalen (`-`). Zonder die twee uitzonderingen
-  belandden het depot en de placeholder tussen de "thuisstraten", waarna elke rit
-  van huis naar depot, van depot naar depot en van depot naar huis werd weggegooid
-  als "rondje met de bus om het huis" — en verdween het begin en einde van zo'n dag
-  volledig uit de tijdlijn. Zie `docs/changelog.md` (07-09-2026).
+- **Het thuisadres wordt ingevuld, niet afgeleid** (vastgelegd 07-09-2026, na twee
+  eerdere bijstellingen dezelfde dag): elke monteur heeft een eigen veld
+  `thuisadres` op `Monteur`, met dezelfde precisiekeuze als een `BekendeLocatie`
+  (straatnaam of postcode, straat als voorkeur). Een stop op dat adres krijgt
+  **SOORT T (Thuis)** en staat gewoon in de tijdlijn.
+  De eerdere aanpak — afleiden uit de eerste vertrek- en laatste aankomstplaats van
+  elke gereden dag — is volledig vervallen, zonder terugval. Die detectie kon een
+  toevallige dagrand niet onderscheiden van een echt tweede adres, en elke misser
+  gooide stilzwijgend ritten weg: ritten waarvan vertrek én aankomst allebei als
+  "thuis" golden werden geschrapt als "rondje met de bus om het huis". Op de
+  juni-dataset kostte dat 28 ritten over 12 dagen, waarvan tweemaal een volledige
+  werkdag (Dennis van de Berg, 24 en 25 juni, met 8 geboekte uren en nul
+  tijdblokken). Zie `docs/changelog.md` (07-09-2026).
+- **Een monteur zonder ingevuld thuisadres krijgt geen gok.** Zijn ochtend- en
+  avondstops doorlopen gewoon de rest van de prioriteitsvolgorde en eindigen
+  meestal als O (onverklaard) — zichtbaar en corrigeerbaar via het
+  uitzonderingenscherm, in plaats van onzichtbaar fout. Staat de bus om de hoek in
+  plaats van op het huisadres, dan is dat adres daar als T te koppelen.
 - **Werktijd bepalen uit ritgegevens (leidend), niet uit de Werktijd/Reistijd-velden
   van de werkbon** — bevestigd door Wim (mailwisseling 27/28-08-2026, herbevestigd
   02-09-2026), omdat monteurs die velden niet consequent invullen en er geen

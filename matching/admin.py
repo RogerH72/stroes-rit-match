@@ -147,11 +147,21 @@ class MonteurAdmin(admin.ModelAdmin):
         "medewerker_nummer",
         "bestuurder_code",
         "kenteken",
+        "thuisadres",
         "vaste_meerijder",
         "actief",
     )
-    list_filter = ("actief",)
-    search_fields = ("naam", "medewerker_nummer", "bestuurder_code", "kenteken")
+    # Whether a home address is filled in decides whether his day edges come out
+    # as T or as unexplained stops, so it is worth being able to list the
+    # monteurs who still have none (docs/decisions.md, 07-09-2026).
+    list_filter = ("actief", "thuisadres_type")
+    search_fields = (
+        "naam",
+        "medewerker_nummer",
+        "bestuurder_code",
+        "kenteken",
+        "thuisadres",
+    )
     ordering = ("naam",)
 
 

@@ -89,6 +89,7 @@ er op beide schermen hetzelfde uitziet.
 | L | Locatie | `#2563B0` |
 | C | Crediteur | `#8250B5` |
 | P | Privé | `#C2185B` |
+| T | Thuis | `#6D4C41` |
 | W | Werkbon | `#1F8A4C` |
 | ? | Onbekend | `#8A94A2` |
 | O | Onverklaard | `#D97706` |

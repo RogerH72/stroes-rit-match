@@ -61,86 +61,45 @@ class DagTijdlijn:
         return totals
 
 
-# --- home address detection -------------------------------------------------
+# --- the monteur's own home address -----------------------------------------
 
 
-def home_streets_for(
-    monteur: Monteur,
-    upto_date: dt.date | None = None,
-    *,
-    koppeltabellen: "Koppeltabellen | None" = None,
-) -> set[str]:
-    """The streets where this monteur's days start and end — his home address.
+@dataclass(frozen=True)
+class Thuisadres:
+    """One monteur's home address, as the two keys a stop is compared on.
 
-    Nobody registers where a monteur lives, so it is derived: take the first
-    departure and the last arrival of every day he drove, and the street that
-    keeps coming back is his own. Detection, not configuration, exactly as in the
-    validation script's `home_streets_for`.
+    Entered on the Monteur, not detected. Until 07-09-2026 it was derived from
+    where a monteur's days started and ended, and every street that ever began or
+    ended a day counted — the depot he picks his van up at, a colleague he was
+    dropped off with, an address RouteVision could not resolve. Rides between two
+    such "home" addresses were then dropped as moving the van around the house,
+    which silently cost 28 rides over 12 days on the June data, twice an entire
+    working day. No frequency threshold can tell an occasional day edge from a
+    genuine second address without SBTT's own knowledge of the monteur, so the
+    guess was replaced by a field (docs/decisions.md, 07-09-2026).
 
-    The depot is the one place that has to be kept out of that. A monteur who
-    picks up his van at the magazijn starts and ends those days there, so the
-    depot street lands in this set alongside his real street — and from then on
-    `_trim_home_hops` reads every home->depot, depot->depot and depot->home ride
-    as "moving the van around at home" and drops it, taking the whole start and
-    end of such a day out of the timeline (docs/changelog.md, 07-09-2026). A
-    depot is configured, and it is by definition nobody's home, so it is excluded
-    here rather than guessed around. Both keys are checked, because a depot may
-    be configured on street or on postcode.
-
-    Returns an empty set for a monteur without a driver code (he never drove).
+    Only one of the two keys is ever filled: the monteur picks street or postcode,
+    the same precision pair a BekendeLocatie uses.
     """
-    if not monteur.bestuurder_code:
-        return set()
 
-    ritten = Rit.objects.filter(
-        bestuurder=monteur.bestuurder_code, vertrekdatum__isnull=False
-    )
-    if upto_date is not None:
-        ritten = ritten.filter(vertrekdatum__lte=upto_date)
+    postcode: str = ""
+    straat: str = ""
 
-    per_day: dict[dt.date, list[Rit]] = {}
-    for rit in ritten.order_by("vertrekdatum", "vertrektijd", "row_number"):
-        per_day.setdefault(rit.vertrekdatum, []).append(rit)
+    @classmethod
+    def van(cls, monteur: Monteur) -> "Thuisadres":
+        waarde = monteur.normalised_thuisadres()
+        if not waarde:
+            return cls()
+        if monteur.thuisadres_type == LocatieType.POSTCODE:
+            return cls(postcode=waarde)
+        return cls(straat=waarde)
 
-    if koppeltabellen is None:
-        koppeltabellen = Koppeltabellen.load()
-
-    streets = set()
-    for dag_ritten in per_day.values():
-        eerste, laatste = dag_ritten[0], dag_ritten[-1]
-        streets.add(
-            _home_edge(eerste.vertrekadres, eerste.vertrekplaats, koppeltabellen)
+    def matcht(self, postcode: str, straat: str) -> bool:
+        """Whether a stop with these keys is at this home address."""
+        return bool(
+            (self.postcode and postcode == self.postcode)
+            or (self.straat and straat == self.straat)
         )
-        streets.add(
-            _home_edge(laatste.aankomstadres, laatste.aankomstplaats, koppeltabellen)
-        )
-    streets.discard("")
-    return streets
-
-
-def _home_edge(adres: str, plaats: str, koppeltabellen: "Koppeltabellen") -> str:
-    """The street of one day edge, or "" when that edge cannot be someone's home.
-
-    Returning the empty string rather than filtering afterwards keeps the caller
-    simple: "" is discarded there anyway, together with the edges that have no
-    usable address at all.
-
-    Two edges are refused. A depot, because it is configured and is by definition
-    nobody's home. And a "street" without a single letter in it — RouteVision
-    writes "-" for a stop it could not resolve, and that placeholder was becoming
-    a home street of its own, after which every ride between two unresolved
-    addresses was dropped as a hop around the house.
-    """
-    straat = normalize.street(adres)
-    if not any(teken.isalpha() for teken in straat):
-        return ""
-
-    postcode = normalize.postcode(plaats)
-    if straat in koppeltabellen.depot_per_straat or (
-        postcode in koppeltabellen.depot_per_postcode
-    ):
-        return ""
-    return straat
 
 
 # --- the lookup tables one day is classified against ------------------------
@@ -268,34 +227,40 @@ def build_day(
     datum: dt.date,
     *,
     koppeltabellen: Koppeltabellen | None = None,
-    home_streets: set[str] | None = None,
     bronmonteur: Monteur | None = None,
 ) -> DagTijdlijn | None:
     """Reconstruct one monteur-day; None when there are no rides to build it from.
 
     The optional arguments let a caller processing many days load the shared
     lookups once instead of per day; they change nothing about the result.
+
+    Every ride of the day becomes a block. Nothing is filtered out beforehand any
+    more: rides used to be dropped when both their ends looked like home, and
+    that guess is what made whole days disappear (see Thuisadres). A ride that
+    goes nowhere in particular now shows up as the short R block it is.
     """
     bronmonteur = bronmonteur or resolve_bronmonteur(monteur, datum)
     if not bronmonteur.bestuurder_code:
         return None
 
     ritten = _day_rides(bronmonteur, datum)
-    if koppeltabellen is None:
-        koppeltabellen = Koppeltabellen.load()
-    if home_streets is None:
-        # Needs the koppeltabellen, to keep the depot out of the home streets.
-        home_streets = home_streets_for(bronmonteur, koppeltabellen=koppeltabellen)
-    ritten = _trim_home_hops(ritten, home_streets)
     if not ritten:
         return None
 
+    if koppeltabellen is None:
+        koppeltabellen = Koppeltabellen.load()
     uren = DagUren.load(monteur, datum, koppeltabellen.depot_streets)
     werkbonnen = WerkbonPostcodes.load(monteur, datum)
 
     # One lookup per day rather than per stop: the tolerance cannot change
     # halfway through a day.
     drempel = drempel_minuten()
+
+    # The timeline's own monteur, not the driver: on a meegereden day the rides
+    # are someone else's, and that senior's house is not this monteur's home. It
+    # surfaces as an ordinary unexplained stop instead, which the
+    # uitzonderingenscherm can link as T if SBTT wants it recognised.
+    thuisadres = Thuisadres.van(monteur)
 
     tijdlijn = DagTijdlijn(monteur=monteur, bronmonteur=bronmonteur, datum=datum)
     for index, rit in enumerate(ritten):
@@ -326,7 +291,7 @@ def build_day(
             koppeltabellen=koppeltabellen,
             uren=uren,
             werkbonnen=werkbonnen,
-            home_streets=home_streets,
+            thuisadres=thuisadres,
             drempel=drempel,
         )
     return tijdlijn
@@ -341,7 +306,7 @@ def _classify_stop(
     koppeltabellen: Koppeltabellen,
     uren: DagUren,
     werkbonnen: WerkbonPostcodes,
-    home_streets: set[str],
+    thuisadres: Thuisadres,
     drempel: int,
 ) -> None:
     """Give one stop its SOORT, in the priority order validated by the PoC.
@@ -355,11 +320,17 @@ def _classify_stop(
     3. Then Werkbonnen.xlsx's own Postcode, as a fallback for when Uren.xlsx's
        address doesn't cover the stop — still W, just a second-best source
        (docs/decisions.md, 2026-09-03).
-    4. Then the rest of the koppeltabel (K/L/C) — addresses a user recognised
+    4. Then the rest of the koppeltabel (K/L/C/P/T) — addresses a user recognised
        once and never has to explain again.
-    5. Then home — the day's own edges, dropped rather than shown.
+    5. Then the monteur's own home address — shown as T, not dropped.
     6. Otherwise unexplained: above the tolerance it is a real signal (O), below
        it is short noise (?), and under a minute it is not worth a row at all.
+
+    Step 5 sits below the koppeltabel on purpose, so a home address that was also
+    linked by hand keeps whatever the user gave it. It used to end the day edges
+    by dropping them; since 07-09-2026 they are saved as T instead. A day that
+    starts and ends nowhere visible is harder to check than one with two blocks
+    saying "Thuis" (docs/decisions.md).
 
     Within 2, postcode wins over street; within 4, street wins over postcode —
     both exactly as the PoC ordered its lookups.
@@ -438,9 +409,17 @@ def _classify_stop(
         )
         return
 
-    if straat in home_streets:
-        # Home is where the day starts and ends, not a stop to report — the PoC
-        # drops these rows from its output too.
+    if thuisadres.matcht(postcode, straat):
+        _add(
+            tijdlijn,
+            soort=Soort.THUIS,
+            start=start,
+            eind=eind,
+            omschrijving="Thuis",
+            adres=adres,
+            postcode=postcode,
+            straat=straat,
+        )
         return
 
     if gap >= drempel:
@@ -523,22 +502,6 @@ def _day_rides(bronmonteur: Monteur, datum: dt.date) -> list[Rit]:
             aankomsttijd__isnull=False,
         ).order_by("vertrektijd", "row_number")
     )
-
-
-def _trim_home_hops(ritten: list[Rit], home_streets: set[str]) -> list[Rit]:
-    """Drop rides that go from home to home.
-
-    Moving the van around the neighbourhood in the evening is not work, and
-    leaving those rides in would put a bogus stop between them.
-    """
-    return [
-        rit
-        for rit in ritten
-        if not (
-            normalize.street(rit.vertrekadres) in home_streets
-            and normalize.street(rit.aankomstadres) in home_streets
-        )
-    ]
 
 
 def _ride_moments(rit: Rit) -> tuple[dt.datetime, dt.datetime]:

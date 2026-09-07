@@ -351,8 +351,9 @@ class Soort(models.TextChoices):
     on 07-09-2026 (docs/decisions.md): without it an obviously private stop had no
     way of being cleared and stayed in the uitzonderingen list as O forever.
 
-    Only K, L, C and P are ever chosen by hand (on a BekendeLocatie); W, ?, O and
-    R always follow from the matching itself.
+    Only K, L, C, P and T are ever chosen by hand (on a BekendeLocatie); W, ?, O
+    and R always follow from the matching itself. T is the one code with a second
+    source: it is also what a stop at the monteur's own `thuisadres` becomes.
 
     Declaration order is display order everywhere the codes are totalled or
     listed (SOORT_VOLGORDE), so P sits with the other hand-assigned codes rather
@@ -363,6 +364,7 @@ class Soort(models.TextChoices):
     LOCATIE = "L", "Locatie"
     CREDITEUR = "C", "Crediteur"
     PRIVE = "P", "Privé"
+    THUIS = "T", "Thuis"
     WERKBON = "W", "Werkbon"
     ONBEKEND = "?", "Onbekend"
     ONVERKLAARD = "O", "Onverklaard"
@@ -370,7 +372,25 @@ class Soort(models.TextChoices):
 
 
 #: The subset a user may assign to an address by hand; see Soort above.
-HANDMATIGE_SOORTEN = (Soort.KLANT, Soort.LOCATIE, Soort.CREDITEUR, Soort.PRIVE)
+HANDMATIGE_SOORTEN = (
+    Soort.KLANT,
+    Soort.LOCATIE,
+    Soort.CREDITEUR,
+    Soort.PRIVE,
+    Soort.THUIS,
+)
+
+
+class LocatieType(models.TextChoices):
+    """How an address is recognised — for a BekendeLocatie and for a home address.
+
+    Street is the preferred precision: RouteVision and Syntess disagree on house
+    numbers far more often than on street names, and a postcode covers a wider
+    area than one address (docs/business-rules.md).
+    """
+
+    POSTCODE = "postcode", "Postcode"
+    STRAAT = "straat", "Straatnaam"
 
 
 class Monteur(models.Model):
@@ -414,6 +434,30 @@ class Monteur(models.Model):
     )
     actief = models.BooleanField("actief", default=True)
 
+    # The home address, entered rather than detected (07-09-2026,
+    # docs/decisions.md). It used to be derived from where a monteur's days
+    # started and ended, but no frequency rule could tell an occasional day edge
+    # apart from a real home without SBTT's own knowledge of each monteur — and
+    # every wrong guess silently swallowed rides. Same precision pair as
+    # BekendeLocatie, so one address means the same thing everywhere.
+    thuisadres_type = models.CharField(
+        "thuisadres herkenning",
+        max_length=16,
+        choices=LocatieType.choices,
+        default=LocatieType.STRAAT,
+    )
+    thuisadres = models.CharField(
+        "thuisadres",
+        max_length=255,
+        blank=True,
+        default="",
+        help_text=(
+            "Straatnaam (huisnummer weglaten) of postcode van het huisadres. "
+            "Leeg laten mag: stops bij hem thuis verschijnen dan gewoon in de "
+            "tijdlijn, meestal als onverklaard, en zijn daar te corrigeren."
+        ),
+    )
+
     class Meta:
         verbose_name = "monteur"
         verbose_name_plural = "monteurs"
@@ -431,12 +475,34 @@ class Monteur(models.Model):
     def __str__(self) -> str:
         return f"{self.naam} ({self.medewerker_nummer})"
 
+    def clean(self):
+        genormaliseerd = self.normalised_thuisadres()
+        if self.thuisadres and not genormaliseerd:
+            # Refusing beats silently blanking the field: a home address that
+            # quietly became empty would look filled in and match nothing.
+            raise ValidationError(
+                {
+                    "thuisadres": (
+                        "Dit is geen bruikbare "
+                        f"{self.get_thuisadres_type_display().lower()}."
+                    )
+                }
+            )
+        self.thuisadres = genormaliseerd
 
-class LocatieType(models.TextChoices):
-    """What a BekendeLocatie is recognised by."""
+    def save(self, *args, **kwargs):
+        # Normalised on every write, not only through the admin form — the same
+        # reason BekendeLocatie does it here.
+        self.thuisadres = self.normalised_thuisadres()
+        super().save(*args, **kwargs)
 
-    POSTCODE = "postcode", "Postcode"
-    STRAAT = "straat", "Straatnaam"
+    def normalised_thuisadres(self) -> str:
+        """The home address as the key a stop is compared on, or "" when unset."""
+        if not self.thuisadres:
+            return ""
+        if self.thuisadres_type == LocatieType.POSTCODE:
+            return normalize.postcode(self.thuisadres)
+        return normalize.street(self.thuisadres)
 
 
 class BekendeLocatie(models.Model):

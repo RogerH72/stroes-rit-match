@@ -833,3 +833,38 @@ Nog niet onderzocht in code — deze Cowork-sessie heeft geen codetoegang. De pr
 oorzaak in de reconstructielogica moet Claude Code vaststellen. Wacht op een
 instructie naar de Claude Code-sessie, nadat Roger de huidige testronde heeft
 afgerond. Zie ook `docs/functioneel-ontwerp.md` §6.
+
+## 2026-09-07 (avond) — Nieuwe SOORT-classificatie 'P' (privé) besloten, nog niet gebouwd (Current)
+
+Decision: naast K (Klant), L (Locatie) en C (Crediteur) komt er een vierde
+handmatige SOORT-classificatie: **P (Privé)**. Aanleiding (Roger): bij het achteraf
+koppelen van onverklaarde stops (het uitzonderingenscherm, zie `docs/functioneel-
+ontwerp.md` §5) is er nu geen manier om een stop die overduidelijk privé is aan te
+merken — hij blijft dan als O (onverklaard) in de lijst staan.
+
+Drie deelbeslissingen, bevestigd door Roger:
+
+1. **Mechanisme: adres-classificatie, net als K/L/C.** P wordt een vierde keuze op
+   `BekendeLocatie.soort`, gekoppeld via hetzelfde bestaande koppelformulier/
+   uitzonderingenscherm uit §5 — geen nieuw scherm, geen monteur-specifieke
+   koppeling. Eenmaal een adres als P gekoppeld, geldt dat voor elke monteur die
+   daar ooit stopt — zelfde mechanisme en zelfde beperking als nu al geldt voor
+   K/L/C (één adres, één classificatie, ongeacht wie er stopt).
+2. **Alleen voor stops die nu al als O verschijnen.** Geen wijziging aan de
+   tolerantielogica — kortere stops onder de drempel (SOORT ?) blijven
+   ongewijzigd niet-koppelbaar, ook niet als P.
+3. **P telt niet mee in "Totaal (excl. reistijd)", maar krijgt een eigen, zichtbare
+   regel.** Net als de "gefactureerd vs. op locatie"-vergelijking (§6) is dit een
+   apart getal naast het bestaande totaal, geen aftrek erop — zodat zichtbaar is
+   hoeveel tijd een monteur die dag/week privé onderweg was, zonder dat het als
+   werktijd meetelt.
+
+Nog open, niet in deze sessie besloten: de kleur van P in het codepalet
+(`docs/ui-spec.md`, `SOORT_KLEUREN`) — de bestaande zeven kleuren zijn functioneel
+gekozen om in een dichte tabel goed van elkaar te onderscheiden te zijn; P voegt
+daar een achtste kleur aan toe die net zo goed te onderscheiden moet zijn. Te
+kiezen vóór dit naar Claude Code gaat, of over te laten aan Claude Code binnen de
+bestaande paletlogica.
+
+Nog niet gebouwd, nog niet naar Claude Code gestuurd — zie `GUIDELINES.md` punt 20
+voor de actuele prioritering van openstaande punten.

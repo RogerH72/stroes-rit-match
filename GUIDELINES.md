@@ -294,12 +294,23 @@ RouteVision-data komt voor de PoC uit een handmatige download, niet uit de API.
      geboekte uren (bijv. magazijntijd) worden ook echt aan een klant
      gefactureerd. Zie `docs/decisions.md` (07-09-2026, avond) en
      `docs/functioneel-ontwerp.md` §6.
-20. **Eerstvolgende stap:** Roger test verder op de echte data. Zodra hij
-   klaar is met deze testronde: een instructie naar de Claude Code-sessie
-   voor het bug-onderzoek (punt 19) en de label-wijziging samen, dán het
-   navragen bij Wim van de RouteVision-dekkingsgaten bij Dennis van de Berg
-   en Maarten Jaarsma (punt 17) — dan pas verder met roadmap-fase 7
-   (oplevering). Het draaiboek staat klaar in `DRAAIBOEK.md`, met drie nog
+20. **Besloten (07-09-2026, avond), nog niet gebouwd.** Een vierde
+   handmatige SOORT-classificatie **P (Privé)** komt naast K/L/C: voor
+   onverklaarde (O-)stops die overduidelijk privé zijn, koppelbaar via
+   hetzelfde bestaande koppelformulier (§5) — geen nieuw scherm. Drie
+   deelbeslissingen: (1) adres-classificatie net als K/L/C, dus geldt voor
+   elke monteur die bij dat adres stopt, geen monteur-specifieke koppeling;
+   (2) alleen voor stops die nu al als O verschijnen, geen wijziging aan de
+   tolerantiedrempel voor kortere (?)-stops; (3) P telt niet mee in "Totaal
+   (excl. reistijd)" maar krijgt een eigen, zichtbare regel. Nog open: de
+   kleur van P in het codepalet (`docs/ui-spec.md`). Zie `docs/decisions.md`
+   (07-09-2026, avond) en `docs/functioneel-ontwerp.md` §5/§6.
+21. **Eerstvolgende stap:** Roger test verder op de echte data. Zodra hij
+   klaar is met deze testronde: één instructie naar de Claude Code-sessie
+   voor het bug-onderzoek (punt 19), de label-wijziging (punt 19) en de
+   P-classificatie (punt 20) samen, dán het navragen bij Wim van de
+   RouteVision-dekkingsgaten bij Dennis van de Berg en Maarten Jaarsma (punt
+   17) — dan pas verder met roadmap-fase 7 (oplevering). Het draaiboek staat klaar in `DRAAIBOEK.md`, met drie nog
    niet definitieve onderdelen (VM-gegevens, het `backup_db`-commando, §7
    "eerste inrichting"). Neem daarbij verder mee: bij het configureren van
    het echte depotadres voor SBTT het aandachtspunt uit `docs/decisions.md`

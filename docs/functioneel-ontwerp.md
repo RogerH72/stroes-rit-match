@@ -224,6 +224,14 @@ ontworpen. `/uitzonderingen/` toont de gegroepeerde lijst, `/uitzonderingen/
 koppelen/<precisie>/<waarde>/` het bevestigingsformulier. Bereikbaar via een link
 op het matchmotor-statusscherm in de admin.
 
+**Uitbreiding besloten (07-09-2026, avond, zie `docs/decisions.md`), nog niet
+gebouwd.** Naast K/L/C komt een vierde keuze op `BekendeLocatie.soort`: **P
+(Privé)**, voor onverklaarde stops die overduidelijk privé zijn. Zelfde
+koppelformulier, zelfde mechanisme en beperking als K/L/C (adres-classificatie,
+geldt voor elke monteur die er stopt) — geen nieuw scherm, geen wijziging aan de
+tolerantielogica voor kortere (?)-stops. Kleur in het codepalet
+(`docs/ui-spec.md`) nog te kiezen.
+
 ## 6. Weekoverzicht (roadmap-fase 6)
 
 Het eindresultaat per monteur, beschikbaar als webpagina én als Excel-export, in de
@@ -281,6 +289,12 @@ naar boven gekomen, geen van beide al gebouwd:
   bij monteur Dennis van de Berg, 2026-06-02). De ritten staan wél correct in
   de `Rit`-tabel (import is dus correct) — de bug zit aantoonbaar in de
   tijdlijnreconstructie. Precieze oorzaak nog niet onderzocht in code.
+
+**Uitbreiding besloten (07-09-2026, avond, zie `docs/decisions.md`), nog niet
+gebouwd.** De nieuwe SOORT-classificatie P (Privé, zie §5) krijgt in het
+weekoverzicht een eigen, zichtbare regel naast het weektotaal — net als de
+"gefactureerd vs. op locatie"-vergelijking hierboven een apart getal, geen
+aftrek op "Totaal (excl. reistijd)".
 
 ## 7. Oplevering en acceptatie (roadmap-fase 7 en 8)
 

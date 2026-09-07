@@ -194,7 +194,67 @@ def _dag(blad: Worksheet, dag: DagOverzicht, *, start: int) -> int:
         verschil=dag.verschil,
         prive=dag.prive_uren,
     )
+    regel = _aansluiting(blad, dag, start=regel)
     return regel + 1
+
+
+def _aansluiting(blad: Worksheet, dag: DagOverzicht, *, start: int) -> int:
+    """The day's per-werkbon reconciliation, under its totals.
+
+    In the export for the same reason every other day figure is: Wim mails a
+    week or puts it next to his own sheets, and a table that only exists on
+    screen would make the two disagree about what the day said.
+
+    Written as real numbers in the same columns as the block rows above, so the
+    figures stay sortable — an empty cell where a side does not apply, which
+    reads as "not asked" rather than as a zero someone measured.
+    """
+    if not dag.heeft_aansluiting:
+        return start
+
+    regel = start + 1
+    _cel(blad, regel, 1, "Aansluiting per werkbon", bold=True)
+    regel += 1
+
+    for kolom, naam in (
+        (1, "Werkbon"),
+        (KOL_TIJD, "Op locatie"),
+        (KOL_TIJD + 1, "Gedeclareerd"),
+        (KOL_TIJD + 2, "Verschil"),
+    ):
+        _cel(blad, regel, kolom, naam, bold=True, vulling=GRIJS, rand=True)
+    regel += 1
+
+    for regelgegevens in [*dag.aansluiting, dag.aansluiting_totaal]:
+        totaalrij = regelgegevens is dag.aansluiting_totaal
+        _cel(blad, regel, 1, regelgegevens.label, bold=totaalrij, rand=True)
+        for kolom, waarde, formaat in (
+            (KOL_TIJD, regelgegevens.op_locatie, UREN_FORMAAT),
+            (KOL_TIJD + 1, regelgegevens.gedeclareerd, UREN_FORMAAT),
+            (KOL_TIJD + 2, regelgegevens.verschil, VERSCHIL_FORMAAT),
+        ):
+            cel = _cel(
+                blad,
+                regel,
+                kolom,
+                None if waarde is None else float(waarde),
+                centreren=True,
+                bold=totaalrij,
+                # Only a real gap is coloured, the same rule the page uses: the
+                # cent-sized rounding differences of a reconstructed day would
+                # otherwise light up the whole column.
+                kleur=(
+                    WAARSCHUWING
+                    if formaat == VERSCHIL_FORMAAT
+                    and waarde
+                    and not totaalrij
+                    else None
+                ),
+                rand=True,
+            )
+            cel.number_format = formaat
+        regel += 1
+    return regel
 
 
 def _totaalblok(

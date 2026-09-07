@@ -95,6 +95,14 @@ er op beide schermen hetzelfde uitziet.
 | O | Onverklaard | `#D97706` |
 | R | Reistijd | `#9AA4B2` |
 
+**Aansluiting per werkbon (07-09-2026).** De tabel onder elk dagoverzicht gebruikt
+geen nieuwe kleur: een verschil dat niet nul is krijgt de bestaande
+waarschuwingskleur `#D97706` (dezelfde als SOORT O), de totaalregel alleen een
+dikkere bovenrand. Bewust geen kleur op de totaalregel zelf — een
+reconstructiedag heeft vrijwel altijd een verschil van een paar centen, en die
+zou anders de hele kolom laten oplichten. Een kant die niet van toepassing is
+wordt getoond als een gedachtestreepje, niet als 0,00.
+
 Deze tabel staat één keer in code (`SOORT_KLEUREN` in `matching/weekoverzicht.py`) en
 wordt door zowel de webpagina als de Excel-export gebruikt, zodat een gedownloade week
 dezelfde kleuren heeft als het scherm.

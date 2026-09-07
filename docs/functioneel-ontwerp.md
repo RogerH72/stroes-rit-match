@@ -308,6 +308,18 @@ krijgt. Een monteur of week die wél in de URL staat maar niet bestaat blijft ee
   de nieuwe SOORT-code T. Sindsdien komt elke rit uit `Rit` in de tijdlijn
   terecht: op de juni-dataset 782 van 782.
 
+**Aansluiting per werkbon — gebouwd 07-09-2026** (`docs/decisions.md`). Onder elk
+dagoverzicht staat een tabel met één regel per werkbon die die dag voorkomt,
+náást de bestaande dag-vergelijking en niet in plaats daarvan. Kolommen: Op
+locatie (opgetelde SOORT=W-duur voor die werkbon die dag), Gedeclareerd (som van
+`Uren.Aantal`), Verschil. Altijd alle werkbonnen van de dag, ook de kloppende.
+Daaronder twee regels die geen werkbon zijn: "Klant (niet aan werkbon gekoppeld)"
+met de SOORT=K-duur, en "Zonder werkbonnummer (indirect)" met de geboekte uren
+die geen werkbonnummer dragen. Het dagtotaal telt W én K tegenover alle geboekte
+uren; L en C blijven er bewust buiten. Alleen per dag — een weekversie was
+expliciet geen onderdeel van het besluit. Zie `docs/business-rules.md` voor de
+regels en `docs/changelog.md` (07-09-2026) voor de bouwverantwoording.
+
 **Uitbreiding gebouwd (07-09-2026).** T (Thuis, zie §5) krijgt in het
 weekoverzicht bewust géén eigen regel: T-blokken staan gewoon in de dagtabel en
 tellen mee in het SOORT-totaal, meer niet — thuis-tijd is minder een getal dat je

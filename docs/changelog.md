@@ -867,3 +867,73 @@ T-blokken (203 min) op de juiste adressen (Beesdseweg 3a-18 t/m 3a-21); met
 postcode `4104AV` als T gekoppeld werden 24 en 25 juni volledige dagen van elf
 blokken. Beide testwaarden zijn daarna weer verwijderd en de matching opnieuw
 gedraaid, zodat de dataset staat zoals hij stond.
+
+## 2026-09-07 — Aansluiting per werkbon onder elk dagoverzicht
+
+Uitvoering van het besluit van vandaag (`docs/decisions.md`,
+`docs/functioneel-ontwerp.md` §6). De bestaande dag-vergelijking is één geblendet
+paar getallen: alle geboekte uren van die dag tegenover alle SOORT=W-tijd van die
+dag. Daarin heffen precies de gevallen elkaar op die de app moet vinden — vier
+uur doorgebracht op werkbon A terwijl de uren op werkbon B geboekt zijn, telt in
+een dagtotaal keurig op tot nul. Onder elk dagoverzicht staat daarom nu een
+tabel **"Aansluiting per werkbon"**, náást die regel en niet in plaats ervan.
+
+**Eén regel per werkbon van die dag**, uit beide bronnen: de vereniging van de
+werkbonnen in `Uren.xlsx` en die van de W-tijdblokken, niet het snijvlak. Alle
+werkbonnen krijgen een regel, ook de kloppende — een werkbon met uren maar zonder
+enkel W-blok is het scherpste signaal dat deze tabel geeft, en die zou juist
+verdwijnen als alleen afwijkingen een regel kregen.
+
+**Kolomvolgorde: Op locatie, Gedeclareerd, Verschil.** Dit wijkt af van de
+volgorde in `docs/decisions.md` (Gedeclareerd — Op locatie — Verschil); de
+instructie noemt expliciet de volgorde die Roger bij het bevestigen aanhield en
+die is aangehouden. Het verschil blijft `gedeclareerd - op locatie`, dezelfde
+richting als de dagregel erboven, zodat een positief getal op beide plaatsen
+hetzelfde betekent: meer geboekt dan gereden.
+
+**Twee regels die geen werkbon zijn.** "Klant (niet aan werkbon gekoppeld)" draagt
+de SOORT=K-duur van die dag — een `BekendeLocatie`(K) heeft nergens in de data een
+werkbonnummer, dus er is niets om tegenover te zetten. Deze regel wordt altijd
+getoond, ook op nul: een ontbrekende regel zou gelezen worden als "geen
+klant-tijd onverantwoord", wat precies de verwarring is die de tabel moet
+wegnemen. Daarnaast "Zonder werkbonnummer (indirect)", die tijdens het bouwen uit
+de data naar voren kwam: **256 van de 462 urenregels in de juni-set hebben geen
+werkbonnummer** — kantoor, verlof, reisuren, tijd voor tijd, magazijnonderhoud,
+calculatie. Dat zijn echte geboekte uren die nooit een W-blok kunnen opleveren.
+Zonder die regel zou het totaal van de tabel niet aansluiten op het dagcijfer er
+vlak boven, met niets op het scherm dat het gat verklaart. Deze regel verschijnt
+alleen als er zulke uren zijn.
+
+**Ontbrekend is niet nul.** Een kant die niet van toepassing is wordt getoond als
+"–" en blijft leeg in Excel, in plaats van 0,00. Nul zou beweren dat de vraag
+gesteld is en leeg terugkwam.
+
+**Het dagtotaal** telt W én K op tegenover alle geboekte uren van die dag. De
+gedeclareerde kant is het dagcijfer zelf en niet de regels bij elkaar opgeteld:
+twee totalen die een cent uiteenlopen kosten meer vertrouwen dan de cent waard
+is. L (Locatie) en C (Crediteur) blijven er bewust buiten — dit gaat over aan een
+klant gekoppelde uren. Geen weekversie: alleen per dag, zoals besloten.
+
+**Geen migratie.** Beide bronnen bestonden al (`Tijdblok.werkbon` op de W-rijen,
+`Uren.werkbon`/`datum`/`aantal`); dit is puur aggregatie op weergavemoment,
+dezelfde lijn als de bestaande dagvergelijking (`docs/database.md`: "bewust niet
+opgeslagen — zou een tweede waarheid introduceren"). Ook geen nieuwe kleur: een
+verschil dat niet nul is krijgt de bestaande waarschuwingskleur `#D97706`, en de
+totaalregel blijft ongekleurd omdat een reconstructiedag vrijwel altijd een paar
+centen verschil heeft.
+
+Niet te verwarren met de volledigheidscontrole op `Werkbonnen.xlsx` (besluit
+02-09-2026): die kijkt over de hele levensloop van een werkbon of een afgeronde
+werkbon ooit uren kreeg. Deze aansluiting vergelijkt per dag twee al aanwezige
+bronnen, alleen per werkbon in plaats van geblendet.
+
+23 tests toegevoegd, 343 groen.
+
+**Verificatie op de echte juni-dataset (Docker).** Jesse Verkerk, 17 juni: vier
+werkbonnen, waarvan WB260917 met 1,50 uur geboekt en 0,00 op locatie — precies
+het geval dat in de oude dagregel wegviel. Dennis van de Berg, 6 juni: 0,38 uur
+klant-tijd (23 minuten) terwijl er die dag niets geboekt is, met een dagtotaal van
+0,38 tegenover 0,00 — het omgekeerde signaal, tijd die nergens gedeclareerd is.
+Beide gevallen renderen correct op de pagina en in de Excel-export, met de
+getallen als echte getallen (0,38 / 0 / -0,38) en een lege cel waar een kant niet
+van toepassing is.

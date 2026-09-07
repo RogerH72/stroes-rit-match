@@ -79,6 +79,45 @@ er een antwoord "ja" is, staat het vast en stopt de app met verder zoeken:
    heel kort, dan wordt hij als onopvallend "onbekend" gemarkeerd — te kort
    om ergens voor te staan.
 
+## Aansluiting per werkbon
+
+Onder elke dag staat een tabel die per werkbon twee getallen naast elkaar zet:
+
+- **Op locatie** — hoe lang de monteur volgens de ritgegevens daadwerkelijk op
+  het adres van die werkbon heeft gestaan.
+- **Gedeclareerd** — hoeveel uur er in Syntess op die werkbon is geboekt.
+
+Daarnaast staat het verschil. Het dagoverzicht had al één totaalregel voor de
+hele dag, maar daarin verdwijnt juist wat je wilt zien: of er tijd op de éne
+werkbon is doorgebracht terwijl de uren op een ándere zijn geboekt. Die twee
+heffen elkaar in een dagtotaal netjes op. Per werkbon vallen ze op.
+
+Elke werkbon van die dag krijgt een regel, ook als hij precies klopt. Dat is
+bewust: stond er alleen een regel bij een afwijking, dan zou "geen regel" al snel
+gelezen worden als "dus goed", terwijl het net zo goed kan betekenen dat er
+helemaal niets geboekt is.
+
+Twee regels horen niet bij een werkbon:
+
+- **Klant (niet aan werkbon gekoppeld)** — tijd op een adres dat als klant is
+  aangemerkt. Zo'n adres hangt nergens aan een werkbonnummer, dus er valt niets
+  tegenover te zetten; er staat daarom een streepje in plaats van een bedrag.
+- **Zonder werkbonnummer (indirect)** — geboekte uren die geen werkbonnummer
+  hebben: kantoor, verlof, reisuren, magazijnonderhoud. Die kunnen per definitie
+  nooit tijd op een klantadres opleveren.
+
+De totaalregel onderaan zet alle tijd bij klanten (werkbonnen én los aangemerkte
+klantadressen) tegenover alles wat er die dag geboekt is. Dat is het eigenlijke
+antwoord op de vraag waar het bij deze tabel om draait: is er tijd besteed die
+nergens is gedeclareerd?
+
+Een verschil is een reden om te kijken, geen fout. Een korte stop kan buiten de
+ritgegevens vallen, en één monteur boekt soms de uren voor een heel team.
+
+Let op: dit is iets anders dan de controle op de werkbonnenlijst. Die kijkt over
+de hele looptijd van een werkbon of er ooit uren op geboekt zijn. Deze tabel
+kijkt per dag, en vergelijkt twee gegevens die er allebei al zijn.
+
 ## Het resultaat
 
 Per monteur, per dag, ontstaat zo een overzicht van de hele werkdag met een

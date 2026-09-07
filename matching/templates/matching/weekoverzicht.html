@@ -89,6 +89,21 @@ comparison is shown per day as well as per week.
       font-size: 13px;
     }
     .vergelijking .prive b { color: var(--tekst); }
+    .aansluiting { margin: 14px 0 4px; }
+    .aansluiting h3 { font-size: 14px; margin: 0 0 6px; }
+    .aansluiting table { width: auto; min-width: 420px; }
+    .aansluiting th, .aansluiting td { padding: 6px 12px; font-size: 13px; }
+    .aansluiting .getal { text-align: right; white-space: nowrap; }
+    /* Only a real gap is coloured; the cent-sized rounding differences that
+       every reconstructed day has would otherwise light up the whole column. */
+    .aansluiting .afwijking { color: var(--waarschuwing); font-weight: 600; }
+    .aansluiting .totaalrij td { border-top: 2px solid var(--rand); font-weight: 600; }
+    .aansluiting .uitleg {
+      color: var(--grijze-tekst);
+      font-size: 12px;
+      margin: 6px 0 0;
+      max-width: 70ch;
+    }
     .waarschuwingskaart {
       background: #FDF3E3;
       border: 1px solid var(--waarschuwing);
@@ -290,6 +305,59 @@ comparison is shown per day as well as per week.
               <span class="vergelijk"><b>Privé</b> {{ dag.prive_uren }} u</span>
             {% endif %}
           </div>
+
+          {% if dag.heeft_aansluiting %}
+            {% comment %}
+            The line above blends every werkbon into one pair of numbers, which
+            cannot show time spent on one werkbon while the hours went onto
+            another. This table breaks that open per werkbon.
+            {% endcomment %}
+            <div class="aansluiting">
+              <h3>Aansluiting per werkbon</h3>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Werkbon</th>
+                    <th class="getal">Op locatie</th>
+                    <th class="getal">Gedeclareerd</th>
+                    <th class="getal">Verschil</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for regel in dag.aansluiting %}
+                    <tr>
+                      <td>{{ regel.label }}</td>
+                      <td class="getal">
+                        {% if regel.op_locatie == None %}&ndash;{% else %}{{ regel.op_locatie }}{% endif %}
+                      </td>
+                      <td class="getal">
+                        {% if regel.gedeclareerd == None %}&ndash;{% else %}{{ regel.gedeclareerd }}{% endif %}
+                      </td>
+                      <td class="getal{% if regel.verschil and not regel.sluit_aan %} afwijking{% endif %}">
+                        {% if regel.verschil == None %}&ndash;{% else %}{{ regel.verschil }}{% endif %}
+                      </td>
+                    </tr>
+                  {% endfor %}
+                  <tr class="totaalrij">
+                    <td>{{ dag.aansluiting_totaal.label }}</td>
+                    <td class="getal">{{ dag.aansluiting_totaal.op_locatie }}</td>
+                    <td class="getal">{{ dag.aansluiting_totaal.gedeclareerd }}</td>
+                    <td class="getal">{{ dag.aansluiting_totaal.verschil }}</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p class="uitleg">
+                Links wat de ritdata zegt dat er op dat adres is doorgebracht,
+                rechts wat er in Syntess op die werkbon is geboekt. Een
+                &ndash; betekent dat die kant er niet is: klant-tijd hangt aan
+                geen enkel werkbonnummer, en uren zonder werkbonnummer
+                (kantoor, verlof, reisuren, magazijnonderhoud) kunnen nooit een
+                W-blok opleveren. Een verschil is een reden om te kijken, geen
+                fout: een korte stop kan buiten de ritdata vallen en één
+                monteur boekt soms voor een heel team.
+              </p>
+            </div>
+          {% endif %}
         </details>
       {% endfor %}
     {% endif %}

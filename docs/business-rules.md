@@ -109,8 +109,34 @@ Gebouwd t/m roadmap-fase 3 (03-09-2026, commit `eea759c`, 143 tests groen — zi
 **Weergaveregels van het weekoverzicht (gebouwd 05-09-2026, roadmap-fase 6,
 240 tests groen):**
 
+- **Aansluiting per werkbon** (07-09-2026) — onder elk dagoverzicht staat een
+  tabel met één regel per werkbon die die dag voorkomt: de vereniging van de
+  werkbonnen in `Uren.xlsx` en die van de SOORT=W-tijdblokken, niet het snijvlak.
+  Per regel: **Op locatie** (opgetelde duur van de SOORT=W-tijdblokken met dat
+  werkbonnummer die dag), **Gedeclareerd** (som van `Uren.Aantal` voor die
+  werkbon/datum) en het verschil. Álle werkbonnen van de dag krijgen een regel,
+  ook de kloppende: een werkbon met uren maar zonder enkel W-blok is het
+  scherpste signaal dat deze tabel kan geven, en die zou onzichtbaar zijn als
+  "geen regel" ook "geen probleem" kon betekenen.
+  Twee regels vallen buiten het werkbon-stramien. **"Klant (niet aan werkbon
+  gekoppeld)"** draagt de totale SOORT=K-duur van die dag: een `BekendeLocatie`
+  met SOORT K heeft nergens in de data een werkbonnummer, dus daar hoort geen
+  gedeclareerd-cijfer bij. **"Zonder werkbonnummer (indirect)"** draagt de uren
+  die in `Uren.xlsx` géén werkbonnummer hebben (kantoor, verlof, reisuren,
+  magazijnonderhoud); die kunnen per definitie geen W-blok opleveren. Een
+  ontbrekende kant wordt als "–" getoond, niet als 0,00 — de vraag is daar niet
+  van toepassing, in plaats van gesteld en leeg teruggekomen.
+  Het dagtotaal onderaan telt W én K op tegenover alle geboekte uren van die dag,
+  en is daarmee het antwoord op de vraag waarvoor deze tabel er is: is er tijd
+  besteed die nergens op gedeclareerd is. **L (Locatie) en C (Crediteur) tellen
+  bewust niet mee** — dit gaat over aan een klant gekoppelde uren.
+  Niet te verwarren met de volledigheidscontrole op `Werkbonnen.xlsx` (besluit
+  02-09-2026): die kijkt over de hele levensloop van een werkbon of een afgeronde
+  werkbon ooit uren kreeg. Deze aansluiting vergelijkt per dag twee al aanwezige
+  bronnen, alleen per werkbon in plaats van geblendet.
 - **Totaal (excl. reistijd) vs. op locatie** (label bijgesteld 07-09-2026, was
-  "Gefactureerd" — de berekening is ongewijzigd) — per dag en per week wordt de som van
+  "Gefactureerd" — de berekening is ongewijzigd; deze regel blijft naast de
+  aansluitingstabel hierboven bestaan als snel totaalcijfer) — per dag en per week wordt de som van
   `Uren.Aantal` (de in Syntess geboekte uren van die monteur op die datum)
   gezet tegenover de opgetelde duur van de **SOORT=W**-tijdblokken (de tijd dat
   de monteur volgens RouteVision daadwerkelijk op een werkbon-adres stond). Dit

@@ -22,7 +22,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from matching import weekoverzicht as week
-from matching.models import LocatieType, Soort
+from matching.models import FaseStatus, LocatieType, Soort, Tijdblok, Uren
 from matching.tests import factories
 from matching.timeline.runner import run_matching
 from matching.weekoverzicht_excel import bestandsnaam, bouw_werkboek
@@ -689,3 +689,236 @@ class ThuisWeergaveTests(TestCase):
 
         self.assertIn("Thuis", cellen)  # the per-SOORT total row
         self.assertNotIn("Thuis (SOORT T)", cellen)  # but no comparison row
+
+
+class AansluitingPerWerkbonTests(TestCase):
+    """The per-werkbon reconciliation under each day (07-09-2026).
+
+    The day comparison above it blends every werkbon into one pair of numbers,
+    so it cannot show time spent on werkbon A while the hours went onto werkbon
+    B. These tests pin down that every werkbon of the day gets a row from either
+    source, that a side which cannot exist reads as absent rather than as zero,
+    and that the total is the same number the day line already shows.
+    """
+
+    TWEEDE_KLANT = ("Molenstraat 5", "4191 AA Geldermalsen")
+
+    def setUp(self):
+        self.monteur = factories.monteur("Jesse", "005", "M5")
+        factories.bekende_locatie(
+            LocatieType.POSTCODE, "4104 AC", Soort.LOCATIE, "Magazijn", is_depot=True
+        )
+        # Two customer stops of an hour each, on two different werkbonnen.
+        _rit("M5", MAANDAG, "07:00", "07:30", THUIS, KLANT)
+        _rit("M5", MAANDAG, "08:30", "09:00", KLANT, self.TWEEDE_KLANT)
+        _rit("M5", MAANDAG, "10:00", "10:30", self.TWEEDE_KLANT, THUIS)
+        factories.urenregel(
+            "005", MAANDAG, "WB1000",
+            adres=KLANT[0], postcode="4196 HB", plaats="TRICHT", aantal="1.00",
+        )
+        factories.urenregel(
+            "005", MAANDAG, "WB2000",
+            adres=self.TWEEDE_KLANT[0], postcode="4191 AA", plaats="GELDERMALSEN",
+            aantal="1.00",
+        )
+
+    def _dag(self):
+        run_matching(force=True)
+        return week.bouw_weekoverzicht(self.monteur, *WEEK).dagen[0]
+
+    def _regels(self, dag):
+        return {regel.label: regel for regel in dag.aansluiting}
+
+    def _tweede_stop_vrijgeven(self):
+        """Drop the booked hours of the second stop, so it is not a W any more.
+
+        Booked hours outrank the koppeltabel in the priority order, so a stop
+        with an Uren row on it can never come out as K, C or a Werkbonnen.xlsx
+        fallback — the classification has to be freed up first.
+        """
+        Uren.objects.filter(werkbon="WB2000").delete()
+
+    def test_each_werkbon_of_the_day_gets_its_own_row(self):
+        regels = self._regels(self._dag())
+
+        self.assertIn("WB1000", regels)
+        self.assertIn("WB2000", regels)
+        self.assertEqual(regels["WB1000"].op_locatie, Decimal("1.00"))
+        self.assertEqual(regels["WB1000"].gedeclareerd, Decimal("1.00"))
+        self.assertEqual(regels["WB1000"].verschil, Decimal("0.00"))
+        self.assertTrue(regels["WB1000"].sluit_aan)
+
+    def test_hours_booked_on_a_werkbon_with_no_time_on_site_still_get_a_row(self):
+        # The loudest signal the table can give, so it must never be the row
+        # that happens to be missing.
+        factories.urenregel("005", MAANDAG, "WB9999", aantal="4.00")
+
+        regel = self._regels(self._dag())["WB9999"]
+
+        self.assertEqual(regel.op_locatie, Decimal("0.00"))
+        self.assertEqual(regel.gedeclareerd, Decimal("4.00"))
+        self.assertEqual(regel.verschil, Decimal("4.00"))
+        self.assertFalse(regel.sluit_aan)
+
+    def test_time_on_site_without_any_booked_hours_also_gets_a_row(self):
+        # The reverse case: an hour spent on a werkbon nobody declared. It
+        # reaches the timeline through the Werkbonnen.xlsx postcode fallback,
+        # which is the one path that produces a W block without an Uren row.
+        self._tweede_stop_vrijgeven()
+        factories.werkbon_controle(
+            "WB2000", "005", MAANDAG, FaseStatus.AFGEROND, postcode="4191 AA"
+        )
+
+        regel = self._regels(self._dag())["WB2000"]
+
+        self.assertEqual(regel.op_locatie, Decimal("1.00"))
+        self.assertEqual(regel.gedeclareerd, Decimal("0.00"))
+        self.assertEqual(regel.verschil, Decimal("-1.00"))
+
+    def test_hours_without_a_werkbon_number_get_their_own_row(self):
+        # Kantoor, verlof, reisuren: real booked hours that can never produce a
+        # W block. Leaving them out would make the table total disagree with the
+        # day figure right above it.
+        factories.urenregel("005", MAANDAG, "", aantal="2.00")
+
+        regel = self._regels(self._dag())[week.INDIRECT_LABEL]
+
+        self.assertIsNone(regel.op_locatie)
+        self.assertEqual(regel.gedeclareerd, Decimal("2.00"))
+        self.assertIsNone(regel.verschil)
+
+    def test_there_is_no_indirect_row_when_every_line_has_a_werkbon(self):
+        self.assertNotIn(week.INDIRECT_LABEL, self._regels(self._dag()))
+
+    def test_client_time_is_its_own_row_without_a_declared_figure(self):
+        # A BekendeLocatie(K) carries no werkbon number anywhere in the data, so
+        # there is nothing to compare it against — absent, not zero.
+        self._tweede_stop_vrijgeven()
+        factories.bekende_locatie(
+            LocatieType.POSTCODE, "4191 AA", Soort.KLANT, "Vaste klant"
+        )
+
+        regel = self._regels(self._dag())[week.KLANT_LABEL]
+
+        self.assertEqual(regel.op_locatie, Decimal("1.00"))
+        self.assertIsNone(regel.gedeclareerd)
+        self.assertIsNone(regel.verschil)
+
+    def test_the_client_row_is_shown_even_when_there_is_no_client_time(self):
+        # An absent row would read as "no client time unaccounted for", which is
+        # exactly the confusion this table exists to remove.
+        regel = self._regels(self._dag())[week.KLANT_LABEL]
+
+        self.assertEqual(regel.op_locatie, Decimal("0.00"))
+
+    def test_client_time_counts_towards_the_day_total(self):
+        self._tweede_stop_vrijgeven()
+        factories.bekende_locatie(
+            LocatieType.POSTCODE, "4191 AA", Soort.KLANT, "Vaste klant"
+        )
+        dag = self._dag()
+
+        # One hour of W (WB1000) plus one hour of K.
+        self.assertEqual(dag.aansluiting_totaal.op_locatie, Decimal("2.00"))
+
+    def test_locatie_and_crediteur_stay_out_of_the_total(self):
+        # Deliberately client-linked hours only (docs/decisions.md, 07-09-2026).
+        self._tweede_stop_vrijgeven()
+        factories.bekende_locatie(
+            LocatieType.POSTCODE, "4191 AA", Soort.CREDITEUR, "Groothandel"
+        )
+        dag = self._dag()
+
+        self.assertEqual(dag.aansluiting_totaal.op_locatie, Decimal("1.00"))
+
+    def test_the_total_matches_the_day_comparison_above_it(self):
+        # Two totals a few cents apart would cost more trust than the cents are
+        # worth, so the declared side is the day figure itself.
+        dag = self._dag()
+
+        self.assertEqual(dag.aansluiting_totaal.gedeclareerd, dag.gefactureerde_uren)
+        self.assertEqual(dag.aansluiting_totaal.op_locatie, dag.uren_op_locatie)
+
+    def test_a_day_with_nothing_to_reconcile_shows_no_table(self):
+        self._dag()
+        Uren.objects.all().delete()
+        Tijdblok.objects.filter(soort=Soort.WERKBON).delete()
+
+        dag = week.bouw_weekoverzicht(self.monteur, *WEEK).dagen[0]
+
+        self.assertFalse(dag.heeft_aansluiting)
+
+
+class AansluitingWeergaveTests(TestCase):
+    """The table has to reach both renderings, page and Excel."""
+
+    def setUp(self):
+        self.monteur = factories.monteur("Jesse", "005", "M5")
+        factories.bekende_locatie(
+            LocatieType.POSTCODE, "4104 AC", Soort.LOCATIE, "Magazijn", is_depot=True
+        )
+        _werkdag("M5", MAANDAG)
+        factories.urenregel(
+            "005", MAANDAG, "WB260908",
+            adres=KLANT[0], postcode="4196 HB", plaats="TRICHT", aantal="2.50",
+        )
+        # A werkbon with hours but no time on site: the mismatch to look for.
+        factories.urenregel("005", MAANDAG, "WB260999", aantal="4.00")
+        run_matching(force=True)
+
+        self.gebruiker = User.objects.create_user("kijker", "k@sbtt.nl", "geheim")
+        self.client.force_login(self.gebruiker)
+
+    def _pagina(self):
+        return self.client.get(
+            reverse("weekoverzicht"),
+            {"monteur": self.monteur.pk, "week": "2026-W32"},
+        ).content.decode()
+
+    def test_the_page_shows_the_table_with_both_werkbonnen(self):
+        inhoud = self._pagina()
+
+        self.assertIn("Aansluiting per werkbon", inhoud)
+        self.assertIn("Op locatie", inhoud)
+        self.assertIn("Gedeclareerd", inhoud)
+        self.assertIn("WB260908", inhoud)
+        self.assertIn("WB260999", inhoud)
+
+    def test_the_page_keeps_the_existing_day_comparison_as_well(self):
+        # The new table sits alongside the old line, not instead of it.
+        inhoud = self._pagina()
+
+        self.assertIn("Totaal (excl. reistijd)", inhoud)
+        self.assertIn("Aansluiting per werkbon", inhoud)
+
+    def test_the_page_shows_the_client_row(self):
+        self.assertIn(week.KLANT_LABEL, self._pagina())
+
+    def test_the_excel_export_carries_the_same_table(self):
+        overzicht = week.bouw_weekoverzicht(self.monteur, *WEEK)
+        boek = openpyxl.load_workbook(io.BytesIO(bouw_werkboek(overzicht)))
+        cellen = [
+            cel.value
+            for rij in boek.active.iter_rows()
+            for cel in rij
+            if cel.value is not None
+        ]
+
+        self.assertIn("Aansluiting per werkbon", cellen)
+        self.assertIn("WB260908", cellen)
+        self.assertIn("WB260999", cellen)
+        self.assertIn(week.KLANT_LABEL, cellen)
+        self.assertIn(4.0, cellen)  # the undeclared werkbon gap, as a number
+
+    def test_the_excel_export_leaves_an_absent_side_empty(self):
+        overzicht = week.bouw_weekoverzicht(self.monteur, *WEEK)
+        boek = openpyxl.load_workbook(io.BytesIO(bouw_werkboek(overzicht)))
+
+        rij = next(
+            r for r in boek.active.iter_rows() if r[0].value == week.KLANT_LABEL
+        )
+        # Op locatie is written; gedeclareerd and verschil stay empty, because
+        # the question does not apply rather than having come back zero.
+        self.assertEqual(rij[2].value, 0.0)
+        self.assertIsNone(rij[3].value)
+        self.assertIsNone(rij[4].value)

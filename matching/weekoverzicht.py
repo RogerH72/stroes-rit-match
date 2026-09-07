@@ -184,12 +184,63 @@ class WeekRegel:
         return normalize.minutes_to_hhmm(self.blok.duur_minuten)
 
 
+#: Label of the row that carries the K time — client time that no werkbon can
+#: account for, because a BekendeLocatie(K) has no werkbon number anywhere in the
+#: data (docs/decisions.md, 07-09-2026).
+KLANT_LABEL = "Klant (niet aan werkbon gekoppeld)"
+
+#: Label of the row that carries the booked hours with no werkbon number on them
+#: — Kantoor, Verlof, Reisuren, Magazijn onderhoud and the like. Over half of the
+#: urenregels in the June data are of this kind, so leaving them out would make
+#: the table's own total disagree with the day figure right above it.
+INDIRECT_LABEL = "Zonder werkbonnummer (indirect)"
+
+
+@dataclass(frozen=True)
+class AansluitingRegel:
+    """One line of the per-werkbon reconciliation of a day.
+
+    Either side can be absent rather than zero, and the difference is the two
+    sides being genuinely comparable:
+
+    - a K row has no `gedeclareerd`, because client time carries no werkbon
+      number to book hours against;
+    - the indirect row has no `op_locatie`, because hours without a werkbon
+      number can never produce a W block to stand at.
+
+    Absent is not zero: "–" says the question does not apply here, while 0,00
+    would claim it was asked and came back empty.
+    """
+
+    label: str
+    op_locatie: Decimal | None
+    gedeclareerd: Decimal | None
+
+    @property
+    def verschil(self) -> Decimal | None:
+        """Declared minus on-site, or None when the two are not comparable.
+
+        Same direction as the day comparison above this table, so a positive
+        number means the same thing in both places: more booked than driven to.
+        """
+        if self.op_locatie is None or self.gedeclareerd is None:
+            return None
+        return self.gedeclareerd - self.op_locatie
+
+    @property
+    def sluit_aan(self) -> bool:
+        return self.verschil == Decimal("0.00")
+
+
 @dataclass
 class DagOverzicht:
     """One reconstructed day, with its totals."""
 
     datum: dt.date
     regels: list[WeekRegel] = field(default_factory=list)
+    #: Booked hours per werkbon number on this date, "" holding the ones with no
+    #: werkbon number at all.
+    gedeclareerd_per_werkbon: dict[str, Decimal] = field(default_factory=dict)
     #: Hours booked in Uren.xlsx on this date — the left-hand side of the
     #: comparison. On screen this is labelled "Totaal (excl. reistijd)" since
     #: 07-09-2026; the field keeps its original name because the value is
@@ -241,6 +292,104 @@ class DagOverzicht:
     def verschil(self) -> Decimal:
         """Booked minus on-location. Positive: more booked than driven to."""
         return self.gefactureerde_uren - self.uren_op_locatie
+
+    def _minuten_per_werkbon(self) -> dict[str, int]:
+        """Reconstructed minutes per werkbon on this day, from the W blocks."""
+        per_werkbon: dict[str, int] = {}
+        for regel in self.regels:
+            if regel.blok.soort == Soort.WERKBON and regel.blok.werkbon:
+                per_werkbon[regel.blok.werkbon] = (
+                    per_werkbon.get(regel.blok.werkbon, 0) + regel.blok.duur_minuten
+                )
+        return per_werkbon
+
+    @property
+    def klant_minuten(self) -> int:
+        return sum(
+            regel.blok.duur_minuten
+            for regel in self.regels
+            if regel.blok.soort == Soort.KLANT
+        )
+
+    @property
+    def aansluiting(self) -> list[AansluitingRegel]:
+        """Per-werkbon reconciliation of this day: on site against declared.
+
+        The day comparison above this table blends every werkbon into one pair of
+        numbers, which cannot show that four hours were spent on werkbon A while
+        the hours were booked on werkbon B — the discrepancy this app exists to
+        find (docs/decisions.md, 07-09-2026).
+
+        Every werkbon of the day gets a row, from either source: booked hours,
+        reconstructed W blocks, or both. Rows are never dropped for reconciling,
+        and above all never for having nothing on one side — a werkbon with hours
+        but no W block at all is the loudest signal this table can give, and
+        leaving it out would turn it into silence.
+
+        Not to be confused with the volledigheidscontrole (docs/decisions.md,
+        02-09-2026): that one asks, over a werkbon's whole life, whether a
+        finished werkbon ever got hours. This asks, for one day, whether two
+        sources that are both already present agree.
+        """
+        op_locatie = self._minuten_per_werkbon()
+        gedeclareerd = self.gedeclareerd_per_werkbon
+
+        werkbonnen = sorted(set(op_locatie) | {w for w in gedeclareerd if w})
+        regels = [
+            AansluitingRegel(
+                label=werkbon,
+                op_locatie=_naar_uren(op_locatie.get(werkbon, 0)),
+                gedeclareerd=gedeclareerd.get(werkbon, Decimal("0.00")),
+            )
+            for werkbon in werkbonnen
+        ]
+
+        indirect = gedeclareerd.get("", Decimal("0.00"))
+        if indirect:
+            regels.append(
+                AansluitingRegel(
+                    label=INDIRECT_LABEL, op_locatie=None, gedeclareerd=indirect
+                )
+            )
+
+        # Always shown, also at nil: this row is the answer to "was there client
+        # time no werkbon accounts for", and an absent row reads as "no", which
+        # is exactly the confusion the table is meant to remove.
+        regels.append(
+            AansluitingRegel(
+                label=KLANT_LABEL,
+                op_locatie=_naar_uren(self.klant_minuten),
+                gedeclareerd=None,
+            )
+        )
+        return regels
+
+    @property
+    def aansluiting_totaal(self) -> AansluitingRegel:
+        """The day's bottom line: all time on site against everything declared.
+
+        On site counts W and K together — K is client time too, it just carries
+        no werkbon number. L (locatie) and C (crediteur) stay out: the question
+        is about hours attached to a client (docs/decisions.md, 07-09-2026).
+
+        The declared side is the day figure itself rather than the rows added up,
+        so this total is the same number as the comparison directly above the
+        table. Two totals differing by a rounding cent would cost more trust than
+        the cent is worth.
+        """
+        minuten = sum(self._minuten_per_werkbon().values()) + self.klant_minuten
+        return AansluitingRegel(
+            label="Totaal",
+            op_locatie=_naar_uren(minuten),
+            gedeclareerd=self.gefactureerde_uren,
+        )
+
+    @property
+    def heeft_aansluiting(self) -> bool:
+        """Whether this day has anything to reconcile at all."""
+        return any(
+            regel.op_locatie or regel.gedeclareerd for regel in self.aansluiting
+        )
 
 
 @dataclass
@@ -345,6 +494,7 @@ def bouw_weekoverzicht(monteur: Monteur, jaar: int, week: int) -> WeekOverzicht:
     zondag = maandag + dt.timedelta(days=6)
 
     uren_per_dag = _geboekte_uren(monteur, maandag, zondag)
+    uren_per_werkbon = _geboekte_uren_per_werkbon(monteur, maandag, zondag)
 
     dagen: dict[dt.date, DagOverzicht] = {}
     blokken = Tijdblok.objects.filter(
@@ -356,6 +506,7 @@ def bouw_weekoverzicht(monteur: Monteur, jaar: int, week: int) -> WeekOverzicht:
             dag = dagen[blok.datum] = DagOverzicht(
                 datum=blok.datum,
                 gefactureerde_uren=uren_per_dag.get(blok.datum, Decimal("0.00")),
+                gedeclareerd_per_werkbon=uren_per_werkbon.get(blok.datum, {}),
             )
         dag.regels.append(_regel(blok))
 
@@ -405,6 +556,34 @@ def _geboekte_uren(
         rij["datum"]: (rij["totaal"] or Decimal(0)).quantize(Decimal("0.01"))
         for rij in rijen
     }
+
+
+def _geboekte_uren_per_werkbon(
+    monteur: Monteur, van: dt.date, tot: dt.date
+) -> dict[dt.date, dict[str, Decimal]]:
+    """Hours booked per date *and* werkbon — the declared side of the reconciliation.
+
+    The same rows `_geboekte_uren` totals, only grouped one level finer. Rows
+    without a werkbon number keep their empty key rather than being filtered out:
+    they are real booked hours (Kantoor, Verlof, Reisuren, Magazijn onderhoud),
+    and dropping them would leave the table's own total short of the day figure
+    it sits under, with nothing on screen to explain the gap.
+    """
+    rijen = (
+        Uren.objects.filter(
+            medewerker=monteur.medewerker_nummer, datum__range=(van, tot)
+        )
+        .values("datum", "werkbon")
+        .annotate(totaal=Sum("aantal"))
+    )
+    per_dag: dict[dt.date, dict[str, Decimal]] = {}
+    for rij in rijen:
+        # `aantal` is nullable, so a werkbon whose rows are all empty sums to
+        # None; quantised for the same reason as in _geboekte_uren.
+        per_dag.setdefault(rij["datum"], {})[rij["werkbon"]] = (
+            rij["totaal"] or Decimal(0)
+        ).quantize(Decimal("0.01"))
+    return per_dag
 
 
 def _ontbrekende_dagen(

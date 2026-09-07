@@ -1,10 +1,13 @@
 from django.contrib import admin, messages
 from django.core.exceptions import PermissionDenied
 from django.http import HttpResponseRedirect
+from django.shortcuts import render
 from django.urls import path, reverse, reverse_lazy
 from django.utils.decorators import method_decorator
 from django.views.decorators.http import require_POST
 
+from matching import reset
+from matching.forms import DataResetForm
 from matching.models import (
     BekendeLocatie,
     ImportedFile,
@@ -280,6 +283,14 @@ class MatchmotorStatusAdmin(admin.ModelAdmin):
                 self.admin_site.admin_view(self.run_matching_view),
                 name="matching_matchmotorstatus_run",
             ),
+            # Lives under this admin because this is the screen the two belong
+            # together on: reset the data, then deliberately read it in and
+            # recompute. It is not a MatchmotorStatus operation as such.
+            path(
+                "data-resetten/",
+                self.admin_site.admin_view(self.data_resetten_view),
+                name="matching_data_resetten",
+            ),
             *super().get_urls(),
         ]
 
@@ -326,3 +337,70 @@ class MatchmotorStatusAdmin(admin.ModelAdmin):
             level=messages.SUCCESS,
         )
         return HttpResponseRedirect(redirect_to)
+
+    def data_resetten_view(self, request):
+        """Empty the import/matching tables on purpose — everything, or a period.
+
+        Three states on one endpoint: the form (GET), the preview of what would
+        go (POST), and the reset itself (POST with the confirmation field set).
+        Two POSTs rather than one, because the preview is the whole point — a
+        user should see "1190 urenregels" before agreeing to it, not afterwards.
+
+        Superuser-only, checked here rather than through a model permission:
+        this is a technical repair tool, not an SBTT staff function, and it does
+        not belong to any one model whose permission could carry it
+        (docs/decisions.md, 07-09-2026).
+
+        Deliberately does not reimport or recompute afterwards, for the same
+        reason the file detection never reprocesses by itself: what the screen
+        shows must never change without someone asking for it.
+        """
+        if not request.user.is_superuser:
+            raise PermissionDenied
+
+        context = {
+            **self.admin_site.each_context(request),
+            "title": "Data resetten",
+            # What is there now, so the choice is made against real numbers
+            # rather than from memory.
+            "huidig": reset.tel(reset.volledige_selectie()),
+            "opts": self.opts,
+        }
+
+        if request.method != "POST":
+            return render(
+                request,
+                "admin/matching/data_resetten.html",
+                {**context, "form": DataResetForm()},
+            )
+
+        form = DataResetForm(request.POST)
+        if not form.is_valid():
+            return render(
+                request,
+                "admin/matching/data_resetten.html",
+                {**context, "form": form},
+            )
+
+        selectie = form.selectie()
+
+        # The confirmation field only exists on the preview page, so a first
+        # POST can never delete: it can only ever produce the preview that asks.
+        if request.POST.get("bevestigd") != "ja":
+            return render(
+                request,
+                "admin/matching/data_resetten_bevestigen.html",
+                {**context, "form": form, "telling": reset.tel(selectie)},
+            )
+
+        telling = reset.verwijder(selectie)
+        self.message_user(
+            request,
+            f"Data resetten uitgevoerd — verwijderd: {telling.samenvatting()}. "
+            "Er is niets opnieuw ingelezen of herberekend; doe dat als aparte "
+            "stap.",
+            level=messages.SUCCESS if telling.totaal else messages.WARNING,
+        )
+        return HttpResponseRedirect(
+            reverse("admin:matching_matchmotorstatus_changelist")
+        )

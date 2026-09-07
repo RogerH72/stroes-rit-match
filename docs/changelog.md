@@ -610,3 +610,52 @@ export bevat voor Dennis alleen ritten van 03-08 t/m 24-08, met een gat in week 
 (ma t/m vr, terwijl er wel 8 uur per dag geboekt is). Ook Maarten Jaarsma stopt op
 15-08. Het weekoverzicht meldt dit netjes als "onvolledige week", maar het is een
 dekkingsvraag over de RouteVision-export zelf om met Roger na te lopen.
+
+## 2026-09-07 — Beheeractie "Data resetten" gebouwd
+
+Het besluit van vandaag (`docs/decisions.md`, `docs/functioneel-ontwerp.md` §4) is
+gebouwd: een eigen admin-scherm met twee modi, los van de generieke Django
+bulk-delete-acties — die op de importtabellen bewust dicht blijven staan
+(`has_delete_permission=False`) en er sowieso niet geschikt voor waren.
+
+Te bereiken via een link op het matchmotor-scherm, naast "Matching nu draaien";
+de twee horen bij elkaar als resetten en daarna bewust opnieuw inlezen.
+
+**Volledig leegmaken** verwijdert Tijdblok, Uren, Rit, Relatie, WerkbonControle en
+ImportedFile. **Periode verwijderen** filtert Tijdblok, Uren, Rit en
+WerkbonControle op een van-tot bereik (inclusief aan beide kanten), elk op zijn
+eigen datumveld — `vertrekdatum` voor Rit, want dat is de dag waarop de matching
+een rit ook indeelt. Relatie en ImportedFile blijven bewust buiten de
+periode-modus, zodat een periode-reset nooit stilzwijgend de verwerkt-status van
+een bronbestand wist; opnieuw inlezen blijft `check_imports --reprocess`.
+
+De koppeltabellen (Monteur, BekendeLocatie, Instelling, MeegeredenKoppeling,
+ToleranceRegel, MatchmotorStatus) worden door geen van beide modi geraakt.
+
+Vormgegeven als drie stappen op één endpoint: het formulier (GET), een preview met
+het aantal rijen per tabel (POST), en pas daarna de reset zelf (POST mét het
+bevestigingsveld, dat alleen op de previewpagina staat). Een eerste POST kán
+daardoor niets verwijderen — die kan alleen de vraag stellen. Alleen voor
+superusers, gecontroleerd op `request.user.is_superuser` in plaats van op een
+modelrecht: dit is een technisch herstelmiddel, geen SBTT-personeelsfunctie, en
+het hoort ook niet bij één model waarvan het recht het zou kunnen dragen. De
+verwijderingen van een modus draaien in één `transaction.atomic()`.
+
+De logica staat in `matching/reset.py`, apart van de admin — dezelfde opzet als
+`matching/timeline/runner.py` bij "Matching nu draaien", zodat het gedrag los van
+het scherm te testen is. Tellen en verwijderen draaien op dezelfde querysets, zodat
+de preview die iemand bevestigt niet kan afwijken van wat er daarna weggaat. Na
+afloop wordt er niets opnieuw ingelezen of herberekend — bewust, net als bij de
+bestandsdetectie, die ook nooit uit zichzelf herverwerkt.
+
+24 tests toegevoegd (`matching/tests/test_data_resetten.py`), samen 300 groen: beide
+modi, de inclusieve bereikgrenzen, dat een preview niets verwijdert, dat de
+koppeltabellen na afloop ongewijzigd zijn, en de superuser-grens — met een
+beheerdersaccount dat wél elk modelrecht in de app heeft, zodat de test aantoont
+dat rechten niet zijn wat dit scherm opent.
+
+Nagelopen op de echte augustus-data in Docker: het formulier toont de juiste
+aantallen (1190 urenregels, 853 tijdblokken, 4 importbestanden), een preview van
+week 33 telt 407 rijen zonder er één te verwijderen, en de bevestigde reset van een
+lege periode doorloopt de hele keten zonder iets te raken. De augustus-dataset is
+bij het testen intact gebleven.

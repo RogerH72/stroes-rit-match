@@ -1,0 +1,53 @@
+{% extends "admin/base_site.html" %}
+{% comment %}
+Step 1 of the reset: pick a mode. Submitting lands on the confirmation page,
+which is where anything is actually agreed to — this form only ever produces a
+preview.
+{% endcomment %}
+
+{% block breadcrumbs %}
+  <div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">Beheer</a>
+    &rsaquo; <a href="{% url 'admin:matching_matchmotorstatus_changelist' %}">Matchmotor</a>
+    &rsaquo; Data resetten
+  </div>
+{% endblock %}
+
+{% block content %}
+  <div class="module" style="padding: 12px 14px; margin-bottom: 16px;">
+    <h2 style="margin-top: 0;">Wat staat er nu</h2>
+    <table>
+      <tbody>
+        {% for naam, aantal in huidig.regels %}
+          <tr>
+            <th style="text-align: left; padding-right: 24px;">{{ naam|capfirst }}</th>
+            <td>{{ aantal }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="module" style="padding: 12px 14px;">
+    <form method="post">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <p class="help">
+        De koppeltabellen blijven altijd ongemoeid: monteurs, bekende locaties,
+        instellingen, meegereden-koppelingen en de tolerantietabel worden nooit
+        door een reset geraakt.
+      </p>
+      <p class="help">
+        Een periode-reset laat de relaties en de lijst met ingelezen bestanden
+        staan. Wil je een bronbestand voor die periode opnieuw inlezen, dan blijft
+        dat een aparte stap: <code>check_imports --reprocess</code>.
+      </p>
+      <p class="help">
+        Na een reset wordt er niets automatisch opnieuw ingelezen of herberekend.
+      </p>
+      <button type="submit" class="default">Toon wat er verwijderd wordt</button>
+      &nbsp;
+      <a href="{% url 'admin:matching_matchmotorstatus_changelist' %}">Annuleren</a>
+    </form>
+  </div>
+{% endblock %}

@@ -1,0 +1,72 @@
+{% extends "admin/base_site.html" %}
+{% comment %}
+Step 2: the preview, and the only page that carries `bevestigd`. The chosen mode
+travels back as hidden fields so the view re-validates and rebuilds the very same
+selection rather than trusting anything held between requests.
+{% endcomment %}
+
+{% block breadcrumbs %}
+  <div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">Beheer</a>
+    &rsaquo; <a href="{% url 'admin:matching_matchmotorstatus_changelist' %}">Matchmotor</a>
+    &rsaquo; <a href="{% url 'admin:matching_data_resetten' %}">Data resetten</a>
+    &rsaquo; Bevestigen
+  </div>
+{% endblock %}
+
+{% block content %}
+  <div class="module" style="padding: 12px 14px;">
+    {% if form.cleaned_data.modus == form.MODUS_VOLLEDIG %}
+      <h2 style="margin-top: 0;">Volledig leegmaken</h2>
+      <p>Alle ingelezen en berekende gegevens worden verwijderd.</p>
+    {% else %}
+      <h2 style="margin-top: 0;">Periode verwijderen</h2>
+      <p>
+        Alles van <strong>{{ form.cleaned_data.van }}</strong> tot en met
+        <strong>{{ form.cleaned_data.tot }}</strong> wordt verwijderd.
+        Relaties en de lijst met ingelezen bestanden blijven staan.
+      </p>
+    {% endif %}
+
+    <table>
+      <tbody>
+        {% for naam, aantal in telling.regels %}
+          <tr>
+            <th style="text-align: left; padding-right: 24px;">{{ naam|capfirst }}</th>
+            <td>{{ aantal }}</td>
+          </tr>
+        {% endfor %}
+        <tr>
+          <th style="text-align: left; padding-right: 24px;">Totaal</th>
+          <td><strong>{{ telling.totaal }}</strong></td>
+        </tr>
+      </tbody>
+    </table>
+
+    {% if telling.totaal %}
+      <p style="margin-top: 16px;">
+        <strong>Dit kan niet ongedaan gemaakt worden.</strong> De gegevens komen
+        pas terug door de bronbestanden opnieuw in te lezen en de matching
+        opnieuw te draaien — allebei aparte stappen.
+      </p>
+      <form method="post" action="{% url 'admin:matching_data_resetten' %}">
+        {% csrf_token %}
+        {# The validated choice, sent back so the view rebuilds the same selection. #}
+        <input type="hidden" name="modus" value="{{ form.cleaned_data.modus }}">
+        <input type="hidden" name="van" value="{{ form.cleaned_data.van|date:'Y-m-d' }}">
+        <input type="hidden" name="tot" value="{{ form.cleaned_data.tot|date:'Y-m-d' }}">
+        <input type="hidden" name="bevestigd" value="ja">
+        <button type="submit" class="default" style="background: #ba2121;">
+          Ja, definitief verwijderen
+        </button>
+        &nbsp;
+        <a href="{% url 'admin:matching_data_resetten' %}">Annuleren</a>
+      </form>
+    {% else %}
+      <p style="margin-top: 16px;">
+        Er is niets om te verwijderen.
+        <a href="{% url 'admin:matching_data_resetten' %}">Terug</a>
+      </p>
+    {% endif %}
+  </div>
+{% endblock %}

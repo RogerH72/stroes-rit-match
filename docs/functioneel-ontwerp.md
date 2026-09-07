@@ -181,9 +181,9 @@ alleen Uren/Rit/WerkbonControle/Tijdblok; Relatie en ImportedFile blijven daarbu
 zodat een periode-reset niet stilletjes de verwerkt-status van een bronbestand
 wijzigt). Beide tonen eerst een preview en vereisen een expliciete bevestiging;
 alleen beschikbaar voor superusers. Herimporteren/herberekenen na een reset blijft,
-net als bij "Matching nu draaien", een bewuste, aparte stap. Nog niet gebouwd.
-
-De precieze schermindeling is nog niet uitgewerkt.
+net als bij "Matching nu draaien", een bewuste, aparte stap. Gebouwd op
+07-09-2026: `matching/reset.py` met het scherm eronder in `matching/admin.py`, te
+bereiken via een link op het matchmotor-scherm (zie `docs/changelog.md`).
 
 ## 5. Uitzonderingenscherm (roadmap-fase 5)
 

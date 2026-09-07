@@ -24,6 +24,16 @@ refreshed tab or a link preview should be able to set off.
       &nbsp;·&nbsp;
       <a href="{% url 'uitzonderingen' %}">Uitzonderingen bekijken &rarr;</a>
     </p>
+    {% if request.user.is_superuser %}
+      {# Superusers only, like the view itself: a repair tool, not a daily one. #}
+      <p style="margin: 12px 0 0;">
+        <a href="{% url 'admin:matching_data_resetten' %}">Data resetten &rarr;</a>
+        <span class="help">
+          Import- en matchgegevens leegmaken, volledig of per periode. Leest
+          daarna niets opnieuw in.
+        </span>
+      </p>
+    {% endif %}
   </div>
   {{ block.super }}
 {% endblock %}

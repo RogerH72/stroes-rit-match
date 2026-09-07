@@ -221,15 +221,49 @@ RouteVision-data komt voor de PoC uit een handmatige download, niet uit de API.
    netwerkbestandssysteem, wat SQLite afraadt vanwege corruptierisico bij
    gelijktijdig schrijven. Geldt alleen voor testen met échte klantdata; de
    gewone ontwikkel-cyclus verandert niet. Zie `docs/decisions.md` (07-09-2026).
-17. **Eerstvolgende stap:** de uitgebreide analyse van de matchresultaten op de
-   echte augustus-data, dan pas verder met roadmap-fase 7 (oplevering) — het
-   draaiboek staat klaar in `DRAAIBOEK.md`, met drie nog niet definitieve
-   onderdelen (VM-gegevens, het `backup_db`-commando, §7 "eerste inrichting").
-   Neem daarbij verder mee: bij het configureren van het echte depotadres voor
+17. **Gedaan (07-09-2026), gecommit (`f4d1219`), niet gepusht.** Schone
+   herimport + herberekening van de augustus-testdataset, met twee bugs
+   gevonden en gefixt onderweg (via de Claude Code-sessie, 276 tests groen,
+   was 270):
+   - **Bug 1 (echt, opgelost):** Excel's eigen tijdelijke lockbestand naast
+     een geopend bronbestand (`~$`-prefix, bijv. "~$20260826 Download uit
+     Syntess Uren 26 8 2026.xlsx") werd door de bewust losse
+     bestandsherkenning gezien als een tweede Uren-/Werkbonnen-export. Elke
+     bestandsnaam die met `~$` begint wordt nu geweigerd
+     (`matching/ingest/filenames.py`).
+   - **Bug 2 (echt, opgelost):** de read-only importtabellen (`Uren`, `Rit`,
+     `Relatie`, `WerkbonControle`, `Tijdblok`) misten `has_delete_permission`,
+     dus "verwijder geselecteerde items" stond ten onrechte in de
+     admin-acties-dropdown (zie `docs/decisions.md`, 03-09-2026, waar dit als
+     aanvulling is vastgelegd). De Bad Request die Roger daarbij tegenkwam bij
+     het zelf proberen op te ruimen was geen bescherming, maar
+     `DATA_UPLOAD_MAX_NUMBER_FIELDS` (1000) die overschreden werd door de
+     1190 losse velden op de bevestigingspagina — op een kleinere selectie
+     was de verwijdering gewoon doorgegaan.
+   - **Reset:** alle rijen in Uren/Rit/Relatie/WerkbonControle/Tijdblok/
+     ImportedFile verwijderd en schoon opnieuw ingelezen (2546/1190/2471/528)
+     en herberekend (62 dagen, 853 tijdblokken, status succes) — via Docker,
+     conform punt 16. Koppeltabellen ongemoeid (voor/na geteld, identiek).
+     Dennis van de Berg (nu weer actief) toont correct 152 tijdblokken; week
+     32 "Gefactureerd 42,50 uur" komt exact overeen met de som uit Uren.xlsx.
+   - **Nieuw aandachtspunt, geen bug:** de RouteVision-ritdata heeft een
+     dekkingsgat — Dennis van de Berg heeft alleen ritten 03-08 t/m 24-08
+     (een volledig gat in week 33 terwijl er wel 8 uur per dag geboekt is),
+     en Maarten Jaarsma stopt al op 15-08. Het weekoverzicht meldt dit
+     correct als "onvolledige week", maar dit is een openstaande dekkingsvraag
+     over de RouteVision-export zelf, met Wim na te lopen — zie punt 18.
+   Zie `docs/changelog.md` en `docs/decisions.md` (07-09-2026).
+18. **Eerstvolgende stap:** de uitgebreide analyse van de matchresultaten op
+   de nu schone echte augustus-data, inclusief het navragen bij Wim van de
+   RouteVision-dekkingsgaten bij Dennis van de Berg en Maarten Jaarsma (punt
+   17) — dan pas verder met roadmap-fase 7 (oplevering). Het draaiboek staat
+   klaar in `DRAAIBOEK.md`, met drie nog niet definitieve onderdelen
+   (VM-gegevens, het `backup_db`-commando, §7 "eerste inrichting"). Neem
+   daarbij verder mee: bij het configureren van het echte depotadres voor
    SBTT het aandachtspunt uit `docs/decisions.md` (03-09-2026) over het
-   straat-niveau depotrisico, en bij de oplevering (fase 7/8) dat de instructie
-   aan Wim expliciet foutherstel via "Bekende locaties" moet uitleggen
-   (`docs/decisions.md`, 03-09-2026).
+   straat-niveau depotrisico, en bij de oplevering (fase 7/8) dat de
+   instructie aan Wim expliciet foutherstel via "Bekende locaties" moet
+   uitleggen (`docs/decisions.md`, 03-09-2026).
 
 **Vervallen:** de eerder voorziene live-PoC-fase met 1-2 monteurs bij de klant (~1
 week, in overleg met Wim) — het akkoord van 31-08-2026 betrof al de volledige

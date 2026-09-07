@@ -177,7 +177,7 @@ RouteVision-data komt voor de PoC uit een handmatige download, niet uit de API.
    verschil tussen de admin-uitlogknop en `/uitloggen/`, dat er dus niet bleek
    te zijn — zie punt 12) zijn bij het naklopen van de staged diff nog
    gecorrigeerd vóór het committen.
-14. **Gedaan (06-09-2026), gecommit (`852777b`), niet gepusht.** Lokale
+14. **Gedaan (06-09-2026), gecommit (`852777b`), inmiddels gepusht (`origin/main` staat op `b5f4197`).** Lokale
    inbox-map als bind-mount (`./data/inbox:/app/data/inbox`, op `web` én
    `scheduler`) toegevoegd aan `docker-compose.yml`, zodat `check_imports` lokaal
    bestanden op de host kan vinden — puur een testvoorziening, raakt de
@@ -221,7 +221,7 @@ RouteVision-data komt voor de PoC uit een handmatige download, niet uit de API.
    netwerkbestandssysteem, wat SQLite afraadt vanwege corruptierisico bij
    gelijktijdig schrijven. Geldt alleen voor testen met échte klantdata; de
    gewone ontwikkel-cyclus verandert niet. Zie `docs/decisions.md` (07-09-2026).
-17. **Gedaan (07-09-2026), gecommit (`f4d1219`), niet gepusht.** Schone
+17. **Gedaan (07-09-2026), gecommit (`f4d1219`), inmiddels gepusht (`origin/main` staat op `b5f4197`).** Schone
    herimport + herberekening van de augustus-testdataset, met twee bugs
    gevonden en gefixt onderweg (via de Claude Code-sessie, 276 tests groen,
    was 270):
@@ -253,7 +253,7 @@ RouteVision-data komt voor de PoC uit een handmatige download, niet uit de API.
      correct als "onvolledige week", maar dit is een openstaande dekkingsvraag
      over de RouteVision-export zelf, met Wim na te lopen — zie punt 18.
    Zie `docs/changelog.md` en `docs/decisions.md` (07-09-2026).
-18. **Gedaan (07-09-2026), gecommit (`cffb19e`), niet gepusht.** Beheeractie
+18. **Gedaan (07-09-2026), gecommit (`cffb19e`), inmiddels gepusht (`origin/main` staat op `b5f4197`).** Beheeractie
    "Data resetten" gebouwd: een eigen admin-scherm
    (`/admin/matching/matchmotorstatus/data-resetten/`), bereikbaar via een link
    naast "Matching nu draaien" op het matchmotor-scherm. "Volledig leegmaken"

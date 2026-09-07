@@ -253,21 +253,24 @@ RouteVision-data komt voor de PoC uit een handmatige download, niet uit de API.
      correct als "onvolledige week", maar dit is een openstaande dekkingsvraag
      over de RouteVision-export zelf, met Wim na te lopen — zie punt 18.
    Zie `docs/changelog.md` en `docs/decisions.md` (07-09-2026).
-18. **Besloten (07-09-2026).** Beheeractie "Data resetten" toegevoegd aan het
-   ontwerp: twee modi in de admin, los van de (nu terecht dichtgezette)
-   generieke bulk-delete — "volledig leegmaken" (Uren, Rit, Relatie,
-   WerkbonControle, Tijdblok, ImportedFile) en "periode verwijderen" (van–tot
-   datum, alleen Uren/Rit/WerkbonControle/Tijdblok; Relatie en ImportedFile
-   blijven erbuiten, zodat een periode-reset nooit stilletjes ImportedFile's
-   verwerkt-status wijzigt). Beide modi tonen eerst een preview en vereisen
-   een expliciete bevestiging, zijn alleen beschikbaar voor superusers, en
-   herimporteren/herberekenen erna blijft een bewuste, aparte stap. Zie
-   `docs/decisions.md` (07-09-2026) voor de volledige onderbouwing en
-   `docs/functioneel-ontwerp.md` §4. Instructie naar de Claude Code-sessie
-   gereed, nog niet verstuurd.
-19. **Eerstvolgende stap:** eerst de "Data resetten"-actie (punt 18) laten
-   bouwen, daarna de uitgebreide analyse van de matchresultaten op de nu
-   schone echte augustus-data, inclusief het navragen bij Wim van de
+18. **Gedaan (07-09-2026), gecommit (`cffb19e`), niet gepusht.** Beheeractie
+   "Data resetten" gebouwd: een eigen admin-scherm
+   (`/admin/matching/matchmotorstatus/data-resetten/`), bereikbaar via een link
+   naast "Matching nu draaien" op het matchmotor-scherm. "Volledig leegmaken"
+   (Tijdblok, Uren, Rit, Relatie, WerkbonControle, ImportedFile) en "periode
+   verwijderen" (Tijdblok, Uren, Rit, WerkbonControle op een van–tot
+   datumbereik — `vertrekdatum` voor Rit; Relatie en ImportedFile blijven
+   bewust buiten de periode-modus). Preview met aantallen per tabel vóór een
+   expliciete bevestiging, alleen voor superusers
+   (`request.user.is_superuser`, geen modelrecht), geen automatische
+   herimport/herberekening erna. Koppeltabellen door geen van beide modi
+   geraakt (voor/na getest). 24 tests toegevoegd, 300 groen (was 276).
+   Nagelopen op de echte augustus-data in Docker zonder iets te wijzigen: het
+   formulier toont de juiste aantallen, een preview verwijdert niets, en een
+   bevestigde reset op een lege periode doorloopt de hele keten — de dataset
+   bleef intact. Zie `docs/changelog.md` en `docs/decisions.md` (07-09-2026).
+19. **Eerstvolgende stap:** de uitgebreide analyse van de matchresultaten op
+   de nu schone echte augustus-data, inclusief het navragen bij Wim van de
    RouteVision-dekkingsgaten bij Dennis van de Berg en Maarten Jaarsma (punt
    17) — dan pas verder met roadmap-fase 7 (oplevering). Het draaiboek staat
    klaar in `DRAAIBOEK.md`, met drie nog niet definitieve onderdelen

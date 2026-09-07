@@ -62,6 +62,13 @@ database → `docs/database.md`, enz.). Lees verdere documenten als de taak dat 
   nog als "niet klaar" in staat (bijv. het uitzonderingenscherm) daadwerkelijk
   gereed komt. Dit is een expliciete stap in de documentatie-nazorg na een build,
   net als de technische `docs/*.md`-bijwerking.
+- **Lokaal testen met échte data — uitsluitend via Docker (vastgelegd
+  07-09-2026):** een bare `manage.py runserver` tegen de host-`db.sqlite3` wordt
+  niet meer gebruikt om met échte, niet-geanonimiseerde SBTT-data te testen —
+  dat gebeurt voortaan uitsluitend via `docker compose up`, zodat er nog maar
+  één database is (zie `docs/decisions.md`, 07-09-2026, voor de reasoning). Wijs
+  Roger hierop als hij dit alsnog probeert. Geldt niet voor de gewone
+  ontwikkel-cyclus (`manage.py test`, of `runserver` zonder échte klantdata).
 - PoC eerst: forceer geen productiestack-beslissingen vóór het matchingsconcept
   gevalideerd is op echte data.
 - Herkomst/achtergrond van de opdracht staat in de brainstorm-sessie

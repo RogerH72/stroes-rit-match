@@ -1,6 +1,6 @@
 # GUIDELINES — Stroes-Rit-Match (RMW)
 
-_Last updated: 2026-09-03_
+_Last updated: 2026-09-07_
 
 ## Project identity
 
@@ -169,13 +169,67 @@ RouteVision-data komt voor de PoC uit een handmatige download, niet uit de API.
    (`AdminSite.logout` erft `LOGOUT_REDIRECT_URL`), dus dit maakt bestaande
    gelijkheid expliciet in plaats van een verschil te repareren. 270 tests
    groen (was 264). Zie `docs/changelog.md` en `docs/ui-spec.md`.
-13. **Eerstvolgende stap:** roadmap-fase 7 (oplevering) — het draaiboek staat
-   klaar in `DRAAIBOEK.md`, met drie nog niet definitieve onderdelen
-   (VM-gegevens, het `backup_db`-commando, §7 "eerste inrichting"). Neem verder
-   mee: bij het configureren van het echte depotadres voor SBTT het aandachtspunt
-   uit `docs/decisions.md` (03-09-2026) over het straat-niveau depotrisico, en bij
-   de oplevering (fase 7/8) dat de instructie aan Wim expliciet foutherstel via
-   "Bekende locaties" moet uitleggen (`docs/decisions.md`, 03-09-2026).
+13. **Gedaan (06-09-2026), gecommit en gepusht (`d34e6c2`).** Punt 10-12
+   (landingspagina, standaardweergave, sessieblok/uitloggen, admin-kopbalk,
+   symmetrische uitlogroute) vastgelegd als één commit — door Roger zelf
+   getest en akkoord bevonden. `origin/main` staat op `d34e6c2`, werkboom
+   schoon, 270 tests groen. Twee verouderde code-comments (over een vermeend
+   verschil tussen de admin-uitlogknop en `/uitloggen/`, dat er dus niet bleek
+   te zijn — zie punt 12) zijn bij het naklopen van de staged diff nog
+   gecorrigeerd vóór het committen.
+14. **Gedaan (06-09-2026), gecommit (`852777b`), niet gepusht.** Lokale
+   inbox-map als bind-mount (`./data/inbox:/app/data/inbox`, op `web` én
+   `scheduler`) toegevoegd aan `docker-compose.yml`, zodat `check_imports` lokaal
+   bestanden op de host kan vinden — puur een testvoorziening, raakt de
+   productie-servermapkoppeling niet (blijft open punt voor fase 7). Bijvangst:
+   de stale kop "Trigger-mechanisme... — ontworpen, nog niet gebouwd" in
+   `docs/architecture.md` gecorrigeerd naar "gebouwd". Zie `docs/changelog.md`
+   en `docs/architecture.md`.
+15. **Gedaan (06-09-2026, avond).** Eerste testrun met échte,
+   niet-geanonimiseerde data (4 augustus-bestanden: Uren, Werkbonnen, Relaties,
+   RouteVision-CSV) lokaal in Docker, samen met Roger doorlopen. Geen
+   codewijziging (alleen database-inhoud en admin-configuratie), dus niets
+   hiervan zit in git. Bevindingen:
+   - De container bleek een eigen, vrijwel lege database te hebben (Docker-
+     volume), los van de host-`db.sqlite3` die Roger via een kale
+     `manage.py runserver` gebruikt. Dit zorgde tot twee keer toe voor
+     verwarring: eerst geen account/koppeltabellen in de container, later — na
+     alles in de container op orde te hebben — weer de oude testdata te zien
+     zodra Roger juist de host-`runserver` startte. Voor die avond opgelost door
+     de host-database eenmalig in het Docker-volume te zetten; structureel
+     opgelost op 07-09-2026, zie punt 16 hieronder.
+   - De koppeltabel (`Monteur.bestuurder_code`) bevatte nog de geanonimiseerde
+     PoC-testcodes M1/M5 in plaats van de echte RouteVision-bestuurdersnamen.
+     Roger heeft dit zelf gecorrigeerd (M1 = Rocco Stroes, zoon van Wim, bestuurder
+     "Rocco Prive"; M5 = Jesse Verkerk) en de overige 3 echte monteurs uit de
+     data toegevoegd (Dennis van de Berg, Maarten Jaarsma, Mike de Vor).
+   - Resultaat: alle 5 echte monteurs gematcht op de volledige
+     augustus-dataset (2.471 werkbonnen, 1.190 urenregels, 528 ritten, 701
+     tijdblokken over 54 dagen); SOORT-verdeling oogt plausibel bij steekproef.
+   - Los aandachtspunt voor de analyse: monteur "Berg D." (medewerkernr. 002)
+     staat op `actief=False` maar heeft nog 89 tijdblokken van vóór deze
+     testronde staan (niet meeherberekend, want `run_matching` zonder
+     `--monteur` slaat niet-actieve monteurs over) — vereist gericht
+     `--monteur 002 --force` als hij in de analyse moet meetellen.
+16. **Gedaan (07-09-2026).** Lokaal-testen-structuur vastgelegd: testen met
+   échte SBTT-data gebeurt voortaan uitsluitend via `docker compose up` — nooit
+   meer via een losse `manage.py runserver` tegen de host-`db.sqlite3`, zodat er
+   nog maar één database is om naar te kijken. Bewust afgewezen alternatief: de
+   database als bind-mount delen tussen host en container (zoals nu al met
+   `data/inbox`), vanwege een bekende valkuil van SQLite + bind-mounts op Docker
+   Desktop/Windows (WSL2) — de bind-mount gedraagt zich voor file-locking als een
+   netwerkbestandssysteem, wat SQLite afraadt vanwege corruptierisico bij
+   gelijktijdig schrijven. Geldt alleen voor testen met échte klantdata; de
+   gewone ontwikkel-cyclus verandert niet. Zie `docs/decisions.md` (07-09-2026).
+17. **Eerstvolgende stap:** de uitgebreide analyse van de matchresultaten op de
+   echte augustus-data, dan pas verder met roadmap-fase 7 (oplevering) — het
+   draaiboek staat klaar in `DRAAIBOEK.md`, met drie nog niet definitieve
+   onderdelen (VM-gegevens, het `backup_db`-commando, §7 "eerste inrichting").
+   Neem daarbij verder mee: bij het configureren van het echte depotadres voor
+   SBTT het aandachtspunt uit `docs/decisions.md` (03-09-2026) over het
+   straat-niveau depotrisico, en bij de oplevering (fase 7/8) dat de instructie
+   aan Wim expliciet foutherstel via "Bekende locaties" moet uitleggen
+   (`docs/decisions.md`, 03-09-2026).
 
 **Vervallen:** de eerder voorziene live-PoC-fase met 1-2 monteurs bij de klant (~1
 week, in overleg met Wim) — het akkoord van 31-08-2026 betrof al de volledige

@@ -692,3 +692,32 @@ Superseded: het besluit "2026-09-01 — Taalconventie", uitsluitend voor zover d
 commit-messages als Engels aanwees. De motivering daarvan (aansluiten bij het
 Engelstalige Django-ecosysteem) geldt voor code en tool-instructies, niet voor een
 tekst die alleen door de projectbetrokkenen zelf gelezen wordt.
+
+## 2026-09-07 — Lokaal testen met echte data: uitsluitend via Docker (Current)
+
+Decision: bij het testen met échte (niet-geanonimiseerde) SBTT-data wordt voortaan
+uitsluitend gebruikgemaakt van `docker compose up` — nooit meer van een losse
+`manage.py runserver` tegen de host-`db.sqlite3`. Zo is er nog maar één database om
+naar te kijken.
+
+Reasoning: bij de eerste testrun met échte augustus-data (06-09-2026, avond, zie
+`GUIDELINES.md`) bleek de container een eigen, vrijwel lege database te hebben
+(Docker-volume), los van de host-`db.sqlite3` die een bare `runserver` gebruikt. Dit
+zorgde tot twee keer toe voor verwarring: eerst geen account/koppeltabellen in de
+container, later weer de oude testdata zodra juist de host-`runserver` werd gestart.
+Overwogen alternatief: de database als bind-mount delen tussen host en container
+(zoals nu al met `data/inbox`) — afgewezen omdat SQLite + bind-mounts op Docker
+Desktop/Windows (WSL2) een bekende valkuil is: de bind-mount gedraagt zich voor
+file-locking als een netwerkbestandssysteem, wat SQLite expliciet afraadt vanwege het
+risico op databasecorruptie bij gelijktijdig schrijven vanuit host én container.
+Bijkomend voordeel van uitsluitend-Docker: de app draait in productie sowieso in
+Docker (roadmap-fase 7), dus dit brengt dev en productie al dichter bij elkaar vóór de
+oplevering.
+
+Dit geldt alleen voor testen met échte klantdata. De gewone ontwikkel-cyclus
+(`manage.py test` op synthetische fixtures, `manage.py runserver` tijdens het bouwen
+van een feature zonder échte data) verandert niet.
+
+Expliciet vastgelegd op verzoek van Roger: mocht dit in de toekomst tóch geprobeerd
+worden (een bare `runserver` tegen échte SBTT-data), dan hoort daarop gewezen te
+worden dat dit zo is afgesproken — zie ook `CLAUDE.md`, "Development principles".

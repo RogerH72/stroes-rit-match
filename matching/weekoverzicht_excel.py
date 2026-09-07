@@ -233,7 +233,7 @@ def _totaalblok(
     regel += 1
 
     for label, waarde, formaat in (
-        ("Gefactureerde uren (Uren.xlsx)", gefactureerd, UREN_FORMAAT),
+        ("Totaal (excl. reistijd) (Uren.xlsx)", gefactureerd, UREN_FORMAAT),
         ("Uren op locatie (SOORT W)", op_locatie, UREN_FORMAAT),
         ("Verschil", verschil, VERSCHIL_FORMAAT),
     ):

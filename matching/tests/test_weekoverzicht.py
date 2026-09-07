@@ -336,9 +336,13 @@ class WeekoverzichtSchermTests(TestCase):
         self.assertNotIn("SYS aank", inhoud)
 
     def test_shows_the_hours_comparison(self):
+        # "Totaal (excl. reistijd)" rather than "Gefactureerd": depot and
+        # magazijn time is booked but never invoiced, so the old label promised
+        # more than the number meant (docs/decisions.md, 07-09-2026 avond).
         inhoud = self._pagina(week="2026-W32")
-        self.assertIn("Gefactureerd", inhoud)
+        self.assertIn("Totaal (excl. reistijd)", inhoud)
         self.assertIn("op locatie", inhoud)
+        self.assertNotIn("Gefactureerd", inhoud)
 
     def test_unexplained_block_links_to_the_koppel_form(self):
         inhoud = self._pagina(week="2026-W32")
@@ -432,6 +436,13 @@ class WeekoverzichtExcelTests(TestCase):
         self.assertIn(2.5, getallen)  # gefactureerd
         self.assertIn(2, getallen)  # op locatie
         self.assertIn(0.5, getallen)  # verschil
+
+    def test_the_hours_comparison_carries_the_same_label_as_the_page(self):
+        # The export and the page must not disagree about what the number is
+        # called (docs/decisions.md, 07-09-2026 avond).
+        cellen = self._cellen(self._blad())
+        self.assertIn("Totaal (excl. reistijd) (Uren.xlsx)", cellen)
+        self.assertNotIn("Gefactureerde uren (Uren.xlsx)", cellen)
 
     def test_no_wb_column_and_no_flag_signal(self):
         cellen = self._cellen(self._blad())

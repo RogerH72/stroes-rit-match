@@ -136,7 +136,8 @@ het resultaat teruggeeft.
 
 **Het weekoverzicht (fase 6, 05-09-2026) voegt géén tabellen of velden toe.** Het
 leest de al opgeslagen `Tijdblok`-rijen en telt daar per dag en per week de minuten
-per SOORT bij op; de "gefactureerd"-kant is een `Sum` over `Uren.aantal` per datum,
+per SOORT bij op; de "Totaal (excl. reistijd)"-kant (tot 07-09-2026
+"gefactureerd" genoemd) is een `Sum` over `Uren.aantal` per datum,
 op het moment van weergave berekend. Bewust niet opgeslagen: het is een afgeleide van
 data die al in de database staat, en opslaan zou een tweede waarheid introduceren die
 na elke `run_matching` bijgewerkt moet blijven. `Tijdblok` kreeg er in deze fase één

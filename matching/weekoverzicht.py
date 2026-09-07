@@ -16,12 +16,15 @@ deliberate differences:
    deliberately not built (docs/functioneel-ontwerp.md §3b), so reproducing it
    here would put a signal on screen that the rest of the app does not stand
    behind.
-2. **The "gefactureerd vs. op locatie" comparison is kept**, per day and per
+2. **The booked-hours vs. op-locatie comparison is kept**, per day and per
    week: the hours booked in Uren.xlsx against the time the monteur actually
    stood at a werkbon address (the SOORT=W blocks). Unlike WB-vs-SYS this
    compares two sources that are both trusted — booked hours and reconstructed
    ride data — which is exactly the discrepancy this whole tool exists to
-   surface.
+   surface. On screen the left-hand side reads "Totaal (excl. reistijd)": not
+   every booked hour is actually invoiced to a client — depot and magazijn time
+   is booked but not billed — so the older "Gefactureerd" label claimed more
+   than the number meant (docs/decisions.md, 07-09-2026 avond).
 """
 
 from __future__ import annotations
@@ -173,7 +176,11 @@ class DagOverzicht:
 
     datum: dt.date
     regels: list[WeekRegel] = field(default_factory=list)
-    #: Hours booked in Uren.xlsx on this date — the "gefactureerd" side.
+    #: Hours booked in Uren.xlsx on this date — the left-hand side of the
+    #: comparison. On screen this is labelled "Totaal (excl. reistijd)" since
+    #: 07-09-2026; the field keeps its original name because the value is
+    #: unchanged and renaming it would touch the Excel export and every test for
+    #: a label change (docs/decisions.md, 07-09-2026 avond).
     gefactureerde_uren: Decimal = Decimal("0.00")
 
     @property

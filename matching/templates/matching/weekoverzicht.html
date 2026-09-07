@@ -204,7 +204,7 @@ comparison is shown per day as well as per week.
       </div>
 
       <div class="vergelijking">
-        <b>Gefactureerd {{ overzicht.gefactureerde_uren }} uur → op locatie
+        <b>Totaal (excl. reistijd) {{ overzicht.gefactureerde_uren }} uur → op locatie
         {{ overzicht.uren_op_locatie }} uur</b>
         (verschil {{ overzicht.verschil }} uur).
         <div class="uitleg">
@@ -263,7 +263,7 @@ comparison is shown per day as well as per week.
             {% endfor %}
             <span><b>Totaal</b> {{ dag.totaal }}</span>
             <span class="vergelijk">
-              <b>Gefact. → locatie</b>
+              <b>Totaal (excl. reistijd) → locatie</b>
               {{ dag.gefactureerde_uren }} → {{ dag.uren_op_locatie }} u
               ({{ dag.verschil }})
             </span>

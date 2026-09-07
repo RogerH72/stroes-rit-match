@@ -99,7 +99,8 @@ Gebouwd t/m roadmap-fase 3 (03-09-2026, commit `eea759c`, 143 tests groen — zi
 **Weergaveregels van het weekoverzicht (gebouwd 05-09-2026, roadmap-fase 6,
 240 tests groen):**
 
-- **Gefactureerd vs. op locatie** — per dag en per week wordt de som van
+- **Totaal (excl. reistijd) vs. op locatie** (label bijgesteld 07-09-2026, was
+  "Gefactureerd" — de berekening is ongewijzigd) — per dag en per week wordt de som van
   `Uren.Aantal` (de in Syntess geboekte uren van die monteur op die datum)
   gezet tegenover de opgetelde duur van de **SOORT=W**-tijdblokken (de tijd dat
   de monteur volgens RouteVision daadwerkelijk op een werkbon-adres stond). Dit

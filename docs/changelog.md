@@ -722,3 +722,23 @@ frequentiedrempel zou dit oplossen, maar wélke drempel is een business rule die
 niet is vastgelegd; bij Jesse Verkerk zou een strenge drempel bijvoorbeeld
 `burgemeester deysstraat` (11 van 34 dagranden) laten vervallen, en of dat een
 tweede thuisadres is weet alleen SBTT. Apart te besluiten.
+
+## 2026-09-07 — Label "Gefactureerd" wordt "Totaal (excl. reistijd)"
+
+Uitvoering van het besluit van vandaag (`docs/decisions.md`, 07-09-2026 avond,
+`docs/functioneel-ontwerp.md` §6). In de dag- en weektotalen van het
+weekoverzicht heet de linkerkant van de vergelijking nu "Totaal (excl.
+reistijd)", zowel op de webpagina als in de Excel-export. Op de dagregel stond
+"Gefact. → locatie"; dat is "Totaal (excl. reistijd) → locatie" geworden.
+
+Alleen tekst: de berekening blijft de som van `Uren.Aantal` afgezet tegen de
+opgetelde duur van de SOORT=W-tijdblokken (besluit 05-09-2026). Niet elk geboekt
+uur wordt daadwerkelijk aan een klant gefactureerd — magazijn- en depottijd wordt
+wel geboekt maar niet doorbelast — waardoor "Gefactureerd" meer beweerde dan het
+getal betekende.
+
+Het veld `gefactureerde_uren` in `matching/weekoverzicht.py` houdt zijn naam: de
+waarde verandert niet, en hernoemen zou de Excel-export en elke test raken voor
+wat een labelwijziging is. Bij het veld staat nu een comment dat het scherm een
+andere naam gebruikt, zodat de twee niet stilletjes uit elkaar lopen. Een test
+controleert dat pagina en export hetzelfde label voeren. 309 tests groen.

@@ -1066,3 +1066,165 @@ tabel moest oplossen.
 
 Nog niet gepusht — zie `GUIDELINES.md` punt 24 voor de actuele prioritering
 van openstaande punten.
+
+## 2026-09-08 — Thuisadres invullen bij de eerste inrichting — toegevoegd aan de opleverinstructie (Current)
+
+Decision: bij de eerste inrichting (roadmap-fase 7, samen met het echte
+SBTT-depotadres) moet voor elke monteur het veld `Monteur.thuisadres`
+(straatnaam of postcode) worden ingevuld. De opleverinstructie aan Wim
+(zie `docs/functioneel-ontwerp.md` §7) krijgt dit als expliciet punt, naast
+het al vastgelegde punt over foutherstel bij het uitzonderingenscherm
+(besluit 03-09-2026).
+
+Aanleiding: bij het navragen (08-09-2026) waarom SOORT T (Thuis) nog nergens
+in het weekoverzicht verschijnt, bleek dat het testthuisadres dat tijdens de
+bouw is gebruikt (Beesdseweg/4104AV bij Dennis van de Berg, zie het besluit
+van 07-09-2026 "Thuisadres en SOORT T gebouwd") na verificatie weer is
+verwijderd om de dataset niet te vervuilen met testgegevens (`GUIDELINES.md`,
+punt 21). Voor de echte monteurs staat het veld dus nog overal leeg — geen
+bug, maar een configuratiestap die nog moet gebeuren. Zonder een ingevuld
+thuisadres blijft een stop bij een monteur thuis gewoon als onverklaarde (O)
+stop in het uitzonderingenscherm staan (corrigeerbaar, maar onnodige ruis in
+de eerste weken na oplevering).
+
+Doorgevoerd in: `docs/functioneel-ontwerp.md` §7. Geen codewijziging.
+
+## 2026-09-08 — Klantnaam toegevoegd aan "Aansluiting per werkbon" (Current, besloten, nog niet gebouwd)
+
+Decision: de tabel "Aansluiting per werkbon" (besloten en gebouwd
+07-09-2026) krijgt een extra kolom **Klant**, direct naast de
+werkbonnummer-kolom, met de naam van de opdrachtgever van die werkbon. Bron:
+`Uren.project_opdrachtgever_naam`, hetzelfde veld dat al bij elke Uren-regel
+wordt ingelezen. Alleen de werkbon-rijen krijgen een klantnaam; de regels
+"Klant (niet aan werkbon gekoppeld)", "Zonder werkbonnummer (indirect)" en
+de totaalregel tonen een streepje (–), net als bij de bestaande
+niet-van-toepassing-cellen — deze rijen zijn niet aan één specifieke
+werkbon gekoppeld.
+
+Aanleiding: Roger gaf aan dat de tabel op zich prima is, maar dat hij bij
+het beoordelen van een afwijking niet zonder verder opzoekwerk ziet om welke
+klant het gaat.
+
+Fallback wanneer er voor die specifieke (datum, werkbon)-combinatie geen
+Uren-regel met een naam is (bijvoorbeeld een werkbon die alleen via de
+Werkbonnen.xlsx-postcode-vangnet is gematcht): toon een streepje (–), net
+als bij elke andere niet-van-toepassing-cel in deze tabel — geen
+opzoekactie in andere Uren-regels van dezelfde werkbon op een andere datum.
+Consistent met het bestaande principe in deze tabel: een cel toont "–"
+wanneer de vraag niet van toepassing is, nooit een gegokt of breder
+opgezocht antwoord.
+
+Wordt toegevoegd op zowel de pagina als in de Excel-export, net als de rest
+van deze tabel.
+
+Doorgevoerd in: `docs/functioneel-ontwerp.md` §6, `docs/business-rules.md`
+("Designed but not implemented"). Nog niet gebouwd — instructie naar de
+Claude Code-sessie volgt.
+
+## 2026-09-08 — Klantnaam bij "Aansluiting per werkbon" gebouwd; aandachtspunt vangnet-rijen blijft openstaan (Current)
+
+Resultaat: gebouwd zoals besloten (zie het besluit hierboven). 349 tests
+groen (was 343). `AansluitingRegel.klantnaam` op de werkbon-rijen, gevuld
+uit `Uren.project_opdrachtgever_naam` voor exact die (datum, werkbon)
+combinatie; de KLANT/INDIRECT-regels en de totaalregel tonen een streepje.
+Op de pagina en in de Excel-export (kolom 2, die in deze tabel al vrij
+stond tussen Werkbon en Op locatie — KOL_TIJD is ongemoeid gebleven).
+
+Aandachtspunt, gemeld door Claude Code tijdens de bouw: een werkbon die op
+een dag alleen via de Werkbonnen.xlsx-postcode-vangnet wordt gematcht
+(besluit 03-09-2026) kan zonder eigen `Uren.xlsx`-regel voor precies die
+datum in de tijdlijn belanden — de vangnet leest immers `WerkbonControle`
+(Werkbonnen.xlsx), niet `Uren`. In dat geval is er ook geen
+`project_opdrachtgever_naam` om te tonen, ook al is de naam voor diezelfde
+werkbon op een andere datum wel bekend. Dit is exact de bewust gekozen
+"geen opzoekactie op een andere datum"-regel (zie het besluit hierboven),
+maar kan op echte data een merkbaar deel van de rijen raken.
+
+Besluit (Roger, 08-09-2026): voorlopig zo laten. Pas op echte data
+opnieuw bekijken hoe vaak dit voorkomt, in plaats van nu al te verruimen
+naar een bredere zoekactie over andere datums van dezelfde werkbon.
+
+## 2026-09-08 — RouteVision-dekkingsgaten verklaard: vakantie, geen exportprobleem (Current)
+
+Bevinding: de twee dekkingsgaten die bij het testen met echte augustus-data
+naar boven kwamen (zie de bevinding van 07-09-2026, "Schone herimport +
+herberekening", en `GUIDELINES.md` punt 17) zijn verklaard. Roger heeft
+rechtstreeks toegang tot RouteVision gekregen: bij Maarten Jaarsma ontbreekt
+data tussen 15-08 en 01-09-2026, waarna de data weer terugkomt; bij Dennis
+van de Berg geldt hetzelfde patroon. Uit een eerder gesprek met Wim is
+bekend dat zijn personeel in die periode met vakantie was.
+
+Reasoning: geen structureel exportprobleem met RouteVision of Stric, dus
+geen verdere actie nodig richting die partijen. De 8 uur die bij Dennis in
+week 33 wél geboekt stonden in Syntess passen in dit beeld: verlofuren
+worden daar gewoon als geboekte uren vastgelegd (dezelfde categorie als
+kantoor/reisuren/magazijnonderhoud, zie `docs/business-rules.md`), ook al
+is er die dag geen enkele rit. Het bestaande gedrag van de app — zo'n week
+melden als "onvolledige week" omdat er geen ritdata is om een tijdlijn op
+te bouwen, met de wél-geboekte (verlof)uren apart getoond — is precies het
+bedoelde gedrag (`docs/business-rules.md`, "Een week is nooit stil
+onvolledig"). Geen wijziging nodig aan de matchlogica, het weekoverzicht of
+de tolerantielogica.
+
+Doorgevoerd in: `GUIDELINES.md` (punt 27). Geen codewijziging.
+
+## 2026-09-08 — Klant/leverancier-suggestie in het koppelformulier, op basis van Relatie (Current, besloten, nog niet gebouwd)
+
+Decision: het koppelformulier van het uitzonderingenscherm (§5) krijgt een
+suggestie op basis van `Relatie`, niet een automatische classificatie. Als
+de postcode van een onverklaard adres matcht met precies één relatie in
+`Relatie`, worden `soort` en `label` in het formulier voorgevuld (net als
+`type`/`waarde` nu al gebeurt via `_beginwaarden()`); de gebruiker moet nog
+steeds zelf op "Koppelen" klikken om dit te bevestigen, precies zoals bij
+elke andere K/L/C/P/T-koppeling vandaag. Matcht de postcode met meerdere,
+verschillende relaties, dan toont het scherm een keuzelijst van de
+kandidaten (naam + K/L); kiest de gebruiker er geen, dan werkt het
+formulier zoals vandaag (leeg, handmatig invullen).
+
+Aanleiding: Wim heeft een aangepaste Relaties.xlsx aangeleverd met een
+nieuwe kolom "Klant of leverancier" (K/L), naar aanleiding van de oude
+openstaande vraag in `docs/functioneel-ontwerp.md` §9 (punt 3, vastgelegd
+02-09-2026) of RVS Solutions dit onderscheid ooit aan de export zou
+toevoegen. Roger vroeg terecht door of dit dan niet gebruikt zou moeten
+worden om het handmatige koppelwerk in het uitzonderingenscherm te
+verminderen, in plaats van de kolom ongebruikt te laten zoals `Relatie` nu
+al is (alleen een read-only importtabel, nergens gelezen door de
+matchmotor, zie `matching/admin.py`).
+
+Twee technische beperkingen bepaalden de precieze invulling:
+
+1. **Alleen op postcode te matchen, niet op huisnummer.** `Relatie` heeft
+   Postcode en Huisnr als losse velden, maar
+   `matching/timeline/normalize.py` knipt het huisnummer bewust af bij elk
+   RouteVision-adres — een al in de PoC gevalideerde regel, omdat
+   RouteVision en Syntess het vaker oneens zijn over huisnummers dan over
+   straatnamen. Er is dus geen betrouwbaar huisnummer op stop-niveau om
+   `Relatie.huisnr` tegen te leggen. Matchen op postcode alleen (dezelfde
+   precisie als de rest van de app) brengt hetzelfde over-claim-risico mee
+   als het straat-niveau depotrisico (`docs/decisions.md`, 03-09-2026) —
+   een postcode kan meerdere panden dekken. Omdat dit een suggestie is en
+   geen automatische classificatie, ziet de gebruiker de suggestie en kan
+   hij afwijken; dat maakt dit risico acceptabel.
+2. **Lettermapping K/L (Relatie) naar K/C (`BekendeLocatie.soort`).**
+   Relatie gebruikt Klant/Leverancier (K/L); `BekendeLocatie.soort`
+   gebruikt Klant/Locatie/Crediteur (K/L/C, plus P/T). Een Leverancier
+   ("L" in Relatie) moet als SOORT **C** (Crediteur) voorgesteld worden —
+   niet als "L", want dat betekent in `BekendeLocatie.soort` "Locatie",
+   een heel ander begrip. Expliciet vastgelegd omdat een letterlijke
+   1-op-1 kopie van de letter een stille misclassificatie zou zijn.
+
+Reasoning voor "suggestie, geen automatisch" (Roger, 08-09-2026): de
+bestaande K/L/C/P/T-koppelingen worden allemaal door een mens bevestigd —
+dat is een bewuste kwaliteitscontrole (`docs/decisions.md`, 03-09-2026,
+Uitzonderingenscherm-ontwerp). Een suggestie respecteert die controle en
+lost toch het grootste deel van het typewerk op; volledig automatisch zou
+het over-claim-risico van punt 1 hierboven zonder controle laten
+doorwerken.
+
+Timing: Roger wil dit vóór de oplevering meenemen, ook al stond het niet in
+de oorspronkelijke OvO-scope — het is een kans die pas ontstond doordat Wim
+deze aangepaste export nu aanleverde.
+
+Doorgevoerd in: `docs/functioneel-ontwerp.md` §5/§9, `docs/business-rules.md`
+("Designed but not implemented"), `GUIDELINES.md` (punt 28). Nog niet
+gebouwd — instructie naar de Claude Code-sessie volgt.

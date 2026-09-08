@@ -245,6 +245,24 @@ het geval dat de bus om de hoek staat en dat adres dus nooit gelijk is aan het
 opgegeven huisadres. Zoals bij elke `BekendeLocatie` geldt zo'n koppeling voor
 elke monteur die daar stopt.
 
+**Besloten (08-09-2026), nog niet gebouwd — suggestie op basis van
+`Relatie`.** Wim heeft een aangepaste Relaties.xlsx aangeleverd met een
+nieuwe kolom "Klant of leverancier" (K/L). Het koppelformulier krijgt een
+suggestie op basis daarvan, geen automatische classificatie: de gebruiker
+bevestigt nog steeds zelf, net als bij K/L/C/P/T vandaag. Matching kan
+alleen op postcode — RouteVision-adressen bevatten geen betrouwbaar
+huisnummer (`matching/timeline/normalize.py` knipt het bewust af, een
+al gevalideerde PoC-regel), dus `Relatie.postcode` wordt op dezelfde manier
+genormaliseerd en vergeleken als de rest van de app. Precies één
+ondubbelzinnige relatie op die postcode → soort en label voorgevuld;
+meerdere verschillende relaties op dezelfde postcode → een keuzelijst met
+de kandidaten (of handmatig verdergaan); geen relatie → formulier blijft
+leeg zoals nu. **Let op de lettermapping:** Relatie gebruikt K/L (Klant/
+Leverancier), `BekendeLocatie.soort` gebruikt K/C (Klant/Crediteur) — een
+Leverancier ("L") in Relatie moet dus als SOORT **C** voorgesteld worden,
+nooit als "L" (dat betekent in `BekendeLocatie.soort` "Locatie", iets heel
+anders). Zie `docs/decisions.md` (08-09-2026).
+
 ## 6. Weekoverzicht (roadmap-fase 6)
 
 Het eindresultaat per monteur, beschikbaar als webpagina én als Excel-export, in de
@@ -351,6 +369,22 @@ die beoordeelt een werkbon over zijn hele levensduur ("ooit afgerond zonder
 uren"), deze aansluiting vergelijkt per dag twee al aanwezige bronnen, nu per
 werkbon in plaats van geblendet.
 
+**Gebouwd (08-09-2026) — Klantnaam bij "Aansluiting per werkbon".** De
+tabel heeft een extra kolom **Klant**, direct naast de werkbonnummer-
+kolom, met `Uren.project_opdrachtgever_naam` voor die werkbon/datum.
+Alleen de werkbon-rijen krijgen een naam; de regels "Klant (niet aan
+werkbon gekoppeld)", "Zonder werkbonnummer (indirect)" en de totaalregel
+tonen een streepje. Is er voor die specifieke werkbon/datum geen
+Uren-regel met een naam (bijv. een werkbon die alleen via de
+Werkbonnen.xlsx-postcode-vangnet is gematcht), dan toont de cel eveneens
+een streepje — geen opzoekactie bij een andere datum van dezelfde werkbon.
+Op zowel de pagina als in de Excel-export. 349 tests groen (was 343).
+
+Aandachtspunt (nog open): op echte data kan de vangnet-situatie hierboven
+vaker voorkomen dan gedacht, waardoor een merkbaar deel van de rijen een
+streepje bij Klant toont. Bewust voorlopig zo gelaten — pas op echte data
+opnieuw bekijken. Zie `docs/decisions.md` (08-09-2026).
+
 ## 7. Oplevering en acceptatie (roadmap-fase 7 en 8)
 
 Oplevering als lichte, zelfstandige Docker-container, samen met Stric geplaatst in een
@@ -370,6 +404,12 @@ in de admin (dat scherm is, anders dan bijvoorbeeld de tijdblokken, gewoon
 bewerkbaar); de correctie wordt pas zichtbaar nadat de matching opnieuw is
 gedraaid (de knop "Matching nu draaien", fase 4); en verwijderen is altijd veilig,
 omdat een dag bij elke herberekening helemaal opnieuw beoordeeld wordt.
+
+Vastgelegd (08-09-2026, zie `docs/decisions.md`, "Thuisadres invullen bij de
+eerste inrichting"): bij diezelfde eerste inrichting moet voor elke monteur
+het veld `thuisadres` (zie §4) worden ingevuld. Zonder dit veld wordt een
+stop bij een monteur thuis niet als SOORT T herkend, maar blijft hij als
+onverklaarde (O) stop in het uitzonderingenscherm staan.
 
 ## 8. Wat bewust buiten scope valt
 
@@ -394,8 +434,6 @@ Verzameld uit de secties hierboven, zodat ze niet uit het oog raken:
    bevestigen met Stric/RVS Solutions/RouteVision.
 2. Exacte drempelwaarden van de tolerantietabel per activiteit (§3b) — te bevestigen
    met de klant.
-3. Klant/leverancier-onderscheid: blijft dit een koppeltabel in de app, of lost RVS
-   Solutions dit op in de Relaties-export (§3b/§4)?
 
 _Opgelost op 2026-09-02: "monteur meegereden" (verfijnd 03-09-2026 tot een
 instelbare 3-standen toggle, zie §3b/§4 en `docs/decisions.md`), de databronnen voor
@@ -411,3 +449,12 @@ geanonimiseerde) klantdata nooit in git komt (zie `docs/decisions.md`) — zie
 _Opgelost op 2026-09-05: het snelheidscontrole-meerwerk. Dit is geen openstaande
 ja/nee-vraag meer binnen deze roadmap, maar een aparte, later apart te offreren fase
 — niet iets om nu op te pakken (zie §8 en `docs/decisions.md`)._
+
+
+_Opgelost op 2026-09-08: het klant/leverancier-onderscheid (§9, punt 3).
+Wim heeft een aangepaste Relaties.xlsx aangeleverd met de kolom "Klant of
+leverancier" (K/L). De app blijft de SOORT-classificatie zelf handmatig doen
+via `BekendeLocatie` (§5) — dat is niet vervangen — maar de nieuwe kolom
+wordt gebruikt om die handmatige stap te versnellen: een voorstel op basis
+van `Relatie` in het koppelformulier, zie §5 en `docs/decisions.md`
+(08-09-2026)._

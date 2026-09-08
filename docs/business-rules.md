@@ -134,6 +134,15 @@ Gebouwd t/m roadmap-fase 3 (03-09-2026, commit `eea759c`, 143 tests groen — zi
   02-09-2026): die kijkt over de hele levensloop van een werkbon of een afgeronde
   werkbon ooit uren kreeg. Deze aansluiting vergelijkt per dag twee al aanwezige
   bronnen, alleen per werkbon in plaats van geblendet.
+- **Klantnaam bij "Aansluiting per werkbon"** (08-09-2026) — een extra
+  kolom Klant, direct naast de werkbonnummer-kolom, met
+  `Uren.project_opdrachtgever_naam` voor exact die (datum, werkbon).
+  Alleen de werkbon-rijen krijgen een naam; KLANT/INDIRECT/totaal tonen
+  een streepje, net als de rest van de tabel. Geen opzoekactie op een
+  andere datum van dezelfde werkbon — een werkbon die alleen via de
+  Werkbonnen.xlsx-postcode-vangnet is gematcht toont dus ook een
+  streepje. Aandachtspunt (nog open, zie `docs/decisions.md`): hoe vaak
+  dat laatste voorkomt is nog te bekijken op echte data.
 - **Totaal (excl. reistijd) vs. op locatie** (label bijgesteld 07-09-2026, was
   "Gefactureerd" — de berekening is ongewijzigd; deze regel blijft naast de
   aansluitingstabel hierboven bestaan als snel totaalcijfer) — per dag en per week wordt de som van
@@ -170,10 +179,14 @@ Gebouwd t/m roadmap-fase 3 (03-09-2026, commit `eea759c`, 143 tests groen — zi
 - Exacte tolerantiewaarden per activiteit — nog te bevestigen met de klant (bron:
   `20260424 RMW-Overzicht ....xlsx` in de brainstorm-sessie); de tabel en het
   mechanisme zijn al gebouwd, alleen met de standaardwaarde.
-- **Klant/leverancier-onderscheid** — was een open datavraag, maar wordt bij de bron
-  opgelost: Ruud (RVS Solutions) gaat dit onderscheid zelf aan de Relaties-export
-  toevoegen. Mogelijk hoeft de app dit dan niet meer zelf via een koppeltabel af te
-  leiden — te bevestigen zodra de aangepaste export er is.
+- **Klant/leverancier-suggestie bij het koppelformulier** — besloten
+  08-09-2026, nog niet gebouwd. Wim leverde een aangepaste Relaties.xlsx met
+  de kolom "Klant of leverancier" (K/L). Geen automatische classificatie,
+  wel een voorstel in het koppelformulier: matcht op postcode (geen
+  betrouwbaar huisnummer beschikbaar), één relatie → soort+label
+  voorgevuld, meerdere → keuzelijst. Let op: Relatie "L" (Leverancier) →
+  SOORT **C** (Crediteur), niet "L" (dat is Locatie in `BekendeLocatie`).
+  Zie `docs/decisions.md`.
 - Meerwerk: snelheidscontrole per locatie (RouteVision-snelheid vs.
   maximumsnelheid) — op 05-09-2026 vastgelegd als een aparte, later apart te
   offreren fase, buiten deze roadmap. Zie `docs/decisions.md`.

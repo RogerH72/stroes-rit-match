@@ -339,7 +339,24 @@ RouteVision-data komt voor de PoC uit een handmatige download, niet uit de API.
    van de Berg 6 juni toont 0,38 uur klant-tijd zonder enige boeking — beide
    gevallen die in de oude, geblendete dagregel onzichtbaar wegvielen. Zie
    `docs/decisions.md` en `docs/changelog.md` (07-09-2026).
-24. **Eerstvolgende stap:** het navragen bij Wim van de RouteVision-
+24. **Gedaan (08-09-2026).** Twee documentatiebesluiten vastgelegd, geen
+   codewijziging: (1) het invullen van het thuisadres per monteur is
+   toegevoegd als verplicht onderdeel van de opleverinstructie aan Wim,
+   naast het al vastgelegde foutherstel-punt (03-09-2026); (2) een extra
+   kolom "Klant" bij "Aansluiting per werkbon" is besloten (bron:
+   `Uren.project_opdrachtgever_naam`), nog niet gebouwd — instructie naar
+   de Claude Code-sessie volgt. Zie `docs/decisions.md`,
+   `docs/functioneel-ontwerp.md` §6/§7 en `docs/business-rules.md`.
+25. **Gebouwd (08-09-2026).** De klantnaam-kolom bij "Aansluiting per
+   werkbon" (punt 24) is gebouwd: `Uren.project_opdrachtgever_naam` op de
+   werkbon-rijen, op de pagina en in de Excel-export, 349 tests groen (was
+   343). Aandachtspunt gemeld door Claude Code, bewust zo gelaten: een
+   werkbon die een dag alleen via de Werkbonnen.xlsx-postcode-vangnet
+   wordt gematcht (dus zonder eigen Uren-regel die dag) toont altijd een
+   streepje bij Klant — geen bug, de bewuste "geen opzoekactie"-regel,
+   maar te herbekijken zodra een echte week is doorgerekend. Zie
+   `docs/decisions.md` en `docs/functioneel-ontwerp.md` §6.
+26. **Eerstvolgende stap:** het navragen bij Wim van de RouteVision-
    dekkingsgaten bij Dennis van de Berg en Maarten Jaarsma (punt 17) — dan
    pas verder met roadmap-fase 7 (oplevering). Vergeet niet eerst nog te
    pushen (2 commits staan klaar op `main`). Het draaiboek staat klaar in `DRAAIBOEK.md`, met drie nog
@@ -349,6 +366,32 @@ RouteVision-data komt voor de PoC uit een handmatige download, niet uit de API.
    (03-09-2026) over het straat-niveau depotrisico, en bij de oplevering
    (fase 7/8) dat de instructie aan Wim expliciet foutherstel via "Bekende
    locaties" moet uitleggen (`docs/decisions.md`, 03-09-2026).
+27. **Gedaan (08-09-2026).** De RouteVision-dekkingsgaten uit punt 26
+   (Dennis van de Berg, gat in week 33; Maarten Jaarsma, geen data vanaf
+   15-08) zijn verklaard: Roger heeft toegang tot RouteVision gekregen en
+   ziet bij beide monteurs dat de data vanaf 01-09-2026 weer terugkomt —
+   een vakantieperiode, bevestigd in een eerder gesprek met Wim. Geen
+   exportprobleem, dus geen actie nodig richting Stric/RouteVision en geen
+   aanpassing aan de matchlogica of het weekoverzicht: de geboekte uren
+   die dag zijn verlofuren (net als kantoor/reisuren/magazijnonderhoud
+   gewoon geboekte uren zonder ritdata, zie `docs/business-rules.md`), en
+   de melding "onvolledige week" is precies het bedoelde gedrag wanneer er
+   geen ritdata is om een tijdlijn op te bouwen. De overige punten uit
+   punt 26 (pushen, de drie nog niet definitieve DRAAIBOEK.md-onderdelen,
+   het depotadres-aandachtspunt, de foutherstel-instructie) blijven de
+   eerstvolgende stappen richting roadmap-fase 7. Zie `docs/decisions.md`
+   (08-09-2026).
+28. **Gedaan (08-09-2026).** Naar aanleiding van een aangepaste
+   Relaties.xlsx van Wim (nieuwe kolom "Klant of leverancier", K/L) is
+   besloten, nog niet gebouwd: het koppelformulier in het
+   uitzonderingenscherm krijgt een voorstel op basis van `Relatie`
+   (matchend op postcode, want een betrouwbaar huisnummer ontbreekt),
+   met een keuzelijst bij meerdere kandidaten op dezelfde postcode. Geen
+   automatische classificatie — de gebruiker bevestigt nog steeds zelf.
+   Aandachtspunt voor de bouw: Relatie "L" (Leverancier) moet als SOORT
+   C (Crediteur) voorgesteld worden, niet als "L" (Locatie in
+   `BekendeLocatie.soort` betekent iets anders). Zie `docs/decisions.md`
+   en `docs/functioneel-ontwerp.md` §5/§9.
 
 **Vervallen:** de eerder voorziene live-PoC-fase met 1-2 monteurs bij de klant (~1
 week, in overleg met Wim) — het akkoord van 31-08-2026 betrof al de volledige

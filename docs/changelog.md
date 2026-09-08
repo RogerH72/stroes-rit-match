@@ -937,3 +937,96 @@ klant-tijd (23 minuten) terwijl er die dag niets geboekt is, met een dagtotaal v
 Beide gevallen renderen correct op de pagina en in de Excel-export, met de
 getallen als echte getallen (0,38 / 0 / -0,38) en een lege cel waar een kant niet
 van toepassing is.
+
+## 2026-09-08 — Twee besluiten vastgelegd: thuisadres bij eerste inrichting, klantnaam bij Aansluiting per werkbon
+
+Puur documentatie, geen codewijziging.
+
+**Thuisadres bij eerste inrichting.** Naar aanleiding van de vraag waarom
+SOORT T (Thuis) nog nergens in het weekoverzicht verschijnt: het
+testthuisadres dat tijdens de bouw is gebruikt (zie 07-09-2026 hierboven)
+is na verificatie weer verwijderd, dus voor de echte monteurs staat
+`Monteur.thuisadres` nog overal leeg. Vastgelegd als verplicht onderdeel
+van de opleverinstructie aan Wim, naast het al vastgelegde foutherstel-punt
+(03-09-2026). Zie `docs/decisions.md` en `docs/functioneel-ontwerp.md` §7.
+
+**Klantnaam bij "Aansluiting per werkbon" — besloten, nog niet gebouwd.**
+Een extra kolom Klant naast het werkbonnummer, gevuld uit
+`Uren.project_opdrachtgever_naam`. Alleen de werkbon-rijen krijgen een
+naam; is er voor die specifieke werkbon/datum geen Uren-regel met een naam,
+dan toont de cel een streepje (–), zonder op te zoeken bij een andere datum
+van dezelfde werkbon. Wordt zowel op de pagina als in de Excel-export
+toegevoegd. Zie `docs/decisions.md` en `docs/functioneel-ontwerp.md` §6.
+Instructie naar de Claude Code-sessie volgt.
+
+## 2026-09-08 — Klantnaam bij Aansluiting per werkbon gebouwd
+
+Uitvoering van de instructie op basis van het besluit hierboven (zelfde
+dag). 349 tests groen (was 343).
+
+- `AansluitingRegel` kreeg `klantnaam: str | None = None` (laatste veld,
+  vanwege de default op de frozen dataclass). `DagOverzicht` kreeg
+  `klantnaam_per_werkbon: dict[str, str]`, gevuld door een nieuwe
+  `_klantnaam_per_werkbon()` die dezelfde `Uren`-filter gebruikt als
+  `_geboekte_uren_per_werkbon()`, met `.exclude(project_opdrachtgever_naam="")`
+  en `setdefault` zodat een tweede, afwijkende naam op dezelfde (datum,
+  werkbon) stilzwijgend genegeerd wordt in plaats van een fout te geven.
+  Alleen de werkbon-rijen krijgen een naam; KLANT/INDIRECT/totaal blijven
+  `None`.
+- Template: `<th>Klant</th>` na Werkbon, dezelfde `== None → &ndash;`-
+  weergave als de andere kolommen; de totaalrij kreeg een letterlijke
+  `&ndash;`-cel op dezelfde plek.
+- Excel-export: kolom 2 stond in deze tabel al vrij tussen Werkbon (kolom
+  1) en Op locatie (KOL_TIJD=3) — `(2, "Klant")` toegevoegd aan de
+  kopregel, `regelgegevens.klantnaam or "–"` op elke rij inclusief de
+  totaalrij. `KOL_TIJD` (gedeeld met andere tabellen in dit bestand) is
+  ongemoeid gebleven.
+- Tests uitgebreid: een naam vanuit `Uren.xlsx` op de werkbon-rij; een
+  werkbon die de dag alleen via de Werkbonnen.xlsx-postcode-vangnet
+  bereikt toont geen naam; een naam op een andere datum van dezelfde
+  werkbon wordt niet geleend; KLANT/INDIRECT/totaal blijven altijd leeg;
+  beide weergaven (pagina en Excel) gecontroleerd.
+
+**Aandachtspunt, gemeld door Claude Code tijdens de bouw.** Omdat de
+werkbon-rijen op (datum, werkbon) uit `Uren.xlsx` gesleuteld zijn, toont
+een werkbon die een dag uitsluitend via de Werkbonnen.xlsx-postcode-
+vangnet in de tijdlijn komt (die leest `WerkbonControle`, niet `Uren`)
+altijd een streepje bij Klant — ook als de naam voor diezelfde werkbon op
+een andere datum wel bekend is. Dit is precies de bewust gekozen "geen
+opzoekactie op een andere datum"-regel, maar kan op echte data een
+merkbaar deel van de rijen raken. Besluit (Roger, 08-09-2026): voorlopig
+zo laten, pas herbekijken zodra een echte week is doorgerekend. Zie
+`docs/decisions.md` (08-09-2026).
+
+## 2026-09-08 — RouteVision-dekkingsgaten verklaard: vakantie
+
+Puur een bevinding/documentatie-update, geen codewijziging.
+
+De twee dekkingsgaten uit de testronde van 07-09-2026 (Dennis van de Berg,
+gat in week 33; Maarten Jaarsma, geen data vanaf 15-08) zijn verklaard.
+Roger kreeg toegang tot RouteVision en zag bij beide monteurs dat de data
+vanaf 01-09-2026 weer terugkomt, en wist uit een gesprek met Wim dat zijn
+personeel in die periode met vakantie was. Geen exportprobleem: de
+geboekte uren in die weken zijn verlofuren (gewone geboekte uren zonder
+ritdata), en de melding "onvolledige week" is precies het bedoelde gedrag
+wanneer er geen ritdata is om een tijdlijn op te bouwen. Zie
+`docs/decisions.md` (08-09-2026) en `GUIDELINES.md` punt 27.
+
+## 2026-09-08 — Klant/leverancier-suggestie besloten, nog niet gebouwd
+
+Puur documentatie, geen codewijziging.
+
+Wim leverde een aangepaste Relaties.xlsx met een nieuwe kolom "Klant of
+leverancier" (K/L). Besloten: het koppelformulier van het
+uitzonderingenscherm krijgt straks een voorstel op basis van `Relatie`
+(matchend op postcode — een betrouwbaar huisnummer ontbreekt op
+stop-niveau, zie `matching/timeline/normalize.py`), met een keuzelijst bij
+meerdere kandidaten op dezelfde postcode. Geen automatische classificatie:
+de gebruiker bevestigt nog steeds zelf. Aandachtspunt voor de bouw: Relatie
+"L" (Leverancier) moet als SOORT C (Crediteur) voorgesteld worden, niet als
+"L" (dat is Locatie in `BekendeLocatie.soort`). Dit lost meteen de oude
+openstaande vraag op of RVS Solutions het klant/leverancier-onderscheid ooit
+aan de export zou toevoegen (`docs/functioneel-ontwerp.md` §9, punt 3,
+02-09-2026) — dat is nu gebeurd, en de kolom krijgt een concreet doel in
+plaats van ongebruikt te blijven. Zie `docs/decisions.md` (08-09-2026).
+Instructie naar de Claude Code-sessie volgt.

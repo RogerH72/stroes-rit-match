@@ -1024,6 +1024,31 @@ kleine letter, terwijl de parser hoofdlettergevoelig zocht. Besloten: beide
 oplossen in de gedeelde ingest-laag (`matching/ingest/parsers/base.py`), niet
 alleen voor Relaties — zie `docs/decisions.md`.
 
+## 2026-09-08 — Zelfkoppeling bij "vast meerijden" besloten, nog niet gebouwd; klacht over verwijderen nader te onderzoeken
+
+Roger meldde bij het uitproberen van "monteur vast laten meerijden" in het
+beheerscherm dat een monteur zichzelf als vaste meerijder kan kiezen, en dat
+een vastgelegde koppeling wel te wijzigen maar niet te verwijderen zou zijn.
+Het eerste is bevestigd in de code (`Monteur.vaste_meerijder` mist de
+zelfkoppeling-check die `MeegeredenKoppeling` al heeft) en wordt
+gelijkgetrokken. Het tweede kon niet in de code worden bevestigd (het veld
+is gewoon leegbaar) en wordt eerst live nagetest in de container. Bijvangst:
+een verouderd code-commentaar in `matching/timeline/meegereden.py` over een
+overlap-check die inmiddels wél bestaat, wordt rechtgezet. Zie
+`docs/decisions.md`.
+
+## 2026-09-08 — Zelfkoppeling bij "vast meerijden" gebouwd; klacht over verwijderen opgelost met duidelijker leeg-label
+
+De zelfkoppeling-check op `Monteur.vaste_meerijder` is gebouwd:
+`CheckConstraint` + `clean()`-validatie, zelfde patroon als
+`MeegeredenKoppeling` (migratie `0010`). De klacht over een niet te
+verwijderen koppeling is live nagetest in de container en bleek geen
+codefout — opgelost met een duidelijker leeg-label ("— geen vaste
+meerijder —") op `MonteurAdmin` in plaats van een codewijziging. Het
+verouderde code-commentaar in `matching/timeline/meegereden.py` is
+rechtgezet. 398 tests groen (was 391). Commit `bcd57af` op `main`. Zie
+`docs/decisions.md`.
+
 ## 2026-09-08 — Knop "Bestanden nu inlezen" besloten, nog niet gebouwd
 
 Bij het testen van de klant/leverancier-suggestie bleek dat een bestand in de

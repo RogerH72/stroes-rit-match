@@ -197,6 +197,10 @@ Gebouwd t/m roadmap-fase 3 (03-09-2026, commit `eea759c`, 143 tests groen — zi
 - **Uren worden per datum opgeteld, niet per werkbon** — een monteur boekt
   regelmatig meerdere werkbonnen op één dag; de vergelijking gaat over de dag als
   geheel.
+- **Zelfkoppeling-check op `Monteur.vaste_meerijder`.** Gelijkgetrokken met
+  de al bestaande check op `MeegeredenKoppeling` (junior != senior): een
+  monteur mag zichzelf niet als vaste meerijder kiezen. `CheckConstraint` +
+  `clean()`-validatie (docs/decisions.md, 08-09-2026; commit `bcd57af`).
 
 ## Designed but not implemented
 

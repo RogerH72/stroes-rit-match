@@ -1466,3 +1466,53 @@ nummering is rechtgezet (31/32 doorgeschoven) en de achterhaalde entries
 verwijzen nu naar de gebouwd-entry, in plaats van ze te verwijderen — zoals
 elders in dit bestand blijft een eerder besluit staan en haalt een latere
 entry hem in.
+
+## 2026-09-08 — Zelfkoppeling bij "vast meerijden" tegengaan; klacht over niet-verwijderbare koppeling nader te onderzoeken (Uitgevoerd)
+
+Decision: `Monteur.vaste_meerijder` krijgt dezelfde zelfkoppeling-check als
+`MeegeredenKoppeling` al heeft — een monteur mag zichzelf niet als eigen
+vaste meerijder kiezen. Zowel een `clean()`-validatie met een Nederlandse
+foutmelding als een databaseconstraint, zelfde patroon en bewoording als
+`MeegeredenKoppeling.clean()`/`meegereden_junior_is_not_senior`.
+
+Een tweede klacht — een vastgelegde vaste koppeling is in het
+beheerscherm wel te wijzigen maar niet te verwijderen (leeg maken) — kon
+niet in de code worden bevestigd: `vaste_meerijder` staat op
+`null=True, blank=True` en `MonteurAdmin` heeft geen aangepast formulier
+dat dit zou blokkeren. Besloten: eerst live natesten in de container
+(zelfde aanpak als bij de importknop) voordat hier een fix voor bedacht
+wordt — een gok zou het verkeerde probleem kunnen oplossen.
+
+Aanleiding: Roger meldde beide bij het uitproberen van "monteur vast laten
+meerijden" via het beheerscherm, en vroeg daarnaast of de
+meegereden-functionaliteit (Vast/Periode) daadwerkelijk werkt en of een
+vaste koppeling kan overlappen met een periode-koppeling.
+
+Ter info, geen actie: de meegereden-functionaliteit werkt —
+`resolve_bronmonteur()` wordt aangeroepen vanuit
+`matching/timeline/engine.py` en beide standen hebben eigen testdekking
+(`test_timeline.py`, `test_run_matching.py`). Een vaste koppeling kan niet
+overlappen met een periode-koppeling: `Instelling.meegereden_modus` is één
+globale instelling, dus de matching leest altijd maar één van de twee
+bronnen; de andere staat stil in de database, ongebruikt maar niet gewist.
+Er is wel al een overlap-check, maar alleen tussen twee
+periode-koppelingen van dezelfde junior onderling
+(`MeegeredenKoppeling._check_no_overlap`, 07-09-2026).
+
+Reasoning: zelfde reden als bij `MeegeredenKoppeling` destijds — twee
+monteurs (hier: één monteur met zichzelf) die aan elkaar gekoppeld zijn
+maakt de matching-uitkomst zinloos/ongedefinieerd. Geen aanname over de
+tweede klacht zonder het eerst te reproduceren: de code biedt geen enkele
+aanwijzing voor een bug, dus eerst kijken wat er in de draaiende app
+werkelijk gebeurt.
+
+Uitkomst: beide punten zijn afgerond. De zelfkoppeling-check is gebouwd
+(`CheckConstraint` + `clean()`-validatie, migratie `0010`). De tweede
+klacht is live gereproduceerd in de container en bleek geen codefout —
+leeg selecteren en opslaan wist het veld gewoon. Waarschijnlijke oorzaak:
+Django's standaard leeg-label `---------` leest niet als "verwijderen".
+Opgelost met een duidelijker label ("— geen vaste meerijder —") op
+`MonteurAdmin`, in plaats van een codewijziging voor een niet-bestaande
+bug. Het verouderde code-commentaar in
+`matching/timeline/meegereden.py` (`_koppeling_op()`) is tegelijk
+rechtgezet. 398 tests groen (was 391). Commit `bcd57af` op `main`.

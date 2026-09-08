@@ -448,6 +448,23 @@ RouteVision-data komt voor de PoC uit een handmatige download, niet uit de API.
    controleert dat laatste expliciet. 391 tests groen (was 379). Zie
    `docs/decisions.md` en `docs/functioneel-ontwerp.md` §4.
 
+34. **Gebouwd (08-09-2026).** Bij het testen van "monteur vast laten
+   meerijden" bleek `Monteur.vaste_meerijder` geen check te hebben tegen
+   zelfkoppeling (een monteur kan zichzelf als eigen vaste meerijder
+   kiezen) — anders dan `MeegeredenKoppeling`, die deze check al wel
+   heeft. Gelijkgetrokken: `CheckConstraint` + `clean()`-validatie, zelfde
+   patroon. De tweede gemelde klacht (een vastgelegde koppeling wijzigen
+   lukt, verwijderen niet) is live getest in de container en bleek geen
+   codefout — het veld is gewoon leegbaar. Waarschijnlijke oorzaak:
+   Django's standaard leeg-label `---------` leest niet als
+   "verwijderen"; opgelost met een duidelijker label ("— geen vaste
+   meerijder —") op `MonteurAdmin`. Bijvangst: een verouderd
+   code-commentaar in `matching/timeline/meegereden.py` dat nog beweert
+   dat overlappende periode-koppelingen niet worden tegengehouden, is
+   rechtgezet — dat klopt niet meer sinds die check (07-09-2026) is
+   toegevoegd. 398 tests groen (was 391). Commit `bcd57af`. Zie
+   `docs/decisions.md` en `docs/functioneel-ontwerp.md` §3b.
+
 **Vervallen:** de eerder voorziene live-PoC-fase met 1-2 monteurs bij de klant (~1
 week, in overleg met Wim) — het akkoord van 31-08-2026 betrof al de volledige
 offerte, niet alleen een PoC-stap. Zie `docs/decisions.md`.

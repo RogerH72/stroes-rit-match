@@ -163,6 +163,16 @@ Fase 3/4 bouwt de standen 1 en 2 echt werkend (model + matchinglogica); stand 3 
 gereserveerde keuze zonder importlogica erachter, tot de activatie ervan apart besloten
 wordt.
 
+**Zelfkoppeling bij "Vast" tegengaan — gebouwd (08-09-2026).**
+`Monteur.vaste_meerijder` miste de check die `MeegeredenKoppeling` al wel
+heeft: een monteur kon zichzelf als eigen vaste meerijder kiezen.
+Gelijkgetrokken met hetzelfde patroon (`clean()`-validatie +
+databaseconstraint). De gemelde klacht dat een vastgelegde vaste koppeling
+wel te wijzigen maar niet te verwijderen zou zijn, is live getest en bleek
+geen codefout — opgelost met een duidelijker leeg-label ("— geen vaste
+meerijder —") op `MonteurAdmin`, in plaats van Django's standaard
+`---------` dat niet als "verwijderen" leest. Zie `docs/decisions.md`.
+
 **Werkbon-tijdregistratie (WB-vs-SYS-signaal) — bewust niet gebouwd (vastgelegd
 2026-09-02):** het originele wensdoel van de klant om de door de monteur ingevulde
 aankomst-/vertrektijd op de werkbon te vergelijken met de werkelijkheid is niet

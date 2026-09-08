@@ -218,6 +218,10 @@ def _aansluiting(blad: Worksheet, dag: DagOverzicht, *, start: int) -> int:
 
     for kolom, naam in (
         (1, "Werkbon"),
+        # Column 2 is free in this particular table — the block rows above start
+        # their figures at KOL_TIJD, which other tables in this file share, so
+        # the client name slots in beside the werkbon without moving anything.
+        (2, "Klant"),
         (KOL_TIJD, "Op locatie"),
         (KOL_TIJD + 1, "Gedeclareerd"),
         (KOL_TIJD + 2, "Verschil"),
@@ -228,6 +232,17 @@ def _aansluiting(blad: Worksheet, dag: DagOverzicht, *, start: int) -> int:
     for regelgegevens in [*dag.aansluiting, dag.aansluiting_totaal]:
         totaalrij = regelgegevens is dag.aansluiting_totaal
         _cel(blad, regel, 1, regelgegevens.label, bold=totaalrij, rand=True)
+        # A row without a name gets the same dash the page shows, so the export
+        # says "not applicable here" rather than leaving a blank that could pass
+        # for a client whose name went missing.
+        _cel(
+            blad,
+            regel,
+            2,
+            regelgegevens.klantnaam or "–",
+            bold=totaalrij,
+            rand=True,
+        )
         for kolom, waarde, formaat in (
             (KOL_TIJD, regelgegevens.op_locatie, UREN_FORMAAT),
             (KOL_TIJD + 1, regelgegevens.gedeclareerd, UREN_FORMAAT),

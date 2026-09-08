@@ -715,11 +715,12 @@ class AansluitingPerWerkbonTests(TestCase):
         factories.urenregel(
             "005", MAANDAG, "WB1000",
             adres=KLANT[0], postcode="4196 HB", plaats="TRICHT", aantal="1.00",
+            opdrachtgever="Bakkerij Van Dijk",
         )
         factories.urenregel(
             "005", MAANDAG, "WB2000",
             adres=self.TWEEDE_KLANT[0], postcode="4191 AA", plaats="GELDERMALSEN",
-            aantal="1.00",
+            aantal="1.00", opdrachtgever="Garage Molenstraat",
         )
 
     def _dag(self):
@@ -839,6 +840,51 @@ class AansluitingPerWerkbonTests(TestCase):
         self.assertEqual(dag.aansluiting_totaal.gedeclareerd, dag.gefactureerde_uren)
         self.assertEqual(dag.aansluiting_totaal.op_locatie, dag.uren_op_locatie)
 
+    def test_a_werkbon_row_shows_the_client_it_was_booked_for(self):
+        # The reason for the column (docs/decisions.md, 08-09-2026): judging a
+        # difference should not need a lookup elsewhere to see whose job it was.
+        regels = self._regels(self._dag())
+
+        self.assertEqual(regels["WB1000"].klantnaam, "Bakkerij Van Dijk")
+        self.assertEqual(regels["WB2000"].klantnaam, "Garage Molenstraat")
+
+    def test_a_werkbon_without_an_uren_row_that_day_shows_no_name(self):
+        # Reached through the Werkbonnen.xlsx postcode fallback, so there is no
+        # Uren row on this date to read a name from. Absent rather than borrowed
+        # from another date of the same werkbon.
+        self._tweede_stop_vrijgeven()
+        factories.werkbon_controle(
+            "WB2000", "005", MAANDAG, FaseStatus.AFGEROND, postcode="4191 AA"
+        )
+
+        self.assertIsNone(self._regels(self._dag())["WB2000"].klantnaam)
+
+    def test_the_name_is_not_looked_up_on_another_date_of_the_same_werkbon(self):
+        # Same werkbon, named on Tuesday only: Monday still shows a dash. The
+        # column says what stands on this exact (date, werkbon), nothing wider.
+        self._tweede_stop_vrijgeven()
+        factories.werkbon_controle(
+            "WB2000", "005", MAANDAG, FaseStatus.AFGEROND, postcode="4191 AA"
+        )
+        factories.urenregel(
+            "005", MAANDAG + dt.timedelta(days=1), "WB2000",
+            aantal="1.00", opdrachtgever="Garage Molenstraat",
+        )
+
+        self.assertIsNone(self._regels(self._dag())["WB2000"].klantnaam)
+
+    def test_the_indirect_and_client_rows_carry_no_name(self):
+        # Neither is tied to one werkbon, so neither can name a client.
+        factories.urenregel(
+            "005", MAANDAG, "", aantal="2.00", opdrachtgever="Kantoor"
+        )
+        dag = self._dag()
+        regels = self._regels(dag)
+
+        self.assertIsNone(regels[week.INDIRECT_LABEL].klantnaam)
+        self.assertIsNone(regels[week.KLANT_LABEL].klantnaam)
+        self.assertIsNone(dag.aansluiting_totaal.klantnaam)
+
     def test_a_day_with_nothing_to_reconcile_shows_no_table(self):
         self._dag()
         Uren.objects.all().delete()
@@ -861,8 +907,10 @@ class AansluitingWeergaveTests(TestCase):
         factories.urenregel(
             "005", MAANDAG, "WB260908",
             adres=KLANT[0], postcode="4196 HB", plaats="TRICHT", aantal="2.50",
+            opdrachtgever="Bakkerij Van Dijk",
         )
         # A werkbon with hours but no time on site: the mismatch to look for.
+        # Booked without a client name, so it renders as a dash.
         factories.urenregel("005", MAANDAG, "WB260999", aantal="4.00")
         run_matching(force=True)
 
@@ -894,6 +942,12 @@ class AansluitingWeergaveTests(TestCase):
     def test_the_page_shows_the_client_row(self):
         self.assertIn(week.KLANT_LABEL, self._pagina())
 
+    def test_the_page_shows_the_client_column(self):
+        inhoud = self._pagina()
+
+        self.assertIn("<th>Klant</th>", inhoud)
+        self.assertIn("Bakkerij Van Dijk", inhoud)
+
     def test_the_excel_export_carries_the_same_table(self):
         overzicht = week.bouw_weekoverzicht(self.monteur, *WEEK)
         boek = openpyxl.load_workbook(io.BytesIO(bouw_werkboek(overzicht)))
@@ -909,6 +963,19 @@ class AansluitingWeergaveTests(TestCase):
         self.assertIn("WB260999", cellen)
         self.assertIn(week.KLANT_LABEL, cellen)
         self.assertIn(4.0, cellen)  # the undeclared werkbon gap, as a number
+
+    def test_the_excel_export_carries_the_client_column(self):
+        overzicht = week.bouw_weekoverzicht(self.monteur, *WEEK)
+        blad = openpyxl.load_workbook(io.BytesIO(bouw_werkboek(overzicht))).active
+        rijen = {r[0].value: r for r in blad.iter_rows()}
+
+        self.assertEqual(rijen["Werkbon"][1].value, "Klant")
+        self.assertEqual(rijen["WB260908"][1].value, "Bakkerij Van Dijk")
+        # No name on this date, and the rows that are not tied to one werkbon:
+        # a dash, the same "not applicable" the page shows.
+        self.assertEqual(rijen["WB260999"][1].value, "–")
+        self.assertEqual(rijen[week.KLANT_LABEL][1].value, "–")
+        self.assertEqual(rijen["Totaal"][1].value, "–")
 
     def test_the_excel_export_leaves_an_absent_side_empty(self):
         overzicht = week.bouw_weekoverzicht(self.monteur, *WEEK)

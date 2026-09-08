@@ -215,6 +215,11 @@ class AansluitingRegel:
     label: str
     op_locatie: Decimal | None
     gedeclareerd: Decimal | None
+    #: The client this werkbon was booked for, from Uren.xlsx. Only werkbon rows
+    #: carry one: the K row, the indirect row and the total are not tied to a
+    #: single werkbon, so they stay None and read as "–" like every other
+    #: not-applicable cell here (docs/decisions.md, 08-09-2026).
+    klantnaam: str | None = None
 
     @property
     def verschil(self) -> Decimal | None:
@@ -241,6 +246,11 @@ class DagOverzicht:
     #: Booked hours per werkbon number on this date, "" holding the ones with no
     #: werkbon number at all.
     gedeclareerd_per_werkbon: dict[str, Decimal] = field(default_factory=dict)
+    #: Client name per werkbon number on this date, as booked in Uren.xlsx. Only
+    #: what stands on this exact date: a werkbon that has no Uren row today has
+    #: no entry here, and gets a "–" rather than a name borrowed from another day
+    #: (docs/decisions.md, 08-09-2026).
+    klantnaam_per_werkbon: dict[str, str] = field(default_factory=dict)
     #: Hours booked in Uren.xlsx on this date — the left-hand side of the
     #: comparison. On screen this is labelled "Totaal (excl. reistijd)" since
     #: 07-09-2026; the field keeps its original name because the value is
@@ -340,6 +350,7 @@ class DagOverzicht:
                 label=werkbon,
                 op_locatie=_naar_uren(op_locatie.get(werkbon, 0)),
                 gedeclareerd=gedeclareerd.get(werkbon, Decimal("0.00")),
+                klantnaam=self.klantnaam_per_werkbon.get(werkbon),
             )
             for werkbon in werkbonnen
         ]
@@ -495,6 +506,7 @@ def bouw_weekoverzicht(monteur: Monteur, jaar: int, week: int) -> WeekOverzicht:
 
     uren_per_dag = _geboekte_uren(monteur, maandag, zondag)
     uren_per_werkbon = _geboekte_uren_per_werkbon(monteur, maandag, zondag)
+    klantnamen = _klantnaam_per_werkbon(monteur, maandag, zondag)
 
     dagen: dict[dt.date, DagOverzicht] = {}
     blokken = Tijdblok.objects.filter(
@@ -507,6 +519,7 @@ def bouw_weekoverzicht(monteur: Monteur, jaar: int, week: int) -> WeekOverzicht:
                 datum=blok.datum,
                 gefactureerde_uren=uren_per_dag.get(blok.datum, Decimal("0.00")),
                 gedeclareerd_per_werkbon=uren_per_werkbon.get(blok.datum, {}),
+                klantnaam_per_werkbon=klantnamen.get(blok.datum, {}),
             )
         dag.regels.append(_regel(blok))
 
@@ -583,6 +596,37 @@ def _geboekte_uren_per_werkbon(
         per_dag.setdefault(rij["datum"], {})[rij["werkbon"]] = (
             rij["totaal"] or Decimal(0)
         ).quantize(Decimal("0.01"))
+    return per_dag
+
+
+def _klantnaam_per_werkbon(
+    monteur: Monteur, van: dt.date, tot: dt.date
+) -> dict[dt.date, dict[str, str]]:
+    """The client name per date *and* werkbon, for the reconciliation table.
+
+    Read from the same Uren rows the declared hours come from, so a name can
+    only ever appear next to a werkbon that was actually booked on that date —
+    the table's "absent is not zero" rule applied to text (docs/decisions.md,
+    08-09-2026).
+
+    Rows without a name are left out rather than stored as "": an empty string
+    would occupy the slot and hide a name on a sibling row of the same werkbon.
+    Should two rows of one (date, werkbon) disagree about the name, the first
+    wins without complaint — this column is there to save Wim a lookup while he
+    judges a difference, not to be a source of truth about who the client is.
+    """
+    rijen = (
+        Uren.objects.filter(
+            medewerker=monteur.medewerker_nummer, datum__range=(van, tot)
+        )
+        .exclude(project_opdrachtgever_naam="")
+        .values("datum", "werkbon", "project_opdrachtgever_naam")
+    )
+    per_dag: dict[dt.date, dict[str, str]] = {}
+    for rij in rijen:
+        per_dag.setdefault(rij["datum"], {}).setdefault(
+            rij["werkbon"], rij["project_opdrachtgever_naam"]
+        )
     return per_dag
 
 

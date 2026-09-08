@@ -318,6 +318,7 @@ comparison is shown per day as well as per week.
                 <thead>
                   <tr>
                     <th>Werkbon</th>
+                    <th>Klant</th>
                     <th class="getal">Op locatie</th>
                     <th class="getal">Gedeclareerd</th>
                     <th class="getal">Verschil</th>
@@ -327,6 +328,7 @@ comparison is shown per day as well as per week.
                   {% for regel in dag.aansluiting %}
                     <tr>
                       <td>{{ regel.label }}</td>
+                      <td>{% if regel.klantnaam == None %}&ndash;{% else %}{{ regel.klantnaam }}{% endif %}</td>
                       <td class="getal">
                         {% if regel.op_locatie == None %}&ndash;{% else %}{{ regel.op_locatie }}{% endif %}
                       </td>
@@ -340,6 +342,7 @@ comparison is shown per day as well as per week.
                   {% endfor %}
                   <tr class="totaalrij">
                     <td>{{ dag.aansluiting_totaal.label }}</td>
+                    <td>&ndash;</td>
                     <td class="getal">{{ dag.aansluiting_totaal.op_locatie }}</td>
                     <td class="getal">{{ dag.aansluiting_totaal.gedeclareerd }}</td>
                     <td class="getal">{{ dag.aansluiting_totaal.verschil }}</td>

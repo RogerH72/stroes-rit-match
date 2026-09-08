@@ -480,13 +480,26 @@ class Monteur(models.Model):
                 fields=["bestuurder_code"],
                 condition=~models.Q(bestuurder_code=""),
                 name="unique_bestuurder_code_when_set",
-            )
+            ),
+            # Same guard MeegeredenKoppeling has: a monteur riding along with
+            # himself would make `vaste_meerijder` resolve to his own rides,
+            # which is what the field exists to look past. In the database as
+            # well as in clean(), because a save() that skips validation must
+            # not be able to write it either (docs/decisions.md, 08-09-2026).
+            models.CheckConstraint(
+                condition=~models.Q(vaste_meerijder=models.F("id")),
+                name="monteur_vaste_meerijder_is_not_self",
+            ),
         ]
 
     def __str__(self) -> str:
         return f"{self.naam} ({self.medewerker_nummer})"
 
     def clean(self):
+        if self.vaste_meerijder_id and self.vaste_meerijder_id == self.id:
+            raise ValidationError(
+                {"vaste_meerijder": "Een monteur kan niet vast meerijden met zichzelf."}
+            )
         genormaliseerd = self.normalised_thuisadres()
         if self.thuisadres and not genormaliseerd:
             # Refusing beats silently blanking the field: a home address that

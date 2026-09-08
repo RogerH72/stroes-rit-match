@@ -8,9 +8,13 @@ are covered separately by matching/tests/test_sample_data.py.
 from __future__ import annotations
 
 import datetime as dt
+import re
 
+from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
+from django.db import IntegrityError
 from django.test import TestCase
+from django.urls import reverse
 
 from matching.models import (
     BekendeLocatie,
@@ -643,6 +647,103 @@ class MeegeredenTests(TestCase):
         )
         with self.assertRaises(ValidationError):
             koppeling.clean()
+
+
+class VasteMeerijderZelfkoppelingTests(TestCase):
+    """`Monteur.vaste_meerijder` may not point at the monteur himself.
+
+    The same guard MeegeredenKoppeling has carried from the start, brought over
+    on 08-09-2026 after Roger managed to save it through the beheerscherm. A
+    monteur riding along with himself resolves his bronmonteur back to his own
+    rides, which is exactly what the field exists to look past — and for a
+    monteur without a bestuurderscode of his own that leaves no rides at all.
+    """
+
+    def setUp(self):
+        self.monteur = factories.monteur("Senior", "002", "M2")
+
+    def test_pointing_the_field_at_yourself_is_rejected(self):
+        self.monteur.vaste_meerijder = self.monteur
+
+        with self.assertRaises(ValidationError) as ctx:
+            self.monteur.full_clean()
+
+        self.assertIn("vaste_meerijder", ctx.exception.message_dict)
+
+    def test_pointing_it_at_someone_else_is_fine(self):
+        junior = factories.monteur("Junior", "009")
+        junior.vaste_meerijder = self.monteur
+
+        junior.full_clean()  # does not raise
+
+    def test_the_database_refuses_it_even_without_validation(self):
+        # save() does not call full_clean(), so the check has to exist in the
+        # database too — otherwise a script or a shell one-liner could still
+        # write it.
+        self.monteur.vaste_meerijder = self.monteur
+
+        with self.assertRaises(IntegrityError):
+            self.monteur.save()
+
+    def test_the_field_can_still_be_cleared_once_it_is_set(self):
+        # The reverse of the guard above, and the reason it is worth a test of
+        # its own: clean() now runs on every save of a Monteur, so a mistake in
+        # it could just as easily block *removing* a koppeling as adding a bad
+        # one. Reproduced through the admin change form on 08-09-2026, which is
+        # where the question came from, and it clears normally.
+        junior = factories.monteur("Junior", "009")
+        junior.vaste_meerijder = self.monteur
+        junior.save()
+
+        junior.vaste_meerijder = None
+        junior.full_clean()
+        junior.save()
+
+        junior.refresh_from_db()
+        self.assertIsNone(junior.vaste_meerijder)
+
+    def test_an_empty_field_stays_allowed(self):
+        # The common case: most monteurs have no vaste meerijder at all, and the
+        # constraint must not turn NULL into a violation.
+        self.monteur.vaste_meerijder = None
+
+        self.monteur.full_clean()
+        self.monteur.save()
+
+        self.monteur.refresh_from_db()
+        self.assertIsNone(self.monteur.vaste_meerijder)
+
+
+class VasteMeerijderFormulierTests(TestCase):
+    """The admin field for `vaste_meerijder`, kept next to its model tests above.
+
+    Roger read the koppeling as impossible to remove (08-09-2026). Clearing it
+    turned out to work — reproduced through this very form — but Django's empty
+    choice is labelled "---------", which is not what someone looking for a way
+    to undo a koppeling clicks on. The label now says so in words.
+    """
+
+    def setUp(self):
+        self.monteur = factories.monteur("Senior", "002", "M2")
+        self.beheerder = User.objects.create_superuser(
+            "beheer", "b@sbtt.nl", "geheim"
+        )
+        self.client.force_login(self.beheerder)
+
+    def test_the_empty_choice_says_what_it_means(self):
+        url = reverse("admin:matching_monteur_change", args=[self.monteur.pk])
+
+        inhoud = self.client.get(url).content.decode()
+
+        self.assertIn("— geen vaste meerijder —", inhoud)
+
+    def test_the_default_dashes_are_gone_from_that_field(self):
+        url = reverse("admin:matching_monteur_change", args=[self.monteur.pk])
+        html = self.client.get(url).content.decode()
+
+        veld = re.search(r'<select name="vaste_meerijder".*?</select>', html, re.S)
+        self.assertIsNotNone(veld)
+        self.assertNotIn("---------", veld.group(0))
 
 
 class MeegeredenOverlapTests(TestCase):

@@ -165,6 +165,19 @@ class MonteurAdmin(admin.ModelAdmin):
     )
     ordering = ("naam",)
 
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        """Name the empty choice of `vaste_meerijder` instead of "---------".
+
+        The empty option always worked — clearing the field and saving removes
+        the koppeling — but Django's default label is a row of dashes, which
+        does not read as "no koppeling" to someone looking for a way to undo one
+        (docs/decisions.md, 08-09-2026). Only the label changes; the choice
+        itself, and everything it does, is unchanged.
+        """
+        if db_field.name == "vaste_meerijder":
+            kwargs["empty_label"] = "— geen vaste meerijder —"
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
 
 @admin.register(BekendeLocatie)
 class BekendeLocatieAdmin(admin.ModelAdmin):

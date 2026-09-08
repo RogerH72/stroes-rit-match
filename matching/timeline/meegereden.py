@@ -51,8 +51,11 @@ def resolve_bronmonteur(monteur: Monteur, datum: dt.date) -> Monteur:
 def _koppeling_op(monteur: Monteur, datum: dt.date) -> MeegeredenKoppeling | None:
     """The koppeling covering `datum`, most recently started first.
 
-    Overlapping periods are not prevented by the model — sorting on datum_van
-    means the most recent koppeling wins if a user ever enters two.
+    Two koppelingen for the same junior can no longer overlap — `clean()`
+    rejects that when the row is saved (docs/decisions.md, 07-09-2026) — so the
+    ordering here is a formality rather than a real tie-breaker. It is kept
+    because rows written before that check existed, or straight into the
+    database, would otherwise make this return an arbitrary one of the two.
     """
     still_open = Q(datum_tot__isnull=True) | Q(datum_tot__gte=datum)
     return (

@@ -1093,3 +1093,18 @@ Een uitgedunde kopie van het echte bestand staat als regressiefixture in
 364). Het bestand importeert nu: 2561 relaties (1826 K, 715 L, 20 leeg); 23 van
 de 61 onverklaarde groepen in de juni-data krijgen daarmee een suggestie. Zie
 `docs/decisions.md` (08-09-2026).
+
+## 2026-09-08 — Knop "Bestanden nu inlezen" gebouwd
+
+Derde knop op het matchmotor-beheerscherm, boven "Matching nu draaien" (de
+volgorde waarin de twee stappen gezet worden). Roept `scan_share(force=True)`
+aan: leest direct in wat er op de servermap klaarstaat, zonder de
+stabiliteitsmarge af te wachten. Geen reprocess van al-verwerkte bestanden en
+geen automatische matching erna — allebei bewust aparte stappen, met een test
+die op dat laatste expliciet controleert.
+
+POST-only en gated op `matching.change_matchmotorstatus`, precies zoals de
+bestaande knop ernaast. Het scherm meldt daarna wat er is ingelezen, met de
+zin dat de matching niet is herberekend; een lege servermap, een servermap
+zonder nieuwe bestanden en een onleesbaar bestand krijgen elk hun eigen
+melding. 391 tests groen (was 379). Zie `docs/decisions.md` (08-09-2026).

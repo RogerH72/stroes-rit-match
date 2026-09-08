@@ -207,15 +207,23 @@ net als bij "Matching nu draaien", een bewuste, aparte stap. Gebouwd op
 07-09-2026: `matching/reset.py` met het scherm eronder in `matching/admin.py`, te
 bereiken via een link op het matchmotor-scherm (zie `docs/changelog.md`).
 
-**Bestanden nu inlezen — besloten (08-09-2026), nog niet gebouwd.** Een derde
-knop op hetzelfde matchmotor-scherm, naast "Matching nu draaien" en "Data
-resetten". Roept `scan_share(force=True)` aan (dezelfde functie als
-`check_imports --force` op de command line) — geen reprocess van al-verwerkte
-bestanden, en geen automatische matching erna: beide blijven bewust aparte,
-losse stappen. Aanleiding: SBTT-staff heeft geen shell om `check_imports` mee
-te draaien, en het testen van de klant/leverancier-suggestie liet zien dat een
-bestand in de inbox zetten niet hetzelfde is als importeren. Zie
-`docs/decisions.md`.
+**Bestanden nu inlezen — gebouwd (08-09-2026).** Een derde knop op hetzelfde
+matchmotor-scherm, naast "Matching nu draaien" en "Data resetten". Roept
+`scan_share(force=True)` aan (dezelfde functie als `check_imports --force` op
+de command line) — geen reprocess van al-verwerkte bestanden, en geen
+automatische matching erna: beide blijven bewust aparte, losse stappen.
+Aanleiding: SBTT-staff heeft geen shell om `check_imports` mee te draaien, en
+het testen van de klant/leverancier-suggestie liet zien dat een bestand in de
+inbox zetten niet hetzelfde is als importeren.
+
+De knop staat *boven* "Matching nu draaien", omdat dat ook de volgorde van de
+twee stappen is. POST-only en gated op `matching.change_matchmotorstatus`,
+net als de bestaande knop. Na afloop meldt het scherm wat er is ingelezen
+(bestanden, rijen) plus de zin dat de matching niet is herberekend; een lege
+servermap en een servermap waarop niets nieuws staat krijgen elk hun eigen
+melding, en een bestand dat niet gelezen kon worden een foutmelding per
+bestand — de geslaagde imports uit dezelfde aanroep gaan gewoon door. 391
+tests groen (was 379). Zie `docs/decisions.md`.
 
 ## 5. Uitzonderingenscherm (roadmap-fase 5)
 

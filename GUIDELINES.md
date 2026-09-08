@@ -419,7 +419,7 @@ RouteVision-data komt voor de PoC uit een handmatige download, niet uit de API.
    niet-schemaconforme XML schrijft — niet blokkerend, de app kan er nu
    tegen. Zie `docs/decisions.md` en `docs/architecture.md`.
 
-30. **Besloten (08-09-2026), nog niet gebouwd.** Naar aanleiding van het
+31. **Besloten (08-09-2026), nog niet gebouwd.** Naar aanleiding van het
    handmatig moeten draaien van `check_imports --force` om te testen, komt
    er een derde knop "Bestanden nu inlezen" op het bestaande
    matchmotor-beheerscherm, naast "Matching nu draaien" en "Data
@@ -429,8 +429,8 @@ RouteVision-data komt voor de PoC uit een handmatige download, niet uit de API.
    automatische koppeling. Zie `docs/decisions.md` en
    `docs/functioneel-ontwerp.md` §4.
 
-31. **Besloten (08-09-2026), nog niet gebouwd.** Het nieuwe, echt ongemoeide
-   Relaties.xlsx van Wim bleek niet importeerbaar: Atrium schrijft
+32. **Besloten (08-09-2026) — inmiddels gebouwd, zie punt 30.** Het nieuwe,
+   echt ongemoeide Relaties.xlsx van Wim bleek niet importeerbaar: Atrium schrijft
    niet-schemaconforme XML (`WindowWidth`/`firstPageNo` i.p.v.
    `windowWidth`/`firstPageNumber`), gemaskeerd tot nu toe omdat elk eerder
    testbestand ooit door Excel is geopend en zo stilzwijgend gerepareerd.
@@ -440,6 +440,13 @@ RouteVision-data komt voor de PoC uit een handmatige download, niet uit de API.
    niet alleen in de Relaties-parser, want het risico geldt voor alle vier
    bronbestanden. Zie `docs/decisions.md` en `docs/functioneel-ontwerp.md`
    §3a.
+33. **Gebouwd (08-09-2026).** De knop "Bestanden nu inlezen" uit punt 31 staat
+   op het matchmotor-beheerscherm, boven "Matching nu draaien" — de volgorde
+   waarin de twee stappen in de praktijk gezet worden. POST-only, gated op
+   `matching.change_matchmotorstatus`, roept `scan_share(force=True)` aan
+   zonder reprocess en zonder de matching mee te laten draaien; een test
+   controleert dat laatste expliciet. 391 tests groen (was 379). Zie
+   `docs/decisions.md` en `docs/functioneel-ontwerp.md` §4.
 
 **Vervallen:** de eerder voorziene live-PoC-fase met 1-2 monteurs bij de klant (~1
 week, in overleg met Wim) — het akkoord van 31-08-2026 betrof al de volledige

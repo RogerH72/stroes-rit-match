@@ -32,6 +32,13 @@ Gebouwd t/m roadmap-fase 3 (03-09-2026, commit `eea759c`, 143 tests groen — zi
   juni-dataset kostte dat 28 ritten over 12 dagen, waarvan tweemaal een volledige
   werkdag (Dennis van de Berg, 24 en 25 juni, met 8 geboekte uren en nul
   tijdblokken). Zie `docs/changelog.md` (07-09-2026).
+- **"Bestanden nu inlezen"** (gebouwd 08-09-2026) — derde knop op het
+  matchmotor-beheerscherm, naast "Matching nu draaien" en "Data resetten".
+  Roept `scan_share(force=True)` aan: leest direct in wat er klaarstaat, zonder
+  de stabiliteitsmarge af te wachten. Geen reprocess van al-verwerkte bestanden
+  (dat blijft command-line-only) en geen automatische matching erna — inlezen en
+  herberekenen blijven twee aparte, bewuste stappen (docs/decisions.md,
+  08-09-2026).
 - **Ingest-robuustheid tegen niet-schemaconforme Atrium-XML en
   kolomnaam-hoofdletters** (gebouwd 08-09-2026) —
   `matching/ingest/parsers/base.py` repareert drie bekende niet-conforme
@@ -192,11 +199,6 @@ Gebouwd t/m roadmap-fase 3 (03-09-2026, commit `eea759c`, 143 tests groen — zi
   geheel.
 
 ## Designed but not implemented
-
-- **"Bestanden nu inlezen"-knop op het matchmotor-beheerscherm.** Derde knop
-  naast "Matching nu draaien" en "Data resetten"; roept `scan_share(force=True)`
-  aan, zonder reprocess-optie en zonder de matching automatisch mee te laten
-  draaien (docs/decisions.md, 08-09-2026).
 
 - **"Monteur meegereden", stand 3 (Uit Syntess)** — leest de kolom "Monteur
   meegereden" in de Werkbonnen-export rechtstreeks uit. Staat nu uit en kan niet

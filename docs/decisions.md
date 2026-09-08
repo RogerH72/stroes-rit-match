@@ -1364,7 +1364,7 @@ van, maar elk ander programma dat deze bestanden leest wel.
 Doorgevoerd in: `docs/architecture.md`, `docs/changelog.md`, `GUIDELINES.md`
 (punt 30).
 
-## 2026-09-08 — Knop "Bestanden nu inlezen" op het matchmotor-beheerscherm (Current, besloten, nog niet gebouwd)
+## 2026-09-08 — Knop "Bestanden nu inlezen" op het matchmotor-beheerscherm (Current, besloten; gebouwd — zie de entry onderaan)
 
 Decision: er komt een derde knop op het bestaande matchmotor-beheerscherm
 (`MatchmotorStatusAdmin`), naast de al bestaande "Matching nu draaien" en
@@ -1391,7 +1391,7 @@ beschikbaar, zoals dat nu ook al zo vastligt. Geen automatische koppeling
 met de matching: consistent met hoe deze app overal expliciete stappen
 houdt in plaats van impliciete kettingreacties.
 
-## 2026-09-08 — Ingest-laag tolerant gemaakt voor niet-schemaconforme Atrium-XML en kolomnaam-hoofdletters (Current, besloten, nog niet gebouwd)
+## 2026-09-08 — Ingest-laag tolerant gemaakt voor niet-schemaconforme Atrium-XML en kolomnaam-hoofdletters (Current, besloten; gebouwd — zie "De ruwe Atrium-export is niet leesbaar zonder tussenkomst van Excel" hierboven)
 
 Decision: `matching/ingest/parsers/base.py` (de gedeelde lezer die alle vier
 de parsers gebruiken) wordt op twee punten toleranter gemaakt:
@@ -1432,3 +1432,37 @@ los van en niet blokkerend op deze fix. Reparatie bewust minimaal gehouden
 (drie exacte tokens, geen generieke normalisatie) om geen nieuwe risico's
 te introduceren op basis van een aanname over wat Atrium verder nog fout
 zou kunnen doen.
+
+## 2026-09-08 — Knop "Bestanden nu inlezen" gebouwd (Current)
+
+Resultaat: gebouwd zoals besloten (zie de besluit-entry van dezelfde dag).
+391 tests groen (was 379). `bestanden_inlezen_view` in `matching/admin.py`,
+naar het model van de bestaande `run_matching_view`: POST-only via
+`require_POST`, gated op `matching.change_matchmotorstatus` (dezelfde
+constructie als daar — `has_change_permission()` is voor iedereen False omdat
+de rij niet bewerkbaar is, maar de knop indrukken *is* een wijziging), en een
+redirect terug naar de changelist met een melding.
+
+De knop staat boven "Matching nu draaien": dat is de volgorde waarin de twee
+stappen gezet worden. In de container gecontroleerd op de echte data — knop
+staat op het scherm, POST geeft "Niets nieuws om in te lezen" (alle vier de
+bestanden stonden al op verwerkt) en het aantal tijdblokken bleef gelijk, dus
+er draaide inderdaad geen matching mee.
+
+Eén afwijking van de instructie, bewust: de melding "Niets nieuws om in te
+lezen" verschijnt alleen als er ook niets is mislukt. Letterlijk uitgevoerd zou
+een run waarin één bestand stukliep zowel "Niets nieuws om in te lezen" als
+"Mislukt: …" tonen, en dat spreekt zichzelf tegen — er is dan wel degelijk iets
+gebeurd, het ging alleen mis. Een test legt dat vast.
+
+Doorgevoerd in: `docs/functioneel-ontwerp.md` §4, `docs/business-rules.md`
+("Implemented"), `docs/changelog.md`, `GUIDELINES.md` (punt 33).
+
+Terzijde, opgemerkt bij het bijwerken: `GUIDELINES.md` had twee punten met
+nummer 30 en twee documenten droegen tegelijk een "nog niet gebouwd"-entry
+voor de ingest-fix die al gebouwd én gepusht was. Dat komt doordat er die dag
+vanuit twee sessies tegelijk aan dezelfde documenten is geschreven. De
+nummering is rechtgezet (31/32 doorgeschoven) en de achterhaalde entries
+verwijzen nu naar de gebouwd-entry, in plaats van ze te verwijderen — zoals
+elders in dit bestand blijft een eerder besluit staan en haalt een latere
+entry hem in.

@@ -101,6 +101,16 @@ gebouwd in `matching/ingest/detection.py`, het commando `check_imports` en
   bestandsnaam die met `~$` begint wordt nu geweigerd, zodat het openen van een
   bronbestand tijdens het testen geen spookregel in ImportedFile meer oplevert
   (`LOCK_FILE_PREFIX` in `matching/ingest/filenames.py`).
+- **De ingest-laag repareert twee Atrium-eigenaardigheden (08-09-2026).** De
+  ruwe Atrium-export schrijft een paar XML-attribuutnamen in de verkeerde
+  hoofdletters (`WindowWidth`/`firstPageNo` waar OOXML `windowWidth`/
+  `firstPageNumber` voorschrijft), waar openpyxl op afbreekt; en een kolomkop
+  kan in andere hoofdletters staan dan de parser verwacht. `read_excel_rows()`
+  repareert het eerste in een kopie in het geheugen (nooit op de share) en
+  beide readers zoeken kolomnamen hoofdletterongevoelig. Dit kwam pas boven
+  water toen het eerste échte, niet door Excel heen gehaalde bestand werd
+  ingelezen: elk voorbeeldbestand daarvóór was ooit in Excel opgeslagen, wat de
+  afwijking stilzwijgend repareert. Zie `docs/decisions.md` (08-09-2026).
 - **Servermap-locatie bevestigd (mailwisseling Wim, 27/28-08-2026):**
   `\\stroes-1909\atrium\Autoprint\RUUDS`. De exacte bestandsnaam-conventie van de
   automatische productie-export (Syntess/RouteVision) is nog niet bekend — de

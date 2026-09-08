@@ -1280,3 +1280,155 @@ meetbaar knelt.
 
 Doorgevoerd in: `docs/functioneel-ontwerp.md` §5, `docs/business-rules.md`
 ("Implemented"), `docs/changelog.md`, `GUIDELINES.md` (punt 29).
+
+## 2026-09-08 — De ruwe Atrium-export is niet leesbaar zonder tussenkomst van Excel; ingest-laag tolerant gemaakt (Current)
+
+Bevinding, aan het licht gekomen bij het importeren van de nieuwe
+`Relaties.xlsx` van Wim (het bestand waarvoor de klant/leverancier-suggestie
+hierboven juist was gebouwd): de import mislukte met
+`TypeError: BookView.__init__() got an unexpected keyword argument
+'WindowWidth'`.
+
+Oorzaak: Atrium schrijft in `xl/workbook.xml` de attribuutnamen
+`WindowWidth`/`WindowHeight` met een hoofdletter W, terwijl OOXML —  en dus
+openpyxl — `windowWidth`/`windowHeight` voorschrijft. Dezelfde soort fout zit
+in het werkblad: `firstPageNo` in plaats van `firstPageNumber`. Excel trekt
+zich daar niets van aan en corrigeert het stilzwijgend bij het opslaan.
+
+**Wat dit onthulde is groter dan dat ene bestand.** Elk voorbeeldbestand
+waarmee tot nu toe getest is, is ooit door Microsoft Excel geopend en
+opgeslagen — aantoonbaar aan de Excel-revisienamespaces (`xr`/`xr2`/`xr6`),
+een `fileVersion`-tag met buildnummer, en in het oude Relaties-voorbeeld zelfs
+een OneDrive-pad (`.../PRIVE/Desktop/STROES backup/`) in de XML. Die
+Excel-tussenstap repareerde de afwijking, en maskeerde daarmee dat de app de
+échte export helemaal niet kon lezen. Het nieuwe bestand van Wim was de eerste
+volstrekt ongemoeide Atrium-export die dit project ooit heeft ingelezen, en
+het brak meteen. Op de servermap komen bestanden rechtstreeks uit Atrium — daar
+is geen Excel die eerst schoonpoetst.
+
+Voorbehoud bij die conclusie: er is één ruwe export om op te baseren. Dat het
+Uren/Werkbonnen even goed raakt is een sterke gevolgtrekking, geen bewijs.
+
+Tweede, losstaand probleem in hetzelfde bestand: de kolomkop luidt
+`klant of leverancier` met een kleine k, terwijl de parser exact op
+`"Klant of leverancier"` zocht — `read_excel_rows()` matcht hoofdlettergevoelig.
+Zonder fix zou de kolom als leeg zijn binnengekomen en had de suggestie die
+hierboven net gebouwd is stilzwijgend niets gedaan.
+
+Decision (Roger, 08-09-2026): beide problemen oplossen in de gedeelde
+ingest-laag (`matching/ingest/parsers/base.py`), niet in `relaties.py` alleen.
+De onderliggende oorzaak — een systeem buiten onze controle dat
+niet-conforme XML en afwijkende hoofdletters schrijft — geldt voor Uren,
+Werkbonnen en de RouteVision-CSV net zo goed.
+
+1. **XML-reparatie vóór het inlezen.** `_gerepareerd_workbook_bestand()` opent
+   het `.xlsx` als zip, corrigeert alleen de drie letterlijk aangetroffen
+   tokens in de XML onder `xl/`, en geeft een kopie in het geheugen aan
+   openpyxl. Bewust geen brede XML-normalisatie: alleen wat feitelijk is
+   waargenomen, want gokken naar wat Atrium verder fout zou kunnen doen
+   introduceert risico op bestanden die nu prima werken. Een conform bestand
+   krijgt het pad zelf terug — de reparatie is dan een no-op, vastgelegd in een
+   test. Het bronbestand op de share wordt nooit overschreven: dat is een
+   inbox waar alleen uit gelezen wordt, en een gerepareerd bestand mag niet
+   stilletjes vervangen wat het klantsysteem heeft aangeleverd.
+2. **Hoofdletterongevoelige kolomnamen.** `_KolomWaarden` (een dict-variant)
+   beantwoordt een exacte naam exact — dus niets verandert voor de kolommen
+   die al werkten — en valt alleen terug op kleine letters als de exacte naam
+   niet bestaat. Dezelfde tolerantie in de `required_columns`-check van beide
+   readers. Geen enkele parser hoefde hierdoor aangepast te worden;
+   `relaties.py` blijft letterlijk `values.get("Klant of leverancier")` doen.
+
+Regressietest: `factories.ruwe_atrium_workbook()` maakt een workbook na met
+exact dezelfde twee afwijkende XML-fragmenten als Wims bestand. Eerst is
+geprobeerd het échte bestand uitgedund als binaire fixture bij te voegen, maar
+dat botst met een expliciete projectregel: `.gitignore` weert álle workbooks
+("Client data ... personal data, AVG") en er staat dan ook geen enkele .xlsx in
+de repository — ook de voorbeelddata niet. Een klantbestand toevoegen zou die
+regel doorbreken voor een testdoel dat net zo goed nagemaakt kan worden.
+
+Dat namaken is geen zwakkere test: `test_openpyxl_alone_cannot_read_it`
+controleert dat openpyxl het gegenereerde bestand wél degelijk weigert, dus als
+de nagemaakte afwijking ooit niet meer klopt, valt die test om in plaats van de
+rest stilzwijgend op de verkeerde gronden te laten slagen. Een tweede test
+bewaakt dat het bronbestand na het inlezen byte-voor-byte onveranderd is.
+
+Resultaat na de fix: 379 tests groen (was 364, 15 nieuw). Het bestand
+importeert: 2561 relaties, 1826× "K", 715× "L", 20 leeg. Van de 61 openstaande
+onverklaarde groepen in de juni-data krijgen er 23 een suggestie (9 met precies
+één kandidaat, 14 met een keuzelijst) — samen 38 van de 103 onverklaarde stops.
+
+Nog te doen, los hiervan en niet blokkerend: Wim/RVS Solutions melden dat de
+Atrium-export niet-schemaconforme XML schrijft. De app heeft er geen last meer
+van, maar elk ander programma dat deze bestanden leest wel.
+
+Doorgevoerd in: `docs/architecture.md`, `docs/changelog.md`, `GUIDELINES.md`
+(punt 30).
+
+## 2026-09-08 — Knop "Bestanden nu inlezen" op het matchmotor-beheerscherm (Current, besloten, nog niet gebouwd)
+
+Decision: er komt een derde knop op het bestaande matchmotor-beheerscherm
+(`MatchmotorStatusAdmin`), naast de al bestaande "Matching nu draaien" en
+"Data resetten": **"Bestanden nu inlezen"**. Deze roept `scan_share(force=True)`
+aan — dezelfde functie die `check_imports --force` vanaf de command line al
+aanroept — zonder de `--reprocess`-optie: alleen bestanden die nog niet als
+verwerkt gemarkeerd staan worden ingelezen, precies zoals de achtergrondpoller
+dat ook doet, alleen dan direct in plaats van na de stabiliteitsmarge. De knop
+draait de matching niet automatisch mee — dat blijft een aparte, bewuste stap
+via de bestaande "Matching nu draaien"-knop.
+
+Aanleiding: bij het testen van de klant/leverancier-suggestie bleek dat een
+nieuw bestand in de inbox zetten niet hetzelfde is als het importeren ervan —
+Roger moest handmatig `docker compose exec web python manage.py check_imports
+--path /app/data/inbox --force` draaien om het direct te zien. SBTT-staff heeft
+geen shell, dus voor productiegebruik is dat sowieso geen optie.
+
+Reasoning: dit is exact het patroon dat al bestaat voor "Matching nu
+draaien", met dezelfde reden ("SBTT staff have no shell", zie de
+docstring van `MatchmotorStatusAdmin`). Geen reprocess-optie in de knop:
+het herimporteren van al-verwerkte bestanden is een zeldzaam, risicovol
+geval (dubbele import) en blijft daarom bewust alleen via de command line
+beschikbaar, zoals dat nu ook al zo vastligt. Geen automatische koppeling
+met de matching: consistent met hoe deze app overal expliciete stappen
+houdt in plaats van impliciete kettingreacties.
+
+## 2026-09-08 — Ingest-laag tolerant gemaakt voor niet-schemaconforme Atrium-XML en kolomnaam-hoofdletters (Current, besloten, nog niet gebouwd)
+
+Decision: `matching/ingest/parsers/base.py` (de gedeelde lezer die alle vier
+de parsers gebruiken) wordt op twee punten toleranter gemaakt:
+
+1. **Niet-schemaconforme XML repareren vóór het inlezen.** Het nieuwe
+   `Relaties.xlsx` van Wim schrijft `WindowWidth`/`WindowHeight` (met
+   hoofdletter) in plaats van `windowWidth`/`windowHeight`, en
+   `firstPageNo` in plaats van `firstPageNumber` — beide OOXML-attributen
+   die de standaard met een kleine letter voorschrijft. `openpyxl` weigert
+   het bestand daardoor met een `TypeError`. De drie bekende, exacte tokens
+   worden voortaan in het geheugen gecorrigeerd vóór `openpyxl` het bestand
+   ziet — geen brede XML-normalisatie, alleen deze specifieke, aangetoonde
+   gevallen.
+2. **Kolomnaam-matching hoofdletterongevoelig maken.** De nieuwe kolom heet
+   in de praktijk `klant of leverancier` (kleine letter), terwijl de
+   parser exact op `Klant of leverancier` zocht. Zowel de
+   `required_columns`-check als de opgebouwde waarden per rij worden
+   hoofdletterongevoelig, met voorrang voor een exacte match zodat niets
+   verandert voor kolommen die nu al goed werken.
+
+Aanleiding: bij het testen van de klant/leverancier-suggestie faalde de
+import van het nieuwe Relaties.xlsx volledig (Relatie-tabel bleef leeg).
+Onderzoek wees uit dat dit het eerste bestand is dat de app ooit onder ogen
+kreeg zonder ooit door Excel geopend en opgeslagen te zijn — geverifieerd
+door de workbook-XML van het oude testbestand (met Excel-revisienamespaces
+en een `fileVersion`-buildnummer) te vergelijken met die van het nieuwe
+bestand (kaal, zonder die Excel-toevoegingen). Excel repareert dit soort
+afwijkingen stilzwijgend bij het opslaan, wat het probleem tot nu toe heeft
+gemaskeerd in elk voorbeeld-/testbestand.
+
+Reasoning: dit raakt de ingest-laag, niet de Relaties-parser alleen — Uren,
+Werkbonnen en de RouteVision-CSV komen van hetzelfde systeem (Atrium/Syntess)
+en zijn tot nu toe ook alleen ooit als door-Excel-behandeld bestand getest.
+Op de productieserver komt straks alleen de ongemoeide vorm binnen. Niet
+gewacht op een fix bij de bron (RVS Solutions, onbekende doorlooptijd) omdat
+fase 7 (oplevering) er aan zit te komen; het melden bij Wim/RVS gebeurt wel,
+los van en niet blokkerend op deze fix. Reparatie bewust minimaal gehouden
+(drie exacte tokens, geen generieke normalisatie) om geen nieuwe risico's
+te introduceren op basis van een aanname over wat Atrium verder nog fout
+zou kunnen doen.

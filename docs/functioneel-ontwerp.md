@@ -75,6 +75,22 @@ de volledigheidscontrole voor die periode niet uitgevoerd (status "controle niet
 uitgevoerd, bronbestand ontbrak") — dat blokkeert het weekoverzicht niet. Een
 ontbrekend bestand voor het ene doel mag een ander doel dus niet blokkeren.
 
+**Ingest-robuustheid tegen Atrium-eigenaardigheden — gebouwd
+(08-09-2026).** Het nieuwe, ongemoeide Relaties.xlsx van Wim bleek
+niet-schemaconforme XML te bevatten (`WindowWidth`/`firstPageNo` i.p.v.
+`windowWidth`/`firstPageNumber`) — elk eerder testbestand was ooit door Excel
+geopend en zo stilzwijgend gerepareerd, dus dit bleef tot nu toe onopgemerkt.
+De gedeelde bestandslezer (`matching/ingest/parsers/base.py`) repareert deze
+drie bekende tokens in een kopie in het geheugen vóór het inlezen; het bestand
+op de servermap wordt nooit aangeraakt, en een al conform bestand gaat
+ongewijzigd door. Daarnaast is kolomnaam-matching hoofdletterongevoelig
+(aanleiding: de nieuwe kolom heet `klant of leverancier` met kleine letter),
+in beide readers. Beide gelden voor alle vier bronbestanden, niet alleen
+Relaties.xlsx. 379 tests groen (was 364); de afwijking wordt in de tests
+nagemaakt door `factories.ruwe_atrium_workbook()` in plaats van met een echt
+klantbestand, want workbooks horen niet in de repository (`.gitignore`, AVG).
+Zie `docs/decisions.md`.
+
 ### 3b. Tijdlijnreconstructie + matching (roadmap-fase 3)
 
 Per monteur per dag wordt uit de RouteVision-ritgegevens een tijdlijn opgebouwd.
@@ -190,6 +206,16 @@ alleen beschikbaar voor superusers. Herimporteren/herberekenen na een reset blij
 net als bij "Matching nu draaien", een bewuste, aparte stap. Gebouwd op
 07-09-2026: `matching/reset.py` met het scherm eronder in `matching/admin.py`, te
 bereiken via een link op het matchmotor-scherm (zie `docs/changelog.md`).
+
+**Bestanden nu inlezen — besloten (08-09-2026), nog niet gebouwd.** Een derde
+knop op hetzelfde matchmotor-scherm, naast "Matching nu draaien" en "Data
+resetten". Roept `scan_share(force=True)` aan (dezelfde functie als
+`check_imports --force` op de command line) — geen reprocess van al-verwerkte
+bestanden, en geen automatische matching erna: beide blijven bewust aparte,
+losse stappen. Aanleiding: SBTT-staff heeft geen shell om `check_imports` mee
+te draaien, en het testen van de klant/leverancier-suggestie liet zien dat een
+bestand in de inbox zetten niet hetzelfde is als importeren. Zie
+`docs/decisions.md`.
 
 ## 5. Uitzonderingenscherm (roadmap-fase 5)
 

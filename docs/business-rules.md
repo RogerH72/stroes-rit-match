@@ -32,6 +32,15 @@ Gebouwd t/m roadmap-fase 3 (03-09-2026, commit `eea759c`, 143 tests groen — zi
   juni-dataset kostte dat 28 ritten over 12 dagen, waarvan tweemaal een volledige
   werkdag (Dennis van de Berg, 24 en 25 juni, met 8 geboekte uren en nul
   tijdblokken). Zie `docs/changelog.md` (07-09-2026).
+- **Ingest-robuustheid tegen niet-schemaconforme Atrium-XML en
+  kolomnaam-hoofdletters** (gebouwd 08-09-2026) —
+  `matching/ingest/parsers/base.py` repareert drie bekende niet-conforme
+  XML-tokens (`WindowWidth`/`WindowHeight`/`firstPageNo`) in een kopie in het
+  geheugen vóór het inlezen — het bestand op de servermap wordt nooit
+  overschreven — en beide readers matchen kolomnamen hoofdletterongevoelig
+  (exacte naam gaat vóór). Geldt voor alle vier bronbestanden. Een bestand dat
+  al conform is gaat ongewijzigd door; een écht ontbrekende kolom levert nog
+  steeds een `ParseError` (docs/decisions.md, 08-09-2026).
 - **Klant/leverancier-suggestie bij het koppelformulier** (gebouwd
   08-09-2026) — matcht de postcode van een onverklaarde groep tegen
   `Relatie.postcode` (aan beide kanten genormaliseerd, want `Relatie.postcode`
@@ -183,6 +192,11 @@ Gebouwd t/m roadmap-fase 3 (03-09-2026, commit `eea759c`, 143 tests groen — zi
   geheel.
 
 ## Designed but not implemented
+
+- **"Bestanden nu inlezen"-knop op het matchmotor-beheerscherm.** Derde knop
+  naast "Matching nu draaien" en "Data resetten"; roept `scan_share(force=True)`
+  aan, zonder reprocess-optie en zonder de matching automatisch mee te laten
+  draaien (docs/decisions.md, 08-09-2026).
 
 - **"Monteur meegereden", stand 3 (Uit Syntess)** — leest de kolom "Monteur
   meegereden" in de Werkbonnen-export rechtstreeks uit. Staat nu uit en kan niet

@@ -401,6 +401,45 @@ RouteVision-data komt voor de PoC uit een handmatige download, niet uit de API.
    lettermapping (Relatie "L" → SOORT C, nooit SOORT L) staat vast in een
    test die daar expliciet op asserteert. Zie `docs/decisions.md` en
    `docs/functioneel-ontwerp.md` §5.
+30. **Gebouwd (08-09-2026), met een belangrijke bevinding.** Bij het
+   importeren van het nieuwe `Relaties.xlsx` bleek de app de **ruwe
+   Atrium-export helemaal niet te kunnen lezen**: Atrium schrijft
+   niet-schemaconforme XML-attribuutnamen (`WindowWidth`/`firstPageNo`) waar
+   openpyxl op afbreekt. Dat bleef tot nu toe verborgen doordat elk
+   voorbeeldbestand ooit door Excel is opgeslagen, wat de fout stilzwijgend
+   repareert — op de servermap gebeurt dat niet. De ingest-laag
+   (`matching/ingest/parsers/base.py`) repareert dit nu in een kopie in het
+   geheugen en zoekt kolomnamen hoofdletterongevoelig (de nieuwe kolom heet
+   `klant of leverancier`, met kleine k). 379 tests groen (was 364), met een
+   regressietest die de afwijking nabouwt (geen klantbestand in de
+   repository — `.gitignore` weert workbooks om AVG-redenen). Het echte
+   bestand importeert nu: 2561
+   relaties, en 23 van de 61 onverklaarde groepen krijgen daardoor een
+   suggestie. **Nog te doen:** Wim/RVS informeren dat de Atrium-export
+   niet-schemaconforme XML schrijft — niet blokkerend, de app kan er nu
+   tegen. Zie `docs/decisions.md` en `docs/architecture.md`.
+
+30. **Besloten (08-09-2026), nog niet gebouwd.** Naar aanleiding van het
+   handmatig moeten draaien van `check_imports --force` om te testen, komt
+   er een derde knop "Bestanden nu inlezen" op het bestaande
+   matchmotor-beheerscherm, naast "Matching nu draaien" en "Data
+   resetten". Roept `scan_share(force=True)` aan (dezelfde functie als het
+   command-line commando, geen reprocess van al-verwerkte bestanden). Blijft
+   een aparte, bewuste stap los van "Matching nu draaien" — geen
+   automatische koppeling. Zie `docs/decisions.md` en
+   `docs/functioneel-ontwerp.md` §4.
+
+31. **Besloten (08-09-2026), nog niet gebouwd.** Het nieuwe, echt ongemoeide
+   Relaties.xlsx van Wim bleek niet importeerbaar: Atrium schrijft
+   niet-schemaconforme XML (`WindowWidth`/`firstPageNo` i.p.v.
+   `windowWidth`/`firstPageNumber`), gemaskeerd tot nu toe omdat elk eerder
+   testbestand ooit door Excel is geopend en zo stilzwijgend gerepareerd.
+   Daarnaast heet de nieuwe kolom `klant of leverancier` met een kleine
+   letter, terwijl de parser hoofdlettergevoelig zocht. Besloten: beide
+   fixen in de gedeelde ingest-laag (`matching/ingest/parsers/base.py`),
+   niet alleen in de Relaties-parser, want het risico geldt voor alle vier
+   bronbestanden. Zie `docs/decisions.md` en `docs/functioneel-ontwerp.md`
+   §3a.
 
 **Vervallen:** de eerder voorziene live-PoC-fase met 1-2 monteurs bij de klant (~1
 week, in overleg met Wim) — het akkoord van 31-08-2026 betrof al de volledige

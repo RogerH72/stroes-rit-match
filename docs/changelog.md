@@ -1012,6 +1012,28 @@ ritdata), en de melding "onvolledige week" is precies het bedoelde gedrag
 wanneer er geen ritdata is om een tijdlijn op te bouwen. Zie
 `docs/decisions.md` (08-09-2026) en `GUIDELINES.md` punt 27.
 
+## 2026-09-08 — Ingest-laag tolerant gemaakt voor niet-schemaconforme Atrium-XML en kolomnaam-hoofdletters, besloten, nog niet gebouwd
+
+Het nieuwe Relaties.xlsx van Wim faalde volledig bij import (Relatie-tabel
+bleef leeg). Oorzaak: `openpyxl` weigert het bestand vanwege
+niet-schemaconforme XML (`WindowWidth`/`firstPageNo` i.p.v.
+`windowWidth`/`firstPageNumber`) — een afwijking die elk eerder testbestand
+niet had, omdat die ooit door Excel zijn geopend en zo stilzwijgend
+gerepareerd. Daarnaast heet de nieuwe kolom `klant of leverancier` met
+kleine letter, terwijl de parser hoofdlettergevoelig zocht. Besloten: beide
+oplossen in de gedeelde ingest-laag (`matching/ingest/parsers/base.py`), niet
+alleen voor Relaties — zie `docs/decisions.md`.
+
+## 2026-09-08 — Knop "Bestanden nu inlezen" besloten, nog niet gebouwd
+
+Bij het testen van de klant/leverancier-suggestie bleek dat een bestand in de
+inbox zetten niet hetzelfde is als importeren — dat vereiste een handmatige
+`check_imports --force` op de command line. Besloten: een derde knop
+"Bestanden nu inlezen" op het bestaande matchmotor-beheerscherm, naast
+"Matching nu draaien" en "Data resetten", die `scan_share(force=True)`
+aanroept. Geen reprocess-optie, geen automatische matching erna — zie
+`docs/decisions.md`.
+
 ## 2026-09-08 — Klant/leverancier-suggestie besloten, nog niet gebouwd
 
 Puur documentatie, geen codewijziging.
@@ -1049,3 +1071,25 @@ Relatie "K" → SOORT K (Klant), Relatie "L" (Leverancier) → SOORT **C**
 
 364 tests groen (was 349). Zie `docs/decisions.md` (08-09-2026) en
 `docs/functioneel-ontwerp.md` §5.
+
+## 2026-09-08 — Ingest-laag tolerant gemaakt voor de ruwe Atrium-export
+
+Het nieuwe `Relaties.xlsx` van Wim bleek niet in te lezen: Atrium schrijft
+`WindowWidth`/`firstPageNo` waar OOXML `windowWidth`/`firstPageNumber`
+voorschrijft, en openpyxl breekt daarop af. Alle voorbeeldbestanden tot nu toe
+waren ooit door Excel opgeslagen, wat die fout stilzwijgend herstelt — dit was
+het eerste ongemoeide bestand dat de app te zien kreeg, en op de servermap
+komen bestanden rechtstreeks uit Atrium.
+
+`read_excel_rows()` repareert nu de drie waargenomen attribuutnamen in een
+kopie in het geheugen (het bestand op de share wordt nooit aangeraakt) en laat
+een al conform bestand ongemoeid. Daarnaast zoeken beide readers kolomnamen
+hoofdletterongevoelig, want de nieuwe kolom heet `klant of leverancier` met
+een kleine k — zonder die tweede fix zou de suggestie van eerder vandaag
+stilzwijgend niets doen.
+
+Een uitgedunde kopie van het echte bestand staat als regressiefixture in
+`matching/tests/bestanden/`, mét de niet-conforme XML. 379 tests groen (was
+364). Het bestand importeert nu: 2561 relaties (1826 K, 715 L, 20 leeg); 23 van
+de 61 onverklaarde groepen in de juni-data krijgen daarmee een suggestie. Zie
+`docs/decisions.md` (08-09-2026).

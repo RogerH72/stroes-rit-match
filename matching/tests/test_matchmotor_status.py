@@ -1,23 +1,35 @@
-"""Tests for the phase 4 admin: the status record and the "run now" button.
+"""Tests for the phase 4 admin: the status record and the two manual buttons.
 
-Two things are being protected here. First, that the status row tells the truth
+Three things are being protected here. First, that the status row tells the truth
 whichever way a run was triggered — that is the whole reason the wrapper exists.
-Second, that the button cannot fire on a GET, because it rewrites every Tijdblok.
+Second, that neither button can fire on a GET: one rewrites every Tijdblok, the
+other imports rows. Third, that "Bestanden nu inlezen" only imports — it must not
+quietly recompute as well, because importing and recomputing are deliberately two
+separate steps (docs/decisions.md, 08-09-2026).
 """
 
 from __future__ import annotations
 
 import datetime as dt
+import tempfile
+from pathlib import Path
 from unittest import mock
 
 from django.contrib import admin
-from django.contrib.auth.models import User
+from django.contrib.auth.models import Permission, User
 from django.core.exceptions import ValidationError
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from matching.admin import MatchmotorStatusAdmin
-from matching.models import MatchmotorStatus, Tijdblok
+from matching.models import (
+    ImportedFile,
+    ImportStatus,
+    MatchmotorStatus,
+    Rit,
+    Tijdblok,
+    Uren,
+)
 from matching.tests import factories
 from matching.timeline.runner import run_matching_and_record_status
 
@@ -253,3 +265,159 @@ class RunNowButtonTests(TestCase):
             response = self.client.post(self.url)
         self.assertEqual(response.status_code, 403)
         self.assertEqual(Tijdblok.objects.count(), 0)
+
+
+class BestandenInlezenButtonTests(TestCase):
+    """The admin endpoint behind the "Bestanden nu inlezen" button (08-09-2026).
+
+    SBTT staff have no shell to run `check_imports` in, so the share can hold a
+    file nobody has read in yet. This button is that command, minus the two
+    options that stay deliberate manual steps: no reprocess, and no matching run
+    afterwards.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.staff = User.objects.create_superuser("beheer", "b@sbtt.nl", "geheim")
+        cls.url = reverse("admin:matching_bestanden_inlezen")
+        cls.changelist = reverse("admin:matching_matchmotorstatus_changelist")
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.share = Path(self.tmp.name)
+        self.instellingen = override_settings(SERVERMAP_PATH=str(self.share))
+        self.instellingen.enable()
+        self.addCleanup(self.instellingen.disable)
+        self.client.force_login(self.staff)
+
+    def _berichten(self, response):
+        return [str(bericht) for bericht in response.context["messages"]]
+
+    def test_the_button_is_on_the_changelist(self):
+        response = self.client.get(self.changelist)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Bestanden nu inlezen")
+        self.assertContains(response, self.url)
+
+    def test_posting_imports_what_is_on_the_share(self):
+        factories.uren_file(self.share)
+
+        response = self.client.post(self.url)
+
+        self.assertRedirects(response, self.changelist)
+        self.assertEqual(Uren.objects.count(), 2)
+        self.assertEqual(ImportedFile.objects.get().status, ImportStatus.VERWERKT)
+
+    def test_it_does_not_wait_out_the_stability_margin(self):
+        # force=True: the margin exists for the unattended scheduler, not for
+        # someone standing at the screen asking for it now. A plain poll would
+        # need six unchanged measurements before importing this file.
+        factories.uren_file(self.share)
+
+        with override_settings(POLL_INTERVAL_MINUTES=5, STABILITY_MINUTES=30):
+            self.client.post(self.url)
+
+        self.assertEqual(Uren.objects.count(), 2)
+
+    def test_it_reports_what_it_read_in(self):
+        factories.uren_file(self.share)
+
+        berichten = self._berichten(self.client.post(self.url, follow=True))
+
+        self.assertTrue(any("Ingelezen: 1 bestand(en)" in b for b in berichten), berichten)
+        self.assertTrue(any("2 rij(en)" in b for b in berichten), berichten)
+
+    def test_it_does_not_run_the_matching_as_a_side_effect(self):
+        # The whole point of keeping this a separate button: importing must not
+        # silently change what the weekoverzicht shows.
+        factories.uren_file(self.share)
+        factories.ritten_file(self.share)
+        factories.monteur("M5", "005", "M5")
+
+        with mock.patch("matching.admin.run_matching_and_record_status") as gedraaid:
+            berichten = self._berichten(self.client.post(self.url, follow=True))
+
+        gedraaid.assert_not_called()
+        self.assertEqual(Rit.objects.count(), 2)
+        self.assertEqual(Tijdblok.objects.count(), 0)
+        self.assertIsNone(MatchmotorStatus.load().succes)
+        self.assertTrue(
+            any("niet automatisch herberekend" in b for b in berichten), berichten
+        )
+
+    def test_an_empty_share_says_so_instead_of_failing(self):
+        berichten = self._berichten(self.client.post(self.url, follow=True))
+
+        self.assertTrue(
+            any("Geen herkende bronbestanden" in b for b in berichten), berichten
+        )
+        self.assertEqual(ImportedFile.objects.count(), 0)
+
+    def test_a_file_that_was_already_read_in_is_left_alone(self):
+        # No reprocess from this button: pressing it twice must not import the
+        # same file again (docs/architecture.md).
+        factories.uren_file(self.share)
+        self.client.post(self.url)
+
+        berichten = self._berichten(self.client.post(self.url, follow=True))
+
+        self.assertEqual(Uren.objects.count(), 2)
+        self.assertTrue(any("Niets nieuws" in b for b in berichten), berichten)
+
+    def test_a_failing_file_is_reported_without_stopping_the_others(self):
+        factories.uren_file(self.share)
+        stuk = self.share / "Download uit Syntess Relaties.xlsx"
+        stuk.write_bytes(b"dit is geen xlsx")
+
+        berichten = self._berichten(self.client.post(self.url, follow=True))
+
+        self.assertEqual(Uren.objects.count(), 2)  # the good one still went in
+        self.assertTrue(any("Ingelezen: 1 bestand(en)" in b for b in berichten), berichten)
+        self.assertTrue(any("Mislukt" in b for b in berichten), berichten)
+
+    def test_a_run_where_only_the_failure_happened_does_not_also_say_niets_nieuws(self):
+        # "Niets nieuws om in te lezen" next to an error would read as a
+        # contradiction: something did happen, it just went wrong.
+        stuk = self.share / "Download uit Syntess Relaties.xlsx"
+        stuk.write_bytes(b"dit is geen xlsx")
+
+        berichten = self._berichten(self.client.post(self.url, follow=True))
+
+        self.assertTrue(any("Mislukt" in b for b in berichten), berichten)
+        self.assertFalse(any("Niets nieuws" in b for b in berichten), berichten)
+
+    def test_a_get_does_not_import_anything(self):
+        factories.uren_file(self.share)
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 405)
+        self.assertEqual(Uren.objects.count(), 0)
+
+    def test_a_user_without_the_permission_cannot_use_it(self):
+        kijker = User.objects.create_user(
+            "kijker", "k@sbtt.nl", "geheim", is_staff=True
+        )
+        kijker.user_permissions.add(
+            Permission.objects.get(codename="view_matchmotorstatus")
+        )
+        self.client.force_login(kijker)
+        factories.uren_file(self.share)
+
+        # assertLogs only to keep Django's 403 traceback out of the test output.
+        with self.assertLogs("django.request", "WARNING"):
+            response = self.client.post(self.url)
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(Uren.objects.count(), 0)
+
+    def test_a_logged_out_user_cannot_reach_it(self):
+        self.client.logout()
+        factories.uren_file(self.share)
+
+        response = self.client.post(self.url)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(Uren.objects.count(), 0)

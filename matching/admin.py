@@ -8,6 +8,7 @@ from django.views.decorators.http import require_POST
 
 from matching import reset
 from matching.forms import DataResetForm
+from matching.ingest.detection import scan_share
 from matching.models import (
     BekendeLocatie,
     ImportedFile,
@@ -288,6 +289,13 @@ class MatchmotorStatusAdmin(admin.ModelAdmin):
         # Ahead of the default admin URLs, so the literal path is not swallowed
         # by the <object_id> pattern.
         return [
+            # First in the list because it is first in the working order too:
+            # read the files in, then recompute.
+            path(
+                "bestanden-nu-inlezen/",
+                self.admin_site.admin_view(self.bestanden_inlezen_view),
+                name="matching_bestanden_inlezen",
+            ),
             path(
                 "matching-nu-draaien/",
                 self.admin_site.admin_view(self.run_matching_view),
@@ -303,6 +311,70 @@ class MatchmotorStatusAdmin(admin.ModelAdmin):
             ),
             *super().get_urls(),
         ]
+
+    @method_decorator(require_POST)
+    def bestanden_inlezen_view(self, request):
+        """Import whatever is ready on the share right now, then report back.
+
+        POST-only, for the same reason as "Matching nu draaien": this writes
+        rows, so a link preview or a refreshed tab must not be able to set it
+        off.
+
+        `force=True` so the button does not sit out the stability margin — that
+        margin exists for the unattended scheduler, not for someone standing at
+        the screen asking for it now. `reprocess` stays off: re-importing a file
+        already marked verwerkt is a command-line-only action
+        (docs/architecture.md), so the button cannot cause a double import by
+        accident. And it deliberately does not run the matching afterwards:
+        importing and recomputing stay two separate, deliberate steps, exactly
+        as after "Data resetten".
+        """
+        # Same reasoning as run_matching_view: `self.has_change_permission()` is
+        # False for everyone so the row cannot be edited, but pressing this
+        # button *is* a change, so it is gated on the underlying permission.
+        if not request.user.has_perm("matching.change_matchmotorstatus"):
+            raise PermissionDenied
+
+        redirect_to = reverse("admin:matching_matchmotorstatus_changelist")
+        result = scan_share(force=True)
+
+        if result.imported:
+            aantal_rijen = sum(result.imported.values())
+            self.message_user(
+                request,
+                f"Ingelezen: {len(result.imported)} bestand(en), "
+                f"{aantal_rijen} rij(en) — {', '.join(result.imported)}. "
+                "De matching is niet automatisch herberekend; doe dat als "
+                "aparte stap.",
+                level=messages.SUCCESS,
+            )
+        elif not result.seen:
+            self.message_user(
+                request,
+                "Geen herkende bronbestanden gevonden op de servermap.",
+                level=messages.WARNING,
+            )
+        elif not result.failed:
+            # Recognised files, nothing imported and nothing broken: they were
+            # all already verwerkt. Said plainly, because "niets gebeurd" on a
+            # share full of files otherwise reads as a malfunction. A failure
+            # speaks for itself through the error messages below.
+            self.message_user(
+                request,
+                "Niets nieuws om in te lezen.",
+                level=messages.WARNING,
+            )
+
+        for bestand, fout in result.failed.items():
+            # One message per file: a run that imports three files and trips
+            # over the fourth has to say both halves.
+            self.message_user(
+                request,
+                f"Mislukt: {bestand} — {fout}",
+                level=messages.ERROR,
+            )
+
+        return HttpResponseRedirect(redirect_to)
 
     @method_decorator(require_POST)
     def run_matching_view(self, request):

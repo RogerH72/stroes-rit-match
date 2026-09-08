@@ -1030,3 +1030,22 @@ aan de export zou toevoegen (`docs/functioneel-ontwerp.md` §9, punt 3,
 02-09-2026) — dat is nu gebeurd, en de kolom krijgt een concreet doel in
 plaats van ongebruikt te blijven. Zie `docs/decisions.md` (08-09-2026).
 Instructie naar de Claude Code-sessie volgt.
+
+## 2026-09-08 — Klant/leverancier-suggestie bij het koppelformulier gebouwd
+
+Het koppelformulier van het uitzonderingenscherm doet nu een voorstel op
+basis van `Relatie`: matcht de postcode van de onverklaarde groep tegen
+`Relatie.postcode` (aan beide kanten genormaliseerd), dan wordt soort en
+omschrijving voorgevuld. Bij meerdere relaties op dezelfde postcode
+verschijnt een keuzelijst; pas na een keuze wordt er iets voorgevuld. Geen
+automatische koppeling — de gebruiker drukt nog steeds zelf op "Koppelen".
+
+Nieuw veld `Relatie.klant_of_leverancier` (migratie `0009`), gevuld uit de
+kolom "Klant of leverancier" die Wim aan Relaties.xlsx heeft toegevoegd. De
+kolom is niet verplicht: een oudere export zonder die kolom importeert
+gewoon door, met een lege letter en dus geen suggestie. Lettermapping:
+Relatie "K" → SOORT K (Klant), Relatie "L" (Leverancier) → SOORT **C**
+(Crediteur), nooit SOORT "L" (dat is Locatie).
+
+364 tests groen (was 349). Zie `docs/decisions.md` (08-09-2026) en
+`docs/functioneel-ontwerp.md` §5.

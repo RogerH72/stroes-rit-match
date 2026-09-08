@@ -1228,3 +1228,55 @@ deze aangepaste export nu aanleverde.
 Doorgevoerd in: `docs/functioneel-ontwerp.md` §5/§9, `docs/business-rules.md`
 ("Designed but not implemented"), `GUIDELINES.md` (punt 28). Nog niet
 gebouwd — instructie naar de Claude Code-sessie volgt.
+
+## 2026-09-08 — Klant/leverancier-suggestie gebouwd (Current)
+
+Resultaat: gebouwd zoals besloten (zie het besluit hierboven, "Klant/
+leverancier-suggestie in het koppelformulier, op basis van Relatie"). 364
+tests groen, 15 nieuwe (was 349). Concreet:
+`Relatie.klant_of_leverancier` (migratie `0009`, blank toegestaan zodat een
+oudere Relaties.xlsx zonder die kolom gewoon blijft importeren),
+`_relatie_suggesties()` + `_beginwaarden(groep, request)` in
+`matching/views.py`, en de keuzelijst in `koppelen.html` als gewone
+GET-links (`?suggestie=<code>`), zonder JavaScript — hetzelfde
+server-rendered patroon als de rest van dat scherm.
+
+De lettermapping uit punt 2 van het besluit is vastgelegd in een test die
+naast `assertEqual(..., Soort.CREDITEUR)` ook expliciet
+`assertNotEqual(..., Soort.LOCATIE)` controleert. Die tweede assert is er
+puur om een latere "versimpeling" naar een 1-op-1 lettercopy hard te laten
+omvallen in plaats van stilzwijgend elke leverancier als Locatie weg te
+zetten.
+
+Drie tests die Claude Code er zelf bij heeft gezet, elk op een randgeval dat
+tijdens de bouw opviel:
+
+1. **Postcode-normalisatie aan beide kanten.** `Relatie.postcode` staat ruw
+   uit Excel in de database (anders dan `BekendeLocatie.waarde`, die bij het
+   opslaan wordt genormaliseerd), dus "4104 ar" en "4104AR" zijn hetzelfde
+   adres in twee spellingen. Getest met spatie én kleine letters.
+2. **Een onbekende `?suggestie=`-waarde vult niets voor.** Een oude of
+   geknutselde URL mag geen willekeurige kandidaat voorinvullen; er gebeurt
+   dan hetzelfde als bij "geen keuze gemaakt".
+3. **Dezelfde relatie op meerdere rijen telt één keer.** Een relatie kan met
+   een rij per contactpersoon in het bestand staan; drie keer dezelfde naam
+   zou als drie verschillende kandidaten lezen en onnodig de keuzelijst
+   oproepen.
+
+Eén bewuste afwijking van de instructie, gemeld door Claude Code: het
+`class="actief"` op de gekozen kandidaat deed niets, omdat de bestaande
+`.actief`-regel in `basis.html` gescoped is op `header.balk`. Zonder eigen
+opmaak zou de gemaakte keuze er identiek uitzien als de andere kandidaten,
+terwijl de enige andere terugkoppeling (het ingevulde formulier) verderop op
+de pagina staat. Opgelost met een klein eigen `{% block stijl %}` in
+`koppelen.html`.
+
+Eén implementatiedetail dat afwijkt van hoe de rest van de app matcht: de
+vergelijking loopt in Python over de `Relatie`-rijen in plaats van in de
+query, juist omdat `Relatie.postcode` niet genormaliseerd is opgeslagen. Bij
+een stamtabel van enkele duizenden rijen is dat verwaarloosbaar; bewust niet
+vooraf geoptimaliseerd met een extra genormaliseerde kolom, zolang dat niet
+meetbaar knelt.
+
+Doorgevoerd in: `docs/functioneel-ontwerp.md` §5, `docs/business-rules.md`
+("Implemented"), `docs/changelog.md`, `GUIDELINES.md` (punt 29).

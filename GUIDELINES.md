@@ -392,6 +392,15 @@ RouteVision-data komt voor de PoC uit een handmatige download, niet uit de API.
    C (Crediteur) voorgesteld worden, niet als "L" (Locatie in
    `BekendeLocatie.soort` betekent iets anders). Zie `docs/decisions.md`
    en `docs/functioneel-ontwerp.md` §5/§9.
+29. **Gebouwd (08-09-2026).** De klant/leverancier-suggestie uit punt 28 is
+   gebouwd en getest, 364 tests groen (was 349). Nieuw veld
+   `Relatie.klant_of_leverancier` (migratie `0009`, blank toegestaan zodat
+   een oudere Relaties.xlsx zonder die kolom blijft importeren), de
+   suggestielogica in `matching/views.py` en een keuzelijst in
+   `koppelen.html` bij meerdere relaties op dezelfde postcode. De
+   lettermapping (Relatie "L" → SOORT C, nooit SOORT L) staat vast in een
+   test die daar expliciet op asserteert. Zie `docs/decisions.md` en
+   `docs/functioneel-ontwerp.md` §5.
 
 **Vervallen:** de eerder voorziene live-PoC-fase met 1-2 monteurs bij de klant (~1
 week, in overleg met Wim) — het akkoord van 31-08-2026 betrof al de volledige

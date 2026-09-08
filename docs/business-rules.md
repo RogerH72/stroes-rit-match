@@ -32,6 +32,19 @@ Gebouwd t/m roadmap-fase 3 (03-09-2026, commit `eea759c`, 143 tests groen — zi
   juni-dataset kostte dat 28 ritten over 12 dagen, waarvan tweemaal een volledige
   werkdag (Dennis van de Berg, 24 en 25 juni, met 8 geboekte uren en nul
   tijdblokken). Zie `docs/changelog.md` (07-09-2026).
+- **Klant/leverancier-suggestie bij het koppelformulier** (gebouwd
+  08-09-2026) — matcht de postcode van een onverklaarde groep tegen
+  `Relatie.postcode` (aan beide kanten genormaliseerd, want `Relatie.postcode`
+  staat ruw uit Excel in de database). Eén relatie op die postcode → soort en
+  label voorgevuld; meerdere → een keuzelijst, pas na een keuze voorgevuld;
+  geen → formulier blijft leeg. Het blijft een suggestie: er wordt niets
+  opgeslagen tot de gebruiker zelf op "Koppelen" drukt. **Lettermapping:**
+  Relatie "K" (Klant) → SOORT **K**, Relatie "L" (Leverancier) → SOORT **C**
+  (Crediteur) — nooit SOORT "L", want dat betekent Locatie. Een lege of
+  onbekende letter levert geen suggestie op. Matching op huisnummer is niet
+  mogelijk: `normalize.street()` knipt het huisnummer bewust af, dus een
+  postcode die meerdere panden dekt kan de verkeerde relatie voorstellen — de
+  gebruiker ziet de suggestie en kan ervan afwijken.
 - **Een monteur zonder ingevuld thuisadres krijgt geen gok.** Zijn ochtend- en
   avondstops doorlopen gewoon de rest van de prioriteitsvolgorde en eindigen
   meestal als O (onverklaard) — zichtbaar en corrigeerbaar via het
@@ -179,14 +192,6 @@ Gebouwd t/m roadmap-fase 3 (03-09-2026, commit `eea759c`, 143 tests groen — zi
 - Exacte tolerantiewaarden per activiteit — nog te bevestigen met de klant (bron:
   `20260424 RMW-Overzicht ....xlsx` in de brainstorm-sessie); de tabel en het
   mechanisme zijn al gebouwd, alleen met de standaardwaarde.
-- **Klant/leverancier-suggestie bij het koppelformulier** — besloten
-  08-09-2026, nog niet gebouwd. Wim leverde een aangepaste Relaties.xlsx met
-  de kolom "Klant of leverancier" (K/L). Geen automatische classificatie,
-  wel een voorstel in het koppelformulier: matcht op postcode (geen
-  betrouwbaar huisnummer beschikbaar), één relatie → soort+label
-  voorgevuld, meerdere → keuzelijst. Let op: Relatie "L" (Leverancier) →
-  SOORT **C** (Crediteur), niet "L" (dat is Locatie in `BekendeLocatie`).
-  Zie `docs/decisions.md`.
 - Meerwerk: snelheidscontrole per locatie (RouteVision-snelheid vs.
   maximumsnelheid) — op 05-09-2026 vastgelegd als een aparte, later apart te
   offreren fase, buiten deze roadmap. Zie `docs/decisions.md`.

@@ -245,23 +245,39 @@ het geval dat de bus om de hoek staat en dat adres dus nooit gelijk is aan het
 opgegeven huisadres. Zoals bij elke `BekendeLocatie` geldt zo'n koppeling voor
 elke monteur die daar stopt.
 
-**Besloten (08-09-2026), nog niet gebouwd — suggestie op basis van
-`Relatie`.** Wim heeft een aangepaste Relaties.xlsx aangeleverd met een
-nieuwe kolom "Klant of leverancier" (K/L). Het koppelformulier krijgt een
-suggestie op basis daarvan, geen automatische classificatie: de gebruiker
-bevestigt nog steeds zelf, net als bij K/L/C/P/T vandaag. Matching kan
-alleen op postcode — RouteVision-adressen bevatten geen betrouwbaar
-huisnummer (`matching/timeline/normalize.py` knipt het bewust af, een
-al gevalideerde PoC-regel), dus `Relatie.postcode` wordt op dezelfde manier
-genormaliseerd en vergeleken als de rest van de app. Precies één
-ondubbelzinnige relatie op die postcode → soort en label voorgevuld;
-meerdere verschillende relaties op dezelfde postcode → een keuzelijst met
-de kandidaten (of handmatig verdergaan); geen relatie → formulier blijft
-leeg zoals nu. **Let op de lettermapping:** Relatie gebruikt K/L (Klant/
-Leverancier), `BekendeLocatie.soort` gebruikt K/C (Klant/Crediteur) — een
-Leverancier ("L") in Relatie moet dus als SOORT **C** voorgesteld worden,
-nooit als "L" (dat betekent in `BekendeLocatie.soort` "Locatie", iets heel
-anders). Zie `docs/decisions.md` (08-09-2026).
+**Gebouwd (08-09-2026) — suggestie op basis van `Relatie`.** Wim heeft een
+aangepaste Relaties.xlsx aangeleverd met een nieuwe kolom "Klant of
+leverancier" (K/L). Het koppelformulier doet daar een suggestie mee, geen
+automatische classificatie: de gebruiker bevestigt nog steeds zelf, net als
+bij K/L/C/P/T. Matching kan alleen op postcode — RouteVision-adressen
+bevatten geen betrouwbaar huisnummer (`matching/timeline/normalize.py` knipt
+het bewust af, een al gevalideerde PoC-regel), dus `Relatie.postcode` wordt
+op dezelfde manier genormaliseerd en vergeleken als de rest van de app.
+Precies één ondubbelzinnige relatie op die postcode → soort en label
+voorgevuld; meerdere verschillende relaties op dezelfde postcode → een
+keuzelijst met de kandidaten (gewone GET-links `?suggestie=<code>`, geen
+JavaScript), waarna het formulier met die keuze wordt opgebouwd; geen relatie
+→ formulier blijft leeg zoals voorheen. **Let op de lettermapping:** Relatie
+gebruikt K/L (Klant/Leverancier), `BekendeLocatie.soort` gebruikt K/C
+(Klant/Crediteur) — een Leverancier ("L") in Relatie wordt als SOORT **C**
+voorgesteld, nooit als "L" (dat betekent in `BekendeLocatie.soort` "Locatie",
+iets heel anders). Zie `docs/decisions.md` (08-09-2026).
+
+Concreet gebouwd: `Relatie.klant_of_leverancier` (migratie `0009`, blank
+toegestaan zodat een oudere export zonder die kolom gewoon blijft importeren),
+`_relatie_suggesties()` en `_beginwaarden(groep, request)` in
+`matching/views.py`, en de keuzelijst in `koppelen.html`. De poort staat op
+`groep.postcode` en niet op `groep.precisie`: een op straat gegroepeerde
+uitzondering draagt de postcode van zijn stops mee zodra RouteVision er één
+gaf, en die is even goed te matchen. 15 nieuwe tests, 364 totaal groen (was
+349).
+
+Eén bewuste afwijking van de instructie: de gekozen kandidaat krijgt zijn
+`.actief`-opmaak uit een eigen `{% block stijl %}` in `koppelen.html`. De
+bestaande `.actief`-regel in `basis.html` is gescoped op `header.balk` en
+raakt deze lijst dus niet — zonder eigen regel zou de gemaakte keuze er
+identiek uitzien als de andere kandidaten, terwijl het ingevulde formulier pas
+verderop op het scherm staat.
 
 ## 6. Weekoverzicht (roadmap-fase 6)
 

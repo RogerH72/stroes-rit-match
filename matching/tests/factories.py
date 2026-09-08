@@ -18,6 +18,8 @@ from __future__ import annotations
 import csv
 import datetime as dt
 import io
+import re
+import zipfile
 from decimal import Decimal
 from pathlib import Path
 
@@ -142,6 +144,62 @@ def write_workbook(
         sheet.append(row)
     workbook.save(path)
     workbook.close()
+    return path
+
+
+#: The two malformed elements copied verbatim out of the Relaties.xlsx Wim
+#: delivered on 08-09-2026 — the first Atrium export this project ever read that
+#: had not been through Excel. `WindowWidth`/`WindowHeight` and `firstPageNo` are
+#: capitalised where OOXML says `windowWidth`/`windowHeight`/`firstPageNumber`,
+#: and openpyxl refuses the file over it (docs/decisions.md, 08-09-2026).
+#:
+#: Reproduced here rather than committed as a binary fixture: the real export is a
+#: customer file, and no workbook belongs in this repository (see .gitignore,
+#: "Client data ... personal data, AVG").
+_ATRIUM_BOOKVIEWS = (
+    "<bookViews>    <workbookView xWindow=\"480\" yWindow=\"105\" "
+    "WindowWidth=\"21075\" WindowHeight=\"12585\"/></bookViews>"
+)
+_ATRIUM_PAGESETUP = (
+    '<pageSetup firstPageNo="1" scale="0" orientation="portrait" paperSize="9"/>'
+)
+
+
+def ruwe_atrium_workbook(
+    path: Path,
+    columns: list[str],
+    rows: list[list],
+    *,
+    sheet_name: str = SHEET_NAME,
+) -> Path:
+    """A Syntess-shaped workbook that carries Atrium's non-conformant XML.
+
+    Written with openpyxl first and then patched at the XML level, because
+    openpyxl cannot be made to *write* the malformed spelling — which is the
+    whole point: without the repair in `read_excel_rows`, openpyxl cannot read
+    this file back either.
+    """
+    write_workbook(path, columns, rows, extra_sheet_first=False, sheet_name=sheet_name)
+
+    with zipfile.ZipFile(path) as bron:
+        onderdelen = {naam: bron.read(naam) for naam in bron.namelist()}
+
+    workbook = onderdelen["xl/workbook.xml"].decode("utf-8")
+    workbook = re.sub(
+        r"<bookViews>.*?</bookViews>", _ATRIUM_BOOKVIEWS, workbook, flags=re.S
+    )
+    onderdelen["xl/workbook.xml"] = workbook.encode("utf-8")
+
+    for naam, inhoud in list(onderdelen.items()):
+        if naam.startswith("xl/worksheets/") and naam.endswith(".xml"):
+            blad = inhoud.decode("utf-8").replace(
+                "</worksheet>", _ATRIUM_PAGESETUP + "</worksheet>"
+            )
+            onderdelen[naam] = blad.encode("utf-8")
+
+    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as doel:
+        for naam, inhoud in onderdelen.items():
+            doel.writestr(naam, inhoud)
     return path
 
 

@@ -12,17 +12,28 @@ in particular carries a couple of thousand entirely empty rows after its data.
 
 openpyxl is the only added dependency; pandas would be far heavier than a handful
 of columns warrants for a container that has to stay light (GUIDELINES.md).
+
+Both readers are deliberately forgiving about two things the customer's export
+tools get wrong, because neither is ours to fix at the source: a workbook whose
+XML spells a few attribute names in the wrong case (see `_ATRIUM_XML_FIXES`), and
+a header whose column name differs from ours in capitalisation (see
+`_KolomWaarden`). Everything else that is wrong with a file still raises.
 """
 
 from __future__ import annotations
 
 import csv
 import datetime as dt
+import io
+import logging
+import zipfile
 from collections.abc import Iterator
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
 import openpyxl
+
+logger = logging.getLogger(__name__)
 
 # The sheet every Syntess export puts its data on.
 SHEET_NAME = "Atrium"
@@ -160,6 +171,101 @@ def _is_blank(values: dict[str, object]) -> bool:
     return all(value is None or str(value).strip() == "" for value in values.values())
 
 
+#: Attribute names Atrium's raw export writes non-conformant to OOXML, mapped to
+#: the spelling the standard — and openpyxl — expects. Excel ignores the mismatch
+#: and silently corrects it on save, which is why this stayed hidden until
+#: 08-09-2026: every sample file tested until then had passed through Excel at
+#: some point, so none of them still carried the defect (docs/decisions.md).
+#:
+#: Deliberately three literal tokens rather than a general XML clean-up: these are
+#: the ones actually observed in a real export. Guessing at what else Atrium might
+#: spell wrong would risk changing files that are fine.
+_ATRIUM_XML_FIXES = (
+    (b'WindowWidth="', b'windowWidth="'),
+    (b'WindowHeight="', b'windowHeight="'),
+    (b'firstPageNo="', b'firstPageNumber="'),
+)
+
+
+def _gerepareerd_workbook_bestand(path: Path) -> Path | io.BytesIO:
+    """The same .xlsx, with Atrium's known non-conformant XML attributes fixed.
+
+    Returns the path itself when nothing needed fixing, so a conforming file pays
+    no more than one read-only pass over the zip. Returns an in-memory copy when a
+    fix was applied — the file on the share is never written to, because this is
+    an inbox we only read from and a repaired file must not quietly replace what
+    the customer's system delivered.
+    """
+    with zipfile.ZipFile(path) as bron:
+        namen = bron.namelist()
+        gerepareerd = {}
+        for naam in namen:
+            if not (naam.startswith("xl/") and naam.endswith(".xml")):
+                continue
+            origineel = bron.read(naam)
+            inhoud = origineel
+            for fout, correct in _ATRIUM_XML_FIXES:
+                inhoud = inhoud.replace(fout, correct)
+            if inhoud != origineel:
+                gerepareerd[naam] = inhoud
+
+        if not gerepareerd:
+            return path
+
+        logger.warning(
+            "%s: %d niet-conform XML-onderdeel gerepareerd vóór het inlezen "
+            "(Atrium-export zonder Excel-tussenstap) — zie docs/decisions.md, "
+            "08-09-2026.",
+            path.name,
+            len(gerepareerd),
+        )
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as doel:
+            for naam in namen:
+                doel.writestr(
+                    naam,
+                    gerepareerd[naam] if naam in gerepareerd else bron.read(naam),
+                )
+    buffer.seek(0)
+    return buffer
+
+
+class _KolomWaarden(dict):
+    """A row's values, looked up by column name regardless of letter case.
+
+    Every parser reads its row as `values.get("Exacte Naam")`. An exact match is
+    answered exactly as before, so nothing changes for the columns that already
+    work; only a name that does not match falls back to a case-insensitive
+    lookup. That fallback is what Wim's updated Relaties.xlsx needed: its column
+    is spelled "klant of leverancier" with a lower-case k (docs/decisions.md,
+    08-09-2026).
+
+    Two headers differing only in case leave the last one standing in the
+    fallback map. Not worth an error: the exact spelling still resolves exactly,
+    and a file with two such columns is malformed in a way this reader cannot
+    sensibly arbitrate.
+    """
+
+    def __init__(self, data: dict[str, object]):
+        super().__init__(data)
+        self._op_kleine_letters = {
+            sleutel.lower(): waarde for sleutel, waarde in data.items()
+        }
+
+    def get(self, sleutel, default=None):
+        if sleutel in self:
+            return super().get(sleutel)
+        return self._op_kleine_letters.get(sleutel.lower(), default)
+
+
+def _ontbrekende_kolommen(
+    columns: list[str], required_columns: tuple[str, ...]
+) -> list[str]:
+    """Which required columns the header does not carry, ignoring letter case."""
+    aanwezig = {kolom.lower() for kolom in columns}
+    return [kolom for kolom in required_columns if kolom.lower() not in aanwezig]
+
+
 def read_excel_rows(
     path: Path,
     *,
@@ -171,7 +277,9 @@ def read_excel_rows(
     `row_number` is the 1-based row in the sheet, header included, so it points at
     the line a value actually came from.
     """
-    workbook = openpyxl.load_workbook(path, read_only=True, data_only=True)
+    workbook = openpyxl.load_workbook(
+        _gerepareerd_workbook_bestand(path), read_only=True, data_only=True
+    )
     try:
         if sheet_name not in workbook.sheetnames:
             raise ParseError(
@@ -187,7 +295,7 @@ def read_excel_rows(
             raise ParseError(f"{path.name}: sheet {sheet_name!r} is empty") from None
 
         columns = [text(cell) for cell in header]
-        missing = [column for column in required_columns if column not in columns]
+        missing = _ontbrekende_kolommen(columns, required_columns)
         if missing:
             raise ParseError(
                 f"{path.name}: missing column(s) {', '.join(missing)} "
@@ -195,11 +303,9 @@ def read_excel_rows(
             )
 
         for offset, row in enumerate(rows, start=2):
-            values = {
-                column: value
-                for column, value in zip(columns, row)
-                if column
-            }
+            values = _KolomWaarden(
+                {column: value for column, value in zip(columns, row) if column}
+            )
             if _is_blank(values):
                 continue
             yield offset, values
@@ -222,7 +328,7 @@ def read_csv_rows(
 
         # Tolerate a byte order mark if the export ever switches to UTF-8-with-BOM.
         columns = [column.strip().lstrip("﻿") for column in header]
-        missing = [column for column in required_columns if column not in columns]
+        missing = _ontbrekende_kolommen(columns, required_columns)
         if missing:
             raise ParseError(
                 f"{path.name}: missing column(s) {', '.join(missing)} "
@@ -230,7 +336,9 @@ def read_csv_rows(
             )
 
         for offset, row in enumerate(reader, start=2):
-            values = {column: value for column, value in zip(columns, row) if column}
+            values = _KolomWaarden(
+                {column: value for column, value in zip(columns, row) if column}
+            )
             if _is_blank(values):
                 continue
             yield offset, values

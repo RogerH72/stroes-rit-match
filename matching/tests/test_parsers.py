@@ -12,6 +12,9 @@ from django.test import SimpleTestCase, TestCase
 from matching.ingest.parsers import relaties, ritten, uren, werkbonnen
 from matching.ingest.parsers.base import (
     ParseError,
+    _gerepareerd_workbook_bestand,
+    _KolomWaarden,
+    read_csv_rows,
     read_excel_rows,
     to_date,
     to_decimal,
@@ -108,6 +111,173 @@ class ParserTestCase(TestCase):
             last_measured_at=dt.datetime(2026, 8, 26, tzinfo=dt.timezone.utc),
             status=ImportStatus.STABIEL,
         )
+
+
+class RuweAtriumExportTests(ParserTestCase):
+    """Reading an Atrium export that never passed through Excel (08-09-2026).
+
+    Wim's Relaties.xlsx of that date was the first such file this project read,
+    and openpyxl refused it outright: Atrium spells a few XML attribute names
+    with the wrong capitalisation, and its column header reads "klant of
+    leverancier" with a lower-case k. Every earlier fixture had been through
+    Excel at some point, which silently repairs the XML — which is exactly why
+    this stayed invisible until it hit a real import (docs/decisions.md).
+
+    The defect is reproduced by `factories.ruwe_atrium_workbook` rather than by
+    committing the customer's own file: no workbook belongs in this repository
+    (.gitignore, "Client data ... personal data, AVG").
+    """
+
+    source_kind = SourceKind.RELATIE
+
+    def _bestand(self, kolommen=None, rijen=None):
+        return factories.ruwe_atrium_workbook(
+            self.directory / "ruwe-atrium-export.xlsx",
+            kolommen
+            or ["Code", "Relatienaam", "Postcode", "klant of leverancier"],
+            rijen
+            or [
+                ["0000", "Stroes Bouw- & Techniek Team", "4104 AC", "K"],
+                ["0001", "Syntess Software", "4301 RZ", "L"],
+            ],
+        )
+
+    def test_openpyxl_alone_cannot_read_it(self):
+        # The fixture's reason for existing: without the repair in
+        # read_excel_rows, this file does not open at all. If this ever stops
+        # raising, the tests below would pass for the wrong reason.
+        import openpyxl
+
+        with self.assertRaises(TypeError):
+            openpyxl.load_workbook(self._bestand(), read_only=True, data_only=True)
+
+    def test_the_reader_opens_it_anyway(self):
+        rijen = list(read_excel_rows(self._bestand(), required_columns=("Code",)))
+
+        self.assertEqual(len(rijen), 2)
+        self.assertEqual(rijen[0][1].get("Relatienaam"), "Stroes Bouw- & Techniek Team")
+
+    def test_the_source_file_itself_is_never_rewritten(self):
+        # The repair lives in memory: the inbox is read-only, and a repaired file
+        # must not quietly replace what the customer's system delivered.
+        pad = self._bestand()
+        voor = pad.read_bytes()
+
+        list(read_excel_rows(pad, required_columns=("Code",)))
+
+        self.assertEqual(pad.read_bytes(), voor)
+
+    def test_a_required_column_is_found_despite_its_letter_case(self):
+        # "klant of leverancier" in the file, "Klant of leverancier" here.
+        rijen = list(
+            read_excel_rows(
+                self._bestand(), required_columns=("Klant of leverancier",)
+            )
+        )
+
+        self.assertEqual(len(rijen), 2)
+
+    def test_a_genuinely_missing_column_is_still_reported(self):
+        # Tolerance about capitalisation is not tolerance about absence.
+        with self.assertRaises(ParseError):
+            list(read_excel_rows(self._bestand(), required_columns=("Huisnr",)))
+
+    def test_the_relaties_parser_reads_the_klant_of_leverancier_column(self):
+        # The end-to-end point of both fixes: this column drives the suggestion
+        # in the koppelformulier, and it arrived empty before.
+        rijen = relaties.build_rows(self._bestand(), self.imported_file)
+
+        self.assertEqual([rij.klant_of_leverancier for rij in rijen], ["K", "L"])
+        self.assertEqual(rijen[0].code, "0000")
+
+
+class KolomWaardenTests(SimpleTestCase):
+    """The case-insensitive column lookup every parser row goes through."""
+
+    def test_an_exact_name_is_answered_exactly(self):
+        waarden = _KolomWaarden({"Postcode": "4104 AC"})
+
+        self.assertEqual(waarden.get("Postcode"), "4104 AC")
+
+    def test_a_differently_cased_name_still_finds_the_column(self):
+        waarden = _KolomWaarden({"klant of leverancier": "L"})
+
+        self.assertEqual(waarden.get("Klant of leverancier"), "L")
+
+    def test_a_column_that_is_not_there_returns_the_default(self):
+        waarden = _KolomWaarden({"Postcode": "4104 AC"})
+
+        self.assertIsNone(waarden.get("Huisnr"))
+        self.assertEqual(waarden.get("Huisnr", "leeg"), "leeg")
+
+    def test_the_exact_spelling_wins_over_the_case_insensitive_one(self):
+        # Two columns differing only in case: the exact name resolves exactly,
+        # so a file like this cannot shift what an existing parser reads.
+        waarden = _KolomWaarden({"Postcode": "exact", "POSTCODE": "afwijkend"})
+
+        self.assertEqual(waarden.get("Postcode"), "exact")
+
+    def test_two_columns_differing_only_in_case_do_not_crash(self):
+        # Malformed, and not something this reader can sensibly arbitrate: the
+        # last one wins in the fallback. Pinned down so it is not a surprise.
+        waarden = _KolomWaarden({"POSTCODE": "eerste", "postcode": "tweede"})
+
+        self.assertEqual(waarden.get("Postcode"), "tweede")
+
+
+class HoofdletterOngevoeligeKolommenTests(ParserTestCase):
+    """The same tolerance, through both readers rather than on the dict."""
+
+    source_kind = SourceKind.RELATIE
+
+    def test_an_excel_column_in_different_case_is_required_and_read(self):
+        pad = factories.write_workbook(
+            self.directory / "afwijkend.xlsx",
+            ["code", "RELATIENAAM"],
+            [["0000", "Stroes"]],
+        )
+
+        rijen = list(read_excel_rows(pad, required_columns=("Code", "Relatienaam")))
+
+        self.assertEqual(len(rijen), 1)
+        self.assertEqual(rijen[0][1].get("Relatienaam"), "Stroes")
+
+    def test_a_csv_column_in_different_case_is_required_and_read(self):
+        # No such file has turned up, but the RouteVision export is written by a
+        # system outside our control too, so the two readers behave alike.
+        pad = factories.write_csv(
+            self.directory / "afwijkend.csv",
+            ["KENTEKEN", "bestuurder"],
+            [["V-31-JRT", "M5"]],
+        )
+
+        rijen = list(read_csv_rows(pad, required_columns=("Kenteken", "Bestuurder")))
+
+        self.assertEqual(len(rijen), 1)
+        self.assertEqual(rijen[0][1].get("Bestuurder"), "M5")
+
+
+class ConformBestandOngemoeidTests(ParserTestCase):
+    """The repair step must be a no-op on a file that is already conformant."""
+
+    source_kind = SourceKind.RELATIE
+
+    def test_a_conforming_workbook_is_handed_to_openpyxl_untouched(self):
+        # Not merely "reads the same": the file itself is passed through, so a
+        # conforming export never pays for the repair beyond one pass over its
+        # zip directory.
+        pad = factories.relaties_file(self.directory)
+
+        self.assertIs(_gerepareerd_workbook_bestand(pad), pad)
+
+    def test_a_conforming_workbook_reads_exactly_as_before(self):
+        pad = factories.relaties_file(self.directory)
+
+        rijen = list(read_excel_rows(pad, required_columns=("Code", "Relatienaam")))
+
+        self.assertEqual(len(rijen), 2)
+        self.assertEqual(rijen[0][1].get("Relatienaam"), "Stroes Bouw- & Techniek Team")
+        self.assertEqual(rijen[1][1].get("Klant of leverancier"), "l")
 
 
 class UrenParserTests(ParserTestCase):

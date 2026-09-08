@@ -30,6 +30,7 @@ from matching.models import (
     ImportedFile,
     ImportStatus,
     Monteur,
+    Relatie,
     Rit,
     SourceKind,
     Uren,
@@ -67,7 +68,19 @@ WERKBON_COLUMNS = [
     "Monteur meegereden",
 ]
 
-RELATIE_COLUMNS = ["Code", "Relatienaam", "Postcode", "Huisnr", "E-mail", "Telefoon"]
+RELATIE_COLUMNS = [
+    "Code",
+    "Relatienaam",
+    "Postcode",
+    "Huisnr",
+    "E-mail",
+    "Telefoon",
+    "Klant of leverancier",
+]
+
+#: The same columns as they were before Wim added "Klant of leverancier"
+#: (08-09-2026) — an older export, which still has to import.
+RELATIE_COLUMNS_ZONDER_SOORT = RELATIE_COLUMNS[:-1]
 
 RIT_COLUMNS = [
     "Kenteken",
@@ -288,11 +301,48 @@ def relaties_file(
 ) -> Path:
     """A small Relaties.xlsx with the trailing block of empty rows the real one has."""
     rows = [
-        ["0000", "Stroes Bouw- & Techniek Team", "4104 AC", "6A", "info@x.nl", "0345-1"],
-        ["0001", "Syntess Software", "4301 RZ", "2", "syntess@x.nl", "088-2 (alg)"],
+        [
+            "0000", "Stroes Bouw- & Techniek Team", "4104 AC", "6A",
+            "info@x.nl", "0345-1", "K",
+        ],
+        [
+            "0001", "Syntess Software", "4301 RZ", "2",
+            "syntess@x.nl", "088-2 (alg)", "l",
+        ],
     ]
     rows += [[None] * len(RELATIE_COLUMNS) for _ in range(25)]
     return write_workbook(directory / name, RELATIE_COLUMNS, rows)
+
+
+def relaties_file_zonder_soort(
+    directory: Path, name: str = "Download uit Syntess Relaties.xlsx"
+) -> Path:
+    """A Relaties.xlsx from before the "Klant of leverancier" column existed."""
+    rows = [
+        ["0000", "Stroes Bouw- & Techniek Team", "4104 AC", "6A", "info@x.nl", "0345-1"],
+        ["0001", "Syntess Software", "4301 RZ", "2", "syntess@x.nl", "088-2 (alg)"],
+    ]
+    return write_workbook(directory / name, RELATIE_COLUMNS_ZONDER_SOORT, rows)
+
+
+def relatie(
+    code: str,
+    relatienaam: str,
+    postcode: str,
+    klant_of_leverancier: str = "",
+    *,
+    source_file: ImportedFile | None = None,
+) -> Relatie:
+    """One row of the relatietabel, as the parser would have stored it."""
+    source_file = source_file or import_bestand(SourceKind.RELATIE)
+    return Relatie.objects.create(
+        source_file=source_file,
+        row_number=Relatie.objects.count() + 2,
+        code=code,
+        relatienaam=relatienaam,
+        postcode=postcode,
+        klant_of_leverancier=klant_of_leverancier,
+    )
 
 
 def ritten_file(directory: Path, name: str = "Ritten_Alle_voertuigen.csv") -> Path:

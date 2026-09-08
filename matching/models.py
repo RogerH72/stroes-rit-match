@@ -240,6 +240,17 @@ class Relatie(SourceRow):
     huisnr = models.CharField("huisnr", max_length=32, blank=True)
     email = models.CharField("e-mail", max_length=255, blank=True)
     telefoon = models.CharField("telefoon", max_length=64, blank=True)
+    #: "K" (Klant) or "L" (Leverancier), the column Wim added to Relaties.xlsx on
+    #: 08-09-2026. Blank is allowed and simply means "no suggestion": not every
+    #: row carries the column, and an empty cell is not an import error.
+    #:
+    #: Careful — these letters are *not* the ones in `Soort`. An "L" here is a
+    #: Leverancier, which this domain calls a Crediteur (Soort.CREDITEUR, "C");
+    #: Soort's own "L" means Locatie, something else entirely. The translation
+    #: lives in matching/views.py (docs/decisions.md, 08-09-2026).
+    klant_of_leverancier = models.CharField(
+        "klant of leverancier", max_length=1, blank=True
+    )
 
     class Meta:
         verbose_name = "relatie"

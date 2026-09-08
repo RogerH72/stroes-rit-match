@@ -30,7 +30,8 @@ from django.shortcuts import redirect, render
 
 from matching import weekoverzicht as week
 from matching.forms import KoppelLocatieForm
-from matching.models import LocatieType, Monteur, Soort, Tijdblok
+from matching.models import LocatieType, Monteur, Relatie, Soort, Tijdblok
+from matching.timeline import normalize
 from matching.timeline.runner import run_matching_and_record_status
 from matching.weekoverzicht_excel import bestandsnaam, bouw_werkboek
 
@@ -172,14 +173,128 @@ def uitzonderingen_koppelen(request, precisie: str, waarde: str):
         if form.is_valid():
             return _koppel_en_herbereken(request, form)
     else:
-        form = KoppelLocatieForm(initial=_beginwaarden(groep))
+        form = KoppelLocatieForm(initial=_beginwaarden(groep, request))
 
-    return render(request, "matching/koppelen.html", {"groep": groep, "form": form})
+    suggesties = _relatie_suggesties(groep.postcode) if groep.postcode else []
+    return render(
+        request,
+        "matching/koppelen.html",
+        {
+            "groep": groep,
+            "form": form,
+            # Only worth showing when there is a choice to make: a single
+            # candidate has already filled the form in, and listing it would ask
+            # the user to pick what is on screen anyway.
+            "suggesties": suggesties if len(suggesties) > 1 else [],
+            "gekozen_suggestie": request.GET.get("suggestie", ""),
+        },
+    )
 
 
-def _beginwaarden(groep: Uitzondering) -> dict[str, str]:
-    """Pre-fill: the precision the group itself represents, and its own value."""
-    return {"type": groep.precisie, "waarde": groep.sleutel}
+@dataclass
+class RelatieSuggestie:
+    """One Relatie row that matches a group's postcode, as a suggestion."""
+
+    code: str
+    relatienaam: str
+    #: A Soort value, already translated — never Relatie's own K/L letter.
+    soort: str
+    label: str
+
+
+#: Relatie's letters translated into SOORT-codes. The two alphabets look alike
+#: and are not: Relatie "L" is a Leverancier, which this domain books as a
+#: Crediteur (SOORT "C"). SOORT's own "L" means Locatie, so copying the letter
+#: across would quietly file every supplier as something else
+#: (docs/decisions.md, 08-09-2026).
+_KLANT_OF_LEVERANCIER_NAAR_SOORT = {
+    "K": Soort.KLANT,
+    "L": Soort.CREDITEUR,
+}
+
+
+def _relatie_suggesties(postcode: str) -> list[RelatieSuggestie]:
+    """The Relatie rows on this postcode, with their letter already translated.
+
+    Rows whose klant_of_leverancier is empty or unrecognised are skipped: a
+    suggestion without a SOORT is not a suggestion, and guessing one from the
+    name would be the automatic classification this was deliberately not made
+    (docs/decisions.md, 08-09-2026).
+
+    Compared through `normalize.postcode` on both sides because Relatie.postcode
+    is raw Excel text — unlike BekendeLocatie.waarde, it is not normalised on
+    save, so "4104 AC" and "4104AC" are the same address in two spellings. That
+    also means the filtering happens in Python rather than in the query; the
+    relatietabel is a few thousand rows of master data, not a row per stop, so
+    that is cheap enough to leave until it measurably is not.
+    """
+    doel = normalize.postcode(postcode)
+    if not doel:
+        return []
+
+    suggesties: list[RelatieSuggestie] = []
+    gezien = set()
+    for relatie in Relatie.objects.exclude(postcode="").exclude(
+        klant_of_leverancier=""
+    ):
+        if normalize.postcode(relatie.postcode) != doel:
+            continue
+        soort = _KLANT_OF_LEVERANCIER_NAAR_SOORT.get(relatie.klant_of_leverancier)
+        if soort is None:
+            continue
+        # One suggestion per (name, soort): the same relation can occupy several
+        # rows of the file (one per contact person), and offering the same name
+        # three times would look like three different candidates.
+        sleutel = (relatie.relatienaam, soort)
+        if sleutel in gezien:
+            continue
+        gezien.add(sleutel)
+        suggesties.append(
+            RelatieSuggestie(
+                code=relatie.code,
+                relatienaam=relatie.relatienaam,
+                soort=soort,
+                label=relatie.relatienaam,
+            )
+        )
+    return suggesties
+
+
+def _beginwaarden(groep: Uitzondering, request) -> dict[str, str]:
+    """Pre-fill: the group's own precision and value, plus a Relatie suggestion.
+
+    The suggestion only ever fills in soort and label — type and waarde keep
+    coming from the group itself, since those say which address is being linked
+    and no relation gets to change that.
+
+    Nothing is saved here: the user still confirms by pressing "Koppelen", the
+    same as for a hand-typed koppeling (suggest-then-confirm, docs/decisions.md
+    08-09-2026). With several candidates nothing is pre-filled until the user
+    picks one from the list, because filling in one of several would look like an
+    answer rather than a guess.
+
+    Gated on `groep.postcode` rather than on the group's precision: a group keyed
+    on street still carries the postcode of its stops when RouteVision supplied
+    one, and that postcode is just as matchable.
+    """
+    beginwaarden = {"type": groep.precisie, "waarde": groep.sleutel}
+
+    suggesties = _relatie_suggesties(groep.postcode) if groep.postcode else []
+    if len(suggesties) == 1:
+        gekozen = suggesties[0]
+    elif len(suggesties) > 1:
+        gekozen = next(
+            (s for s in suggesties if s.code == request.GET.get("suggestie")),
+            None,
+        )
+    else:
+        gekozen = None
+
+    if gekozen is not None:
+        beginwaarden["soort"] = gekozen.soort
+        beginwaarden["label"] = gekozen.label
+
+    return beginwaarden
 
 
 def _koppel_en_herbereken(request, form: KoppelLocatieForm):

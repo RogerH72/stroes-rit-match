@@ -20,6 +20,7 @@ from matching.models import (
     BekendeLocatie,
     LocatieType,
     MatchmotorStatus,
+    Rit,
     Soort,
     Tijdblok,
 )
@@ -350,6 +351,199 @@ class KoppelenTests(TestCase):
     def test_an_unknown_precision_gives_a_404(self):
         response = self.client.get("/uitzonderingen/koppelen/huisnummer/4104AR/")
         self.assertEqual(response.status_code, 404)
+
+
+class RelatieSuggestieTests(TestCase):
+    """The Relatie-based suggestion in the koppelformulier (08-09-2026).
+
+    A suggestion, never an automatic koppeling: the form arrives pre-filled and
+    the user still presses "Koppelen". What is guarded most closely here is the
+    letter translation — Relatie's "L" (Leverancier) has to become SOORT "C"
+    (Crediteur), because SOORT's own "L" means Locatie.
+    """
+
+    def setUp(self):
+        self.monteur = factories.monteur("Jesse", "005", "M5")
+        _dag_met_onverklaarde_stop("M5", DAG)
+        run_matching()
+
+        self.gebruiker = User.objects.create_user(
+            "beheerder", password="geheim", is_staff=True
+        )
+        self.gebruiker.user_permissions.add(
+            Permission.objects.get(codename="add_bekendelocatie")
+        )
+        self.client.force_login(self.gebruiker)
+        # The unexplained stop of _dag_met_onverklaarde_stop sits on 4104 AR.
+        self.url = reverse(
+            "uitzonderingen_koppelen", args=[LocatieType.POSTCODE, "4104AR"]
+        )
+
+    def _form(self, **params):
+        return self.client.get(self.url, params).context["form"]
+
+    def test_one_klant_on_this_postcode_prefills_soort_and_label(self):
+        factories.relatie("1234", "Bouwbedrijf Jansen", "4104 AR", "K")
+
+        form = self._form()
+
+        self.assertEqual(form.initial["soort"], Soort.KLANT)
+        self.assertEqual(form.initial["label"], "Bouwbedrijf Jansen")
+        # The address itself still comes from the group, not from the relation.
+        self.assertEqual(form.initial["type"], LocatieType.POSTCODE)
+        self.assertEqual(form.initial["waarde"], "4104AR")
+
+    def test_a_leverancier_is_suggested_as_crediteur_not_as_locatie(self):
+        # The critical mapping: Relatie "L" (Leverancier) -> SOORT "C"
+        # (Crediteur). Copying the letter across would file every supplier as
+        # SOORT "L" (Locatie), which means something else entirely
+        # (docs/decisions.md, 08-09-2026).
+        factories.relatie("1234", "Groothandel Van Egmond", "4104 AR", "L")
+
+        form = self._form()
+
+        self.assertEqual(form.initial["soort"], Soort.CREDITEUR)
+        self.assertNotEqual(form.initial["soort"], Soort.LOCATIE)
+
+    def test_the_postcode_is_compared_normalised_on_both_sides(self):
+        # Relatie.postcode is raw Excel text, so the spelling with a space has
+        # to match the group's key without one.
+        factories.relatie("1234", "Bouwbedrijf Jansen", "4104 ar", "K")
+
+        self.assertEqual(self._form().initial["label"], "Bouwbedrijf Jansen")
+
+    def test_nothing_is_saved_by_merely_opening_the_form(self):
+        # Suggest-then-confirm: the user still presses "Koppelen".
+        factories.relatie("1234", "Bouwbedrijf Jansen", "4104 AR", "K")
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(BekendeLocatie.objects.count(), 0)
+
+    def test_a_relation_on_another_postcode_suggests_nothing(self):
+        factories.relatie("1234", "Bouwbedrijf Jansen", "4196 HB", "K")
+
+        form = self._form()
+
+        self.assertNotIn("soort", form.initial)
+        self.assertNotIn("label", form.initial)
+
+    def test_an_empty_or_unknown_letter_is_ignored(self):
+        # An empty cell means "no suggestion", and a typo must not crash the
+        # screen or produce a suggestion without a SOORT.
+        factories.relatie("1234", "Zonder letter", "4104 AR", "")
+        factories.relatie("5678", "Typefout", "4104 AR", "X")
+
+        response = self.client.get(self.url)
+        form = response.context["form"]
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn("soort", form.initial)
+        self.assertEqual(response.context["suggesties"], [])
+
+    def test_several_candidates_prefill_nothing_but_are_offered_as_a_list(self):
+        factories.relatie("1234", "Bouwbedrijf Jansen", "4104 AR", "K")
+        factories.relatie("5678", "Groothandel Van Egmond", "4104 AR", "L")
+
+        response = self.client.get(self.url)
+        form = response.context["form"]
+        inhoud = response.content.decode()
+
+        self.assertNotIn("soort", form.initial)
+        self.assertEqual(
+            [suggestie.relatienaam for suggestie in response.context["suggesties"]],
+            ["Bouwbedrijf Jansen", "Groothandel Van Egmond"],
+        )
+        self.assertIn("Meerdere relaties op deze postcode", inhoud)
+        self.assertIn("Bouwbedrijf Jansen", inhoud)
+        self.assertIn("Groothandel Van Egmond", inhoud)
+
+    def test_picking_one_candidate_prefills_that_one(self):
+        factories.relatie("1234", "Bouwbedrijf Jansen", "4104 AR", "K")
+        factories.relatie("5678", "Groothandel Van Egmond", "4104 AR", "L")
+
+        form = self._form(suggestie="5678")
+
+        self.assertEqual(form.initial["soort"], Soort.CREDITEUR)
+        self.assertEqual(form.initial["label"], "Groothandel Van Egmond")
+
+    def test_an_unknown_suggestie_parameter_prefills_nothing(self):
+        factories.relatie("1234", "Bouwbedrijf Jansen", "4104 AR", "K")
+        factories.relatie("5678", "Groothandel Van Egmond", "4104 AR", "L")
+
+        form = self._form(suggestie="9999")
+
+        self.assertNotIn("soort", form.initial)
+
+    def test_the_same_relation_on_several_rows_counts_once(self):
+        # One relation can occupy a row per contact person; three identical
+        # names would read as three different candidates.
+        factories.relatie("1234", "Bouwbedrijf Jansen", "4104 AR", "K")
+        factories.relatie("1235", "Bouwbedrijf Jansen", "4104 AR", "K")
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(
+            response.context["form"].initial["label"], "Bouwbedrijf Jansen"
+        )
+        self.assertEqual(response.context["suggesties"], [])
+
+    def test_a_single_candidate_needs_no_picklist(self):
+        factories.relatie("1234", "Bouwbedrijf Jansen", "4104 AR", "K")
+
+        self.assertEqual(self.client.get(self.url).context["suggesties"], [])
+
+    def test_a_group_without_a_postcode_behaves_exactly_as_before(self):
+        # A street-precision group: RouteVision left the place empty, so there is
+        # no postcode to match a relation on.
+        Tijdblok.objects.all().delete()
+        Rit.objects.all().delete()
+        factories.rit(
+            "M5", DAG, "07:30", "08:00",
+            vertrekadres=THUIS[0], vertrekplaats=THUIS[1],
+            aankomstadres="Industrieweg 2", aankomstplaats="",
+        )
+        factories.rit(
+            "M5", DAG, "10:00", "10:30",
+            vertrekadres="Industrieweg 2", vertrekplaats="",
+            aankomstadres=THUIS[0], aankomstplaats=THUIS[1],
+        )
+        run_matching(force=True)
+        factories.relatie("1234", "Bouwbedrijf Jansen", "4104 AR", "K")
+
+        url = reverse(
+            "uitzonderingen_koppelen", args=[LocatieType.STRAAT, "industrieweg"]
+        )
+        response = self.client.get(url)
+        form = response.context["form"]
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(form.initial["type"], LocatieType.STRAAT)
+        self.assertNotIn("soort", form.initial)
+        self.assertEqual(response.context["suggesties"], [])
+
+    def test_confirming_a_suggestion_links_the_address_as_usual(self):
+        # The suggestion changes what the form arrives with, nothing about what
+        # submitting it does.
+        factories.relatie("1234", "Groothandel Van Egmond", "4104 AR", "L")
+        form = self._form()
+
+        response = self.client.post(
+            self.url,
+            {
+                "type": form.initial["type"],
+                "waarde": form.initial["waarde"],
+                "soort": form.initial["soort"],
+                "label": form.initial["label"],
+            },
+        )
+
+        self.assertRedirects(response, reverse("uitzonderingen"))
+        locatie = BekendeLocatie.objects.get()
+        self.assertEqual(locatie.soort, Soort.CREDITEUR)
+        self.assertEqual(locatie.label, "Groothandel Van Egmond")
+        self.assertFalse(Tijdblok.objects.filter(soort=Soort.ONVERKLAARD).exists())
 
 
 class AdminLinkTests(TestCase):

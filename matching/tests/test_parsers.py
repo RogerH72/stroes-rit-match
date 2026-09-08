@@ -194,6 +194,24 @@ class RelatiesParserTests(ParserTestCase):
         self.assertEqual(rows[0].relatienaam, "Stroes Bouw- & Techniek Team")
         self.assertEqual(rows[1].email, "syntess@x.nl")
 
+    def test_the_klant_of_leverancier_letter_is_read_and_uppercased(self):
+        # A lower-case "l" in Excel must not end up as an unrecognised value:
+        # the suggestion in the koppelformulier looks the letter up as-is.
+        path = factories.relaties_file(self.directory)
+        rows = relaties.build_rows(path, self.imported_file)
+
+        self.assertEqual(rows[0].klant_of_leverancier, "K")
+        self.assertEqual(rows[1].klant_of_leverancier, "L")
+
+    def test_an_export_without_the_klant_of_leverancier_column_still_imports(self):
+        # Wim added that column on 08-09-2026; an older file has to keep working,
+        # with the letter simply empty (docs/decisions.md, 08-09-2026).
+        path = factories.relaties_file_zonder_soort(self.directory)
+        rows = relaties.build_rows(path, self.imported_file)
+
+        self.assertEqual(len(rows), 2)
+        self.assertEqual([rij.klant_of_leverancier for rij in rows], ["", ""])
+
 
 class FaseStatusResolutionTests(SimpleTestCase):
     def test_any_finished_fase_wins(self):

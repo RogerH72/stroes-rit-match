@@ -2,6 +2,15 @@
 
 {% block titel %}Koppelen: {{ groep.adres }} — RMW{% endblock %}
 
+{% block stijl %}
+    /* The picked candidate has to be visible as picked: the header's own
+       a.actief rule does not reach in here, and the only other feedback is the
+       form below, which the user has to scroll to. */
+    .suggesties { margin: 0; padding-left: 20px; }
+    .suggesties li { margin: 4px 0; }
+    .suggesties a.actief { font-weight: 700; text-decoration: none; }
+{% endblock %}
+
 {% block inhoud %}
   <h1>Adres koppelen</h1>
   <p class="toelichting">
@@ -19,6 +28,30 @@
       {% for datum in groep.datums %}{{ datum|date:"d-m-Y" }}{% if not forloop.last %}, {% endif %}{% endfor %}
     </p>
   </div>
+
+  {% comment %}
+  Several relations share this postcode, so nothing is pre-filled: picking one
+  is a plain GET back to this same URL with ?suggestie=<code>, after which the
+  form is rebuilt with that choice filled in. No JavaScript — the rest of this
+  screen is server-rendered too.
+  {% endcomment %}
+  {% if suggesties %}
+    <div class="kaart">
+      <p style="margin-top:0;"><strong>Meerdere relaties op deze postcode</strong></p>
+      <p class="hulp">Kies welke van toepassing is — dit vult soort en
+        omschrijving hieronder in, koppelen doe je nog steeds zelf.</p>
+      <ul class="suggesties">
+        {% for suggestie in suggesties %}
+          <li>
+            <a href="?suggestie={{ suggestie.code|urlencode }}"
+               {% if suggestie.code == gekozen_suggestie %}class="actief"{% endif %}>
+              {{ suggestie.relatienaam }} ({{ suggestie.soort }})
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
 
   <form method="post" class="kaart">
     {% csrf_token %}

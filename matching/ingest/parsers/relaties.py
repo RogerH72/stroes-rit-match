@@ -1,4 +1,10 @@
-"""Parser for Relaties.xlsx — customer/supplier master data."""
+"""Parser for Relaties.xlsx — customer/supplier master data.
+
+"Klant of leverancier" is read but not required: Wim added that column on
+08-09-2026, and an older export without it — or a row with the cell left empty —
+still imports. A missing letter simply means the koppelformulier has no
+suggestion to offer for that relation (docs/decisions.md, 08-09-2026).
+"""
 
 from __future__ import annotations
 
@@ -28,6 +34,11 @@ def build_rows(path: Path, source_file: ImportedFile) -> list[Relatie]:
                 huisnr=text(values.get("Huisnr"), max_length=32),
                 email=text(values.get("E-mail"), max_length=255),
                 telefoon=text(values.get("Telefoon"), max_length=64),
+                # Uppercased here so a "k"/"l" typed in lower case in Excel does
+                # not arrive as an unrecognised value further on.
+                klant_of_leverancier=text(
+                    values.get("Klant of leverancier"), max_length=1
+                ).upper(),
             )
         )
     return rows

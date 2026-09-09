@@ -259,6 +259,23 @@ op `matching.change_matchmotorstatus`, net als de knop ernaast; de melding over
 wat er is ingelezen komt uit dezelfde gedeelde helper. 411 tests groen (was
 398). Zie `docs/decisions.md`.
 
+Sinds 09-09-2026 staat dit blok **bovenaan** het scherm, boven "Bestanden nu
+inlezen", "Matching nu draaien" en "Data resetten", als een eigen sectie met
+een eigen koptekst — zolang de servermap niet werkt is het de enige manier om
+data in de app te krijgen, en dan hoort het niet onderaan. Alleen de opmaak
+is gewijzigd, niet het mechanisme.
+
+**Importbestanden alleen-lezen (09-09-2026).** Het `ImportedFile`-scherm
+(schermnaam "Importbestanden") is niet langer bewerkbaar: toevoegen, wijzigen
+en verwijderen staan alle drie uit, net als bij de vier importtabellen en
+`Tijdblok`. Bekijken blijft gewoon mogelijk — dat is waar het scherm voor is.
+Reden: deze tabel is geen kopie van een bronbestand maar de eigen
+administratie van wat er al is ingelezen, en zowel `scan_share()` als de
+matching gaan erop af. Gevolg: een gerichte herimport van één bestand kan
+alleen nog via `check_imports --reprocess` of via "Data resetten" — het
+verwijderen van een losse regel was daar tot nu toe de admin-route voor. Zie
+`docs/decisions.md`.
+
 ## 5. Uitzonderingenscherm (roadmap-fase 5)
 
 Onbekende of afwijkende adressen kunnen in één klik gekoppeld worden aan een bekende

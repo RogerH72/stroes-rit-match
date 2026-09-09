@@ -480,6 +480,22 @@ RouteVision-data komt voor de PoC uit een handmatige download, niet uit de API.
    `matching.change_matchmotorstatus`. 411 tests groen (was 398). Commit
    `72840db`. Zie `docs/decisions.md` en `docs/functioneel-ontwerp.md` §4.
 
+36. **Gebouwd (09-09-2026).** Twee correcties op het matchmotor-scherm.
+   (a) `ImportedFileAdmin` was als gewone `ModelAdmin` geregistreerd en bood
+   nog een "Toevoegen"-knop plus een werkend wijzig- en verwijderformulier;
+   nu erft hij van `ReadOnlyImportAdmin`. Dit is een nieuw besluit, geen
+   achterstallige uitvoering: `ImportedFile` viel niet onder het
+   alleen-lezen-besluit van 03-09-2026. Het is wel de gevaarlijkste tabel om
+   open te laten staan — geen kopie van de servermap, maar de administratie
+   waar `scan_share()` en de matching op afgaan. Bewust geaccepteerd gevolg:
+   een gerichte herimport van één bestand kan alleen nog via
+   `check_imports --reprocess` of "Data resetten". (b) Het uploadblok uit
+   punt 35 staat nu bovenaan het scherm in een eigen sectie in plaats van
+   onderaan achter een `<hr>` — zolang de servermap niet werkt is het de
+   enige manier om data in de app te krijgen. Alleen de opmaak wijzigde; de
+   view is niet aangeraakt. 419 tests groen (was 411). Commits `cad4165` en
+   `4c273f2`. Zie `docs/decisions.md` en `docs/functioneel-ontwerp.md` §4.
+
 **Vervallen:** de eerder voorziene live-PoC-fase met 1-2 monteurs bij de klant (~1
 week, in overleg met Wim) — het akkoord van 31-08-2026 betrof al de volledige
 offerte, niet alleen een PoC-stap. Zie `docs/decisions.md`.

@@ -1153,3 +1153,32 @@ per bestand, zodat de rest van de batch doorgaat. POST-only en gated op
 wat er is ingelezen komt uit een gedeelde helper (`_meld_scanresultaat`), die
 uit `bestanden_inlezen_view` is getrokken. 411 tests groen (was 398). Zie
 `docs/decisions.md` (09-09-2026).
+
+## 2026-09-09 — Importbestanden alleen-lezen gemaakt; uploadblok naar boven
+
+**Importbestanden.** `ImportedFileAdmin` was als gewone `ModelAdmin`
+geregistreerd en bood daardoor nog een "Toevoegen"-knop plus een werkend
+wijzig- en verwijderformulier. Nu erft hij van `ReadOnlyImportAdmin`
+(add/change/delete alle drie False), waardoor ook "verwijder geselecteerde
+items" uit de acties-dropdown verdwijnt. Geen achterstallige uitvoering van een
+ouder besluit: deze tabel viel niet onder het alleen-lezen-besluit van
+03-09-2026 en is altijd bewerkbaar geweest — zie `docs/decisions.md`
+(09-09-2026).
+
+Het is wel de gevaarlijkste van het stel: geen kopie van de servermap, maar de
+administratie waar `scan_share()` en de matching op afgaan. Een handmatig op
+"verwerkt" gezette status laat de app een bestand overslaan dat nooit is
+ingelezen. Keerzijde, bewust geaccepteerd: het verwijderen van één rij — tot nu
+toe de enige manier om via de admin één bestand opnieuw te laten inlezen — kan
+niet meer; dat blijft `check_imports --reprocess` of "Data resetten".
+
+**Uploadblok.** "Bestanden uploaden" stond als vierde en laatste sectie
+onderaan het matchmotor-scherm, achter een kale `<hr>`. Verplaatst naar boven,
+boven "Bestanden nu inlezen", "Matching nu draaien" en "Data resetten", in een
+eigen `.module`-blok met koptekst en accentrand. Zolang de netwerkshare niet
+werkt is dit de enige manier om data in de app te krijgen, dus het hoort niet
+onder drie secties te staan die aannemen dat die servermap het wél doet. Puur
+een template-wijziging; de view is niet aangeraakt.
+
+419 tests groen (was 411). Commits `cad4165` en `4c273f2`. Zie
+`docs/decisions.md` (09-09-2026).

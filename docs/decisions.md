@@ -1584,3 +1584,70 @@ die ene regel.
 
 Doorgevoerd in: `docs/functioneel-ontwerp.md` §4, `docs/business-rules.md`
 ("Implemented"), `docs/changelog.md`, `GUIDELINES.md` (punt 35).
+
+## 2026-09-09 — Importbestanden alleen-lezen; uploadblok bovenaan (Current, gebouwd)
+
+Twee losse punten van dezelfde ronde.
+
+**1. `ImportedFileAdmin` alleen-lezen.** Decision: `ImportedFile`
+(schermnaam "Importbestanden") krijgt dezelfde `has_add_permission` /
+`has_change_permission` / `has_delete_permission` op False als de andere
+niet-bewerkbare tabellen, door van `ReadOnlyImportAdmin` te erven.
+
+Let op de status van dit besluit: dit is een **nieuw** besluit, geen
+achterstallige uitvoering van een oud besluit. Het besluit van 03-09-2026
+("MatchmotorStatus wordt read-only", met de aanvulling van 07-09-2026 over
+verwijderen) noemt `Uren`, `Rit`, `Relatie`, `WerkbonControle`, `Tijdblok`,
+`MatchmotorStatus` en `Instelling` — `ImportedFile` stond daar niet bij en
+werd in `docs/changelog.md` (02-09-2026) juist apart genoemd als het scherm
+dat "de status per bestand toont". Er is dus niet eerder iets besloten en
+vergeten te bouwen; de tabel is altijd bewerkbaar geweest.
+
+Reasoning: van alle tabellen is dit de gevaarlijkste om open te laten staan.
+De andere zijn een kopie van de servermap — een handmatige wijziging maakt de
+database daar hooguit oneens mee, en de volgende import zet het recht. Deze is
+geen kopie maar de eigen administratie waar zowel `scan_share()` als de
+matching op afgaan. Een met de hand op "verwerkt" gezette status laat de app
+een bestand overslaan dat nooit is ingelezen, en er is niets aan het scherm te
+zien waaraan dat op te merken valt.
+
+Bewust geaccepteerd gevolg: het verwijderen van één `ImportedFile`-rij was tot
+nu toe de enige manier om via de admin één specifiek bestand opnieuw te laten
+inlezen (zonder rij maakt `scan_share()` een nieuwe aan en importeert opnieuw).
+Die weg is nu dicht. Dat sluit aan op wat `docs/architecture.md` al
+voorschrijft — herverwerken is command-line-only — maar het is een echt
+verschil: een gerichte herimport vraagt voortaan `check_imports --reprocess`,
+of anders "Data resetten" (volledig, superuser-only). Voor SBTT zelf is dat
+geen verlies, want herverwerken was voor hen sowieso geen bedoelde handeling.
+
+**2. "Bestanden uploaden" bovenaan.** Decision: het uploadformulier verhuist
+van de laatste naar de eerste sectie van het matchmotor-beheerscherm, in een
+eigen `.module`-blok met een eigen koptekst en een accentrand, in plaats van
+onderaan achter een kale `<hr>`.
+
+Reasoning: de plaatsing onderaan volgde de gedachte "terugval, dus niet in de
+weg lopen". Dat klopt niet zolang de netwerkshare van Stric nog niet werkt: dan
+is dit niet de uitzondering maar de enige manier om data in de app te krijgen,
+en dan hoort het niet onder drie secties te staan die allemaal aannemen dat die
+servermap het wél doet. De werkvolgorde van de dagelijkse knoppen eronder
+blijft ongewijzigd.
+
+Puur een template-wijziging: `bestanden_uploaden_view` is niet aangeraakt en
+houdt al zijn eigenschappen (POST-only, gated op
+`matching.change_matchmotorstatus`, schrijven naar dezelfde inbox-map, daarna
+`scan_share(force=True)`, weigering van een dubbele naam via `"xb"` en van een
+onbekende naam per bestand).
+
+Uitkomst: beide gebouwd. 419 tests groen (was 411): de bestaande
+alleen-lezen-tests draaien nu over zes modellen en controleren alle drie de
+rechten, met daarnaast een eigen testklasse die het importbestanden-scherm door
+de schermen heen controleert, plus één test die de sectievolgorde op de pagina
+vastlegt. Gecontroleerd op de gerenderde pagina `/admin/matching/importedfile/`:
+statuscode 200, geen `.../importedfile/add/`-link, een leeg
+`<ul class="object-tools">` (daar zou de knop staan) en een lege actielijst;
+de enige `addlink`-elementen op die pagina horen bij andere modellen in de
+zijbalk (Gebruikers, Groepen, Bekende locaties, Instellingen, Meegereden
+koppelingen, Monteurs, Tolerantietabel). Commits `cad4165` en `4c273f2`.
+
+Doorgevoerd in: `docs/business-rules.md`, `docs/functioneel-ontwerp.md` §4,
+`docs/changelog.md`, `GUIDELINES.md` (punt 36).

@@ -48,6 +48,16 @@ Gebouwd t/m roadmap-fase 3 (03-09-2026, commit `eea759c`, 143 tests groen — zi
   weigeringen gelden per bestand — de rest van de batch gaat door. Geen
   automatische matching erna, en geen opruiming van geüploade bestanden: ze
   blijven op de servermap staan als elk ander ingelezen bestand
+  (docs/decisions.md, 09-09-2026). Het formulier staat sinds 09-09-2026
+  bovenaan het scherm, in een eigen blok boven de andere drie: zolang de
+  servermap niet werkt is dit de enige manier om data in de app te krijgen.
+- **Importbestanden alleen-lezen** (gebouwd 09-09-2026) — `ImportedFile` is in
+  de admin niet meer toe te voegen, te wijzigen of te verwijderen, net als de
+  vier importtabellen en `Tijdblok`. Deze tabel is geen kopie van de servermap
+  maar de administratie waar `scan_share()` en de matching op afgaan; een
+  handmatig op "verwerkt" gezette status zou de app een bestand laten overslaan
+  dat nooit is ingelezen. Herverwerken blijft daarmee volledig
+  command-line-only (`check_imports --reprocess`) of gaat via "Data resetten"
   (docs/decisions.md, 09-09-2026).
 - **Ingest-robuustheid tegen niet-schemaconforme Atrium-XML en
   kolomnaam-hoofdletters** (gebouwd 08-09-2026) —

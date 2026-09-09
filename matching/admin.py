@@ -67,7 +67,22 @@ class ReadOnlyImportAdmin(admin.ModelAdmin):
 
 
 @admin.register(ImportedFile)
-class ImportedFileAdmin(admin.ModelAdmin):
+class ImportedFileAdmin(ReadOnlyImportAdmin):
+    """The import bookkeeping: which file was seen, and what was done with it.
+
+    Read-only for a different reason than the tables below. Those are a copy of
+    the share, so editing one only makes the database disagree with it. This one
+    is the app's own record of what it has already read in, and both scan_share()
+    and the matching take it at its word: a row added or edited by hand — a
+    status set to "verwerkt" for a file that was never actually read — would make
+    the app claim an import that never happened, and nothing downstream would
+    notice the difference.
+
+    Putting a real mistake right stays a deliberate, separate action:
+    `check_imports --reprocess` for one file (command-line only by design, see
+    docs/architecture.md), or "Data resetten" for the whole table.
+    """
+
     list_display = (
         "filename",
         "source_kind",

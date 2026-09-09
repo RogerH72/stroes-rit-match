@@ -474,6 +474,20 @@ class BestandenUploadenButtonTests(TestCase):
         # Without the multipart encoding the browser posts the filenames only.
         self.assertContains(response, "multipart/form-data")
 
+    def test_the_upload_block_comes_before_the_other_three(self):
+        """It is the first thing on the screen, not the last (09-09-2026).
+
+        While the servermap is unreachable this is the only way to get data into
+        the app at all, so it must not sit below three sections that all assume
+        the servermap works.
+        """
+        pagina = self.client.get(self.changelist).content.decode()
+        upload = pagina.index("Bestanden uploaden")
+
+        for later in ("Bestanden nu inlezen", "Matching nu draaien", "Data resetten"):
+            with self.subTest(sectie=later):
+                self.assertLess(upload, pagina.index(later))
+
     def test_uploading_puts_the_files_on_the_share_and_reads_them_in(self):
         uren = factories.uren_file(self.bron)
         ritten = factories.ritten_file(self.bron)

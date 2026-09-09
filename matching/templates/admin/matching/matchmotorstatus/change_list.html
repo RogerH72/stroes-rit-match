@@ -1,17 +1,42 @@
 {% extends "admin/change_list.html" %}
 {% comment %}
-The status list plus the buttons that trigger a step by hand: read the files in,
-and recompute. Forms rather than links, because every endpoint here is POST-only:
-importing rows and rewriting every Tijdblok are not things a refreshed tab or a
-link preview should be able to set off.
+The status list plus the buttons that trigger a step by hand. Forms rather than
+links, because every endpoint here is POST-only: importing rows and rewriting
+every Tijdblok are not things a refreshed tab or a link preview should be able to
+set off.
 
-In working order — first import, then recompute — because the two are deliberately
-separate steps and this is the order they are taken in. "Bestanden uploaden" sits
-at the bottom, apart from the daily buttons: it is the fallback for when the
-servermap cannot be reached at all, not a step in the normal working order.
+Two blocks, deliberately apart. "Bestanden uploaden" comes first and stands in a
+titled module of its own: as long as Stric's network share is not working it is
+the only way to get data into the app at all, so it must be the first thing on
+the screen rather than something to scroll past three other sections for. The
+second block holds the day-to-day buttons in their working order — first import,
+then recompute — because those are deliberately separate steps and that is the
+order they are taken in.
 {% endcomment %}
 
 {% block content %}
+  <div class="module" style="margin-bottom: 24px; border-left: 4px solid var(--primary);">
+    <h2>Bestanden uploaden</h2>
+    <div style="padding: 12px 14px;">
+      <form method="post" action="{% url 'admin:matching_bestanden_uploaden' %}"
+            enctype="multipart/form-data">
+        {% csrf_token %}
+        <p style="margin: 0 0 8px;">
+          <input type="file" name="bestanden" multiple accept=".xlsx,.csv" required>
+        </p>
+        <button type="submit" class="default">Bestanden uploaden</button>
+        <p class="help" style="margin: 8px 0 0;">
+          Terugvaloptie voor als de servermap (nog) niet werkt: kies hier de
+          Syntess- en RouteVision-bestanden op je eigen computer. Ze komen onder
+          hun eigen naam in diezelfde servermap te staan en worden meteen
+          ingelezen — &ldquo;Bestanden nu inlezen&rdquo; hoeft er dus niet
+          achteraan. Een naam die al op de servermap staat wordt geweigerd en
+          nooit overschreven. Herberekent de matching niet automatisch.
+        </p>
+      </form>
+    </div>
+  </div>
+
   <div class="module" style="padding: 12px 14px; margin-bottom: 16px;">
     <form method="post" action="{% url 'admin:matching_bestanden_inlezen' %}" style="margin-bottom: 16px;">
       {% csrf_token %}
@@ -49,24 +74,6 @@ servermap cannot be reached at all, not a step in the normal working order.
         </span>
       </p>
     {% endif %}
-    <hr style="margin: 16px 0 12px;">
-    {# The way in when the servermap is not: same destination, other route. #}
-    <form method="post" action="{% url 'admin:matching_bestanden_uploaden' %}"
-          enctype="multipart/form-data">
-      {% csrf_token %}
-      <p style="margin: 0 0 8px;">
-        <input type="file" name="bestanden" multiple accept=".xlsx,.csv" required>
-      </p>
-      <button type="submit" class="default">Bestanden uploaden</button>
-      <p class="help" style="margin: 8px 0 0;">
-        Terugvaloptie voor als de servermap (nog) niet werkt: kies hier de
-        Syntess- en RouteVision-bestanden op je eigen computer. Ze komen onder
-        hun eigen naam in diezelfde servermap te staan en worden meteen
-        ingelezen — &ldquo;Bestanden nu inlezen&rdquo; hoeft er dus niet
-        achteraan. Een naam die al op de servermap staat wordt geweigerd en
-        nooit overschreven. Herberekent de matching niet automatisch.
-      </p>
-    </form>
   </div>
   {{ block.super }}
 {% endblock %}

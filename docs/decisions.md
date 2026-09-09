@@ -1516,3 +1516,71 @@ Opgelost met een duidelijker label ("— geen vaste meerijder —") op
 bug. Het verouderde code-commentaar in
 `matching/timeline/meegereden.py` (`_koppeling_op()`) is tegelijk
 rechtgezet. 398 tests groen (was 391). Commit `bcd57af` op `main`.
+
+## 2026-09-09 — Knop "Bestanden uploaden" als terugval voor de servermap (Current, gebouwd)
+
+Decision: een vierde knop op het matchmotor-beheerscherm, onder "Matching nu
+draaien", "Data resetten" en "Bestanden nu inlezen": **"Bestanden uploaden"**.
+Een gewone `<input type="file" multiple accept=".xlsx,.csv">` in de browser,
+waarmee Wim de Syntess- en RouteVision-bestanden zelf kan aanleveren. De
+geüploade bestanden gaan onder hun eigen naam naar diezelfde inbox-map
+(`SERVERMAP_PATH` / `RMW_INBOX_DIR`) die `scan_share()` al afloopt, waarna
+direct `scan_share(force=True)` draait. Uitdrukkelijk een terugval, geen
+vervanging van de share-route.
+
+Reasoning: de netwerkshare (`\\stroes-1909\atrium\Autoprint\RUUDS`) is bij
+Stric nog niet werkend, en fase 7 (oplevering) komt eraan. Zonder deze knop is
+de app onbruikbaar zolang die share er niet is — met de knop kan SBTT
+doorwerken. Bewust *dezelfde* map als bestemming en geen aparte uploadmap: dan
+blijft er één inbox en één verhaal over wat er is ingelezen, en is een geüpload
+bestand vanaf het moment dat het er staat niet meer te onderscheiden van een
+bestand dat de export er zelf neerzette (zelfde `ImportedFile`-rij, zelfde
+statusverloop). Een tweede map zou een tweede, half-parallelle importweg zijn
+geworden.
+
+Uploaden en inlezen zijn hier bewust één handeling, anders dan bij "Bestanden
+nu inlezen": de stabiliteitsmarge bestaat om een bestand te vangen dat een
+exportjob nog aan het schrijven is, en een bestand dat compleet over HTTP is
+binnengekomen heeft niets meer om op te wachten. De matching draait er níét
+achteraan — dat blijft overal in deze app een aparte, bewuste stap.
+
+Twee weigeringen, allebei per bestand zodat één onbruikbaar bestand de rest van
+de batch niet kost (zelfde redenering als de foutafhandeling per bestand in
+`scan_share`):
+
+- **Naam bestaat al op de servermap** — geweigerd, nooit overschreven. Het
+  bestand dat er staat kan juist het al ingelezen bestand zijn; het vervangen
+  zou zijn `ImportedFile`-rij iets anders laten beschrijven dan wat er op
+  schijf ligt. Geïmplementeerd door te openen met `"xb"` in plaats van een
+  `exists()`-controle gevolgd door `"wb"`, zodat controleren en schrijven één
+  stap zijn.
+- **Naam die `classify_filename()` niet herkent** — geweigerd in plaats van
+  weggeschreven. Zou hij wél op de share belanden, dan negeert `scan_share()`
+  hem stilzwijgend en denkt de uploader dat hij hem heeft aangeleverd.
+
+Er wordt achteraf niets opgeruimd, om dezelfde reden als op de share: de
+database alleen registreert wat er is gedaan, bestanden worden nooit verplaatst
+of verwijderd (`docs/architecture.md`).
+
+Eén afweging expliciet gemaakt: de instructie vroeg om een POST-only endpoint
+én om "een klein uploadformulier". Die twee sluiten een apart GET-scherm uit,
+dus het formulier staat inline op het beheerscherm zelf — één scherm, één POST,
+zelfde patroon als de drie knoppen erboven.
+
+Uitkomst: gebouwd. `bestanden_uploaden_view` plus de helpers `_bewaar_upload`
+en `_meld_scanresultaat` in `matching/admin.py`; die laatste is uit
+`bestanden_inlezen_view` getrokken en wordt nu door beide importknoppen
+gebruikt, zodat een import in dezelfde bewoordingen wordt gemeld ongeacht hoe
+het bestand op de servermap terecht is gekomen. 411 tests groen (was 398),
+waarvan 13 nieuwe: permissie, POST-only, dubbele naam, onbekende naam, geen
+automatische matching, en een geslaagde upload van meerdere bestanden. Commit
+`72840db`.
+
+Terzijde: het normaliseren van de aangeleverde bestandsnaam tot alleen de
+laatste padcomponent is dubbelop — Django's `MultiPartParser` doet dat zelf al
+(`sanitize_file_name`). Het staat er toch, omdat die naam hier een pad wordt
+waarnaar geschreven wordt; de test die het afdekt legt de garantie vast, niet
+die ene regel.
+
+Doorgevoerd in: `docs/functioneel-ontwerp.md` §4, `docs/business-rules.md`
+("Implemented"), `docs/changelog.md`, `GUIDELINES.md` (punt 35).

@@ -235,6 +235,30 @@ melding, en een bestand dat niet gelezen kon worden een foutmelding per
 bestand — de geslaagde imports uit dezelfde aanroep gaan gewoon door. 391
 tests groen (was 379). Zie `docs/decisions.md`.
 
+**Bestanden uploaden — gebouwd (09-09-2026).** Een vierde knop op hetzelfde
+scherm, onder de bestaande drie: een gewone bestandskiezer in de browser
+(`multiple`, `.xlsx`/`.csv`) waarmee SBTT de Syntess- en RouteVision-bestanden
+zelf kan aanleveren. Uitdrukkelijk een **terugval** voor de periode waarin de
+netwerkshare van Stric nog niet werkt, en voor een incidentele storing daarna —
+geen vervanging van de share-route.
+
+De geüploade bestanden komen onder hun eigen naam in diezelfde servermap
+(`SERVERMAP_PATH` / `RMW_INBOX_DIR`) te staan, niet in een aparte uploadmap:
+vanaf dat moment zijn het gewone bronbestanden met een gewone
+`ImportedFile`-rij, en er wordt achteraf niets opgeruimd. Direct na het
+wegschrijven draait `scan_share(force=True)` — uploaden en inlezen zijn hier
+bewust één handeling, want een bestand dat compleet over HTTP binnenkomt heeft
+geen stabiliteitsmarge nodig. De matching draait ook hier niet automatisch mee.
+
+Twee weigeringen, per bestand zodat één onbruikbaar bestand de rest van de
+batch niet kost: een naam die al op de servermap staat wordt geweigerd en
+nooit overschreven (het bestand dat er staat kan juist het ingelezen bestand
+zijn), en een naam die `classify_filename()` niet herkent wordt geweigerd in
+plaats van als genegeerd bestand op de share achtergelaten. POST-only en gated
+op `matching.change_matchmotorstatus`, net als de knop ernaast; de melding over
+wat er is ingelezen komt uit dezelfde gedeelde helper. 411 tests groen (was
+398). Zie `docs/decisions.md`.
+
 ## 5. Uitzonderingenscherm (roadmap-fase 5)
 
 Onbekende of afwijkende adressen kunnen in één klik gekoppeld worden aan een bekende

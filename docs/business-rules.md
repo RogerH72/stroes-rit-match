@@ -39,6 +39,16 @@ Gebouwd t/m roadmap-fase 3 (03-09-2026, commit `eea759c`, 143 tests groen — zi
   (dat blijft command-line-only) en geen automatische matching erna — inlezen en
   herberekenen blijven twee aparte, bewuste stappen (docs/decisions.md,
   08-09-2026).
+- **"Bestanden uploaden"** (gebouwd 09-09-2026) — vierde knop op hetzelfde
+  scherm, onder de andere drie. Terugval voor zolang de netwerkshare niet
+  werkt: de gekozen bestanden worden onder hun eigen naam in diezelfde
+  servermap gezet en meteen ingelezen met `scan_share(force=True)`. Een naam
+  die daar al staat wordt geweigerd en nooit overschreven; een naam die
+  `classify_filename()` niet herkent wordt eveneens geweigerd. Beide
+  weigeringen gelden per bestand — de rest van de batch gaat door. Geen
+  automatische matching erna, en geen opruiming van geüploade bestanden: ze
+  blijven op de servermap staan als elk ander ingelezen bestand
+  (docs/decisions.md, 09-09-2026).
 - **Ingest-robuustheid tegen niet-schemaconforme Atrium-XML en
   kolomnaam-hoofdletters** (gebouwd 08-09-2026) —
   `matching/ingest/parsers/base.py` repareert drie bekende niet-conforme

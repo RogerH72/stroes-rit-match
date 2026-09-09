@@ -1,6 +1,6 @@
 # GUIDELINES — Stroes-Rit-Match (RMW)
 
-_Last updated: 2026-09-07_
+_Last updated: 2026-09-09_
 
 ## Project identity
 
@@ -464,6 +464,21 @@ RouteVision-data komt voor de PoC uit een handmatige download, niet uit de API.
    rechtgezet — dat klopt niet meer sinds die check (07-09-2026) is
    toegevoegd. 398 tests groen (was 391). Commit `bcd57af`. Zie
    `docs/decisions.md` en `docs/functioneel-ontwerp.md` §3b.
+
+35. **Gebouwd (09-09-2026).** Het matchmotor-beheerscherm heeft een vierde
+   knop "Bestanden uploaden", onder de bestaande drie: een bestandskiezer in
+   de browser als **terugval** zolang de netwerkshare van Stric nog niet
+   werkt (en voor een incidentele storing daarna) — geen vervanging van de
+   share-route. De gekozen bestanden komen onder hun eigen naam in diezelfde
+   servermap te staan, niet in een aparte uploadmap, en worden meteen
+   ingelezen met `scan_share(force=True)`; uploaden en inlezen zijn hier
+   bewust één handeling omdat een bestand dat compleet over HTTP binnenkomt
+   geen stabiliteitsmarge nodig heeft. Geen automatische matching erna, geen
+   opruiming achteraf. Een naam die al op de servermap staat en een naam die
+   `classify_filename()` niet herkent worden geweigerd, per bestand zodat de
+   rest van de batch doorgaat. POST-only en gated op
+   `matching.change_matchmotorstatus`. 411 tests groen (was 398). Commit
+   `72840db`. Zie `docs/decisions.md` en `docs/functioneel-ontwerp.md` §4.
 
 **Vervallen:** de eerder voorziene live-PoC-fase met 1-2 monteurs bij de klant (~1
 week, in overleg met Wim) — het akkoord van 31-08-2026 betrof al de volledige

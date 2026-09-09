@@ -1133,3 +1133,23 @@ bestaande knop ernaast. Het scherm meldt daarna wat er is ingelezen, met de
 zin dat de matching niet is herberekend; een lege servermap, een servermap
 zonder nieuwe bestanden en een onleesbaar bestand krijgen elk hun eigen
 melding. 391 tests groen (was 379). Zie `docs/decisions.md` (08-09-2026).
+
+## 2026-09-09 — Knop "Bestanden uploaden" gebouwd
+
+Vierde knop op het matchmotor-beheerscherm, onder de bestaande drie: een
+bestandskiezer in de browser waarmee SBTT de Syntess- en RouteVision-bestanden
+zelf kan aanleveren zolang de netwerkshare van Stric nog niet werkt. De
+uploads komen onder hun eigen naam in diezelfde servermap te staan — geen
+aparte uploadmap — en worden meteen ingelezen met `scan_share(force=True)`;
+uploaden en inlezen zijn hier bewust één handeling, want een bestand dat
+compleet over HTTP binnenkomt heeft geen stabiliteitsmarge nodig. De matching
+draait niet automatisch mee, en er wordt achteraf niets opgeruimd.
+
+Een naam die al op de servermap staat wordt geweigerd en nooit overschreven
+(schrijven met `"xb"`, zodat controleren en schrijven één stap zijn), en een
+naam die `classify_filename()` niet herkent wordt eveneens geweigerd — allebei
+per bestand, zodat de rest van de batch doorgaat. POST-only en gated op
+`matching.change_matchmotorstatus`, net als de knop ernaast. De melding over
+wat er is ingelezen komt uit een gedeelde helper (`_meld_scanresultaat`), die
+uit `bestanden_inlezen_view` is getrokken. 411 tests groen (was 398). Zie
+`docs/decisions.md` (09-09-2026).

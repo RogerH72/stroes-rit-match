@@ -1,11 +1,13 @@
-"""Tests for the phase 4 admin: the status record and the two manual buttons.
+"""Tests for the phase 4 admin: the status record and the manual buttons.
 
-Three things are being protected here. First, that the status row tells the truth
+Four things are being protected here. First, that the status row tells the truth
 whichever way a run was triggered — that is the whole reason the wrapper exists.
-Second, that neither button can fire on a GET: one rewrites every Tijdblok, the
-other imports rows. Third, that "Bestanden nu inlezen" only imports — it must not
-quietly recompute as well, because importing and recomputing are deliberately two
-separate steps (docs/decisions.md, 08-09-2026).
+Second, that no button can fire on a GET: one rewrites every Tijdblok, the others
+import rows. Third, that neither import button only imports — it must not quietly
+recompute as well, because importing and recomputing are deliberately two separate
+steps (docs/decisions.md, 08-09-2026). Fourth, that "Bestanden uploaden" never
+overwrites a file already on the servermap and never lets one bad file in a batch
+cost the rest (docs/decisions.md, 09-09-2026).
 """
 
 from __future__ import annotations
@@ -18,6 +20,7 @@ from unittest import mock
 from django.contrib import admin
 from django.contrib.auth.models import Permission, User
 from django.core.exceptions import ValidationError
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
@@ -420,4 +423,247 @@ class BestandenInlezenButtonTests(TestCase):
         response = self.client.post(self.url)
 
         self.assertEqual(response.status_code, 302)
+        self.assertEqual(Uren.objects.count(), 0)
+
+
+class BestandenUploadenButtonTests(TestCase):
+    """The admin endpoint behind the "Bestanden uploaden" button (09-09-2026).
+
+    The stopgap for the period before Stric's network share is reachable: the
+    same servermap, reached through the browser instead of through the mount.
+    What matters is that an upload is indistinguishable from a file that arrived
+    on the share by itself — same directory, same name, same ImportedFile row —
+    and that a batch keeps going when one file in it cannot be accepted.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.staff = User.objects.create_superuser("beheer", "b@sbtt.nl", "geheim")
+        cls.url = reverse("admin:matching_bestanden_uploaden")
+        cls.changelist = reverse("admin:matching_matchmotorstatus_changelist")
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.share = Path(self.tmp.name)
+
+        # The fixtures are built in a directory of their own, so writing one
+        # never counts as "this file is already on the servermap".
+        self.bron_tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.bron_tmp.cleanup)
+        self.bron = Path(self.bron_tmp.name)
+
+        self.instellingen = override_settings(SERVERMAP_PATH=str(self.share))
+        self.instellingen.enable()
+        self.addCleanup(self.instellingen.disable)
+        self.client.force_login(self.staff)
+
+    def _berichten(self, response):
+        return [str(bericht) for bericht in response.context["messages"]]
+
+    def _upload(self, pad: Path, naam: str | None = None) -> SimpleUploadedFile:
+        """One of the fixture files, as the browser would post it."""
+        return SimpleUploadedFile(naam or pad.name, pad.read_bytes())
+
+    def test_the_form_is_on_the_changelist(self):
+        response = self.client.get(self.changelist)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Bestanden uploaden")
+        self.assertContains(response, self.url)
+        # Without the multipart encoding the browser posts the filenames only.
+        self.assertContains(response, "multipart/form-data")
+
+    def test_uploading_puts_the_files_on_the_share_and_reads_them_in(self):
+        uren = factories.uren_file(self.bron)
+        ritten = factories.ritten_file(self.bron)
+
+        response = self.client.post(
+            self.url, {"bestanden": [self._upload(uren), self._upload(ritten)]}
+        )
+
+        self.assertRedirects(response, self.changelist)
+        # On the servermap under their own name, not in a separate upload folder:
+        # from here on they are ordinary source files.
+        self.assertTrue((self.share / uren.name).is_file())
+        self.assertTrue((self.share / ritten.name).is_file())
+        self.assertEqual(Uren.objects.count(), 2)
+        self.assertEqual(Rit.objects.count(), 2)
+        self.assertEqual(
+            list(
+                ImportedFile.objects.order_by("filename").values_list(
+                    "status", flat=True
+                )
+            ),
+            [ImportStatus.VERWERKT, ImportStatus.VERWERKT],
+        )
+
+    def test_it_reports_what_it_uploaded_and_what_it_read_in(self):
+        uren = factories.uren_file(self.bron)
+
+        berichten = self._berichten(
+            self.client.post(self.url, {"bestanden": [self._upload(uren)]}, follow=True)
+        )
+
+        self.assertTrue(
+            any("Naar de servermap geüpload: 1 bestand(en)" in b for b in berichten),
+            berichten,
+        )
+        # The import half is worded by the same helper as "Bestanden nu inlezen".
+        self.assertTrue(any("Ingelezen: 1 bestand(en)" in b for b in berichten), berichten)
+        self.assertTrue(any("2 rij(en)" in b for b in berichten), berichten)
+
+    def test_it_does_not_wait_out_the_stability_margin(self):
+        # An upload that reached the view is complete by definition, so there is
+        # nothing for the margin to catch. A plain poll would need six unchanged
+        # measurements first.
+        uren = factories.uren_file(self.bron)
+
+        with override_settings(POLL_INTERVAL_MINUTES=5, STABILITY_MINUTES=30):
+            self.client.post(self.url, {"bestanden": [self._upload(uren)]})
+
+        self.assertEqual(Uren.objects.count(), 2)
+
+    def test_a_name_that_is_already_on_the_share_is_refused_and_not_overwritten(self):
+        # The file already there may be the one that was imported; replacing it
+        # would make its ImportedFile row describe something else.
+        bestaand = factories.uren_file(self.share)
+        oorspronkelijk = bestaand.read_bytes()
+        ritten = factories.ritten_file(self.bron)
+        botsend = self.bron / bestaand.name
+        botsend.write_bytes(b"heel andere inhoud")
+
+        berichten = self._berichten(
+            self.client.post(
+                self.url,
+                {"bestanden": [self._upload(botsend), self._upload(ritten)]},
+                follow=True,
+            )
+        )
+
+        self.assertEqual((self.share / bestaand.name).read_bytes(), oorspronkelijk)
+        self.assertTrue(
+            any("bestaat al op de servermap" in b for b in berichten), berichten
+        )
+        # The rest of the batch still went through.
+        self.assertTrue((self.share / ritten.name).is_file())
+        self.assertEqual(Rit.objects.count(), 2)
+
+    def test_an_unrecognised_filename_is_refused_without_blocking_the_rest(self):
+        # Letting it through would drop a file on the share that scan_share
+        # silently ignores, leaving the uploader thinking he had delivered it.
+        ritten = factories.ritten_file(self.bron)
+        vreemd = self.bron / "Facturen 2026.xlsx"
+        vreemd.write_bytes(b"geen bronbestand")
+
+        berichten = self._berichten(
+            self.client.post(
+                self.url,
+                {"bestanden": [self._upload(vreemd), self._upload(ritten)]},
+                follow=True,
+            )
+        )
+
+        self.assertFalse((self.share / vreemd.name).exists())
+        self.assertTrue(any("niet herkend als bronbestand" in b for b in berichten), berichten)
+        self.assertTrue((self.share / ritten.name).is_file())
+        self.assertEqual(Rit.objects.count(), 2)
+
+    def test_a_batch_in_which_everything_is_refused_says_only_that(self):
+        # No scan at all then: "niets nieuws om in te lezen" underneath the
+        # refusals would read as a second, unrelated complaint.
+        vreemd = self.bron / "Facturen 2026.xlsx"
+        vreemd.write_bytes(b"geen bronbestand")
+
+        berichten = self._berichten(
+            self.client.post(
+                self.url, {"bestanden": [self._upload(vreemd)]}, follow=True
+            )
+        )
+
+        self.assertTrue(any("Geweigerd" in b for b in berichten), berichten)
+        self.assertFalse(any("Ingelezen" in b for b in berichten), berichten)
+        self.assertFalse(any("Niets nieuws" in b for b in berichten), berichten)
+        self.assertEqual(ImportedFile.objects.count(), 0)
+
+    def test_it_does_not_run_the_matching_as_a_side_effect(self):
+        # Same rule as the other import button: uploading must not silently
+        # change what the weekoverzicht shows.
+        uren = factories.uren_file(self.bron)
+        ritten = factories.ritten_file(self.bron)
+        factories.monteur("M5", "005", "M5")
+
+        with mock.patch("matching.admin.run_matching_and_record_status") as gedraaid:
+            berichten = self._berichten(
+                self.client.post(
+                    self.url,
+                    {"bestanden": [self._upload(uren), self._upload(ritten)]},
+                    follow=True,
+                )
+            )
+
+        gedraaid.assert_not_called()
+        self.assertEqual(Rit.objects.count(), 2)
+        self.assertEqual(Tijdblok.objects.count(), 0)
+        self.assertIsNone(MatchmotorStatus.load().succes)
+        self.assertTrue(
+            any("niet automatisch herberekend" in b for b in berichten), berichten
+        )
+
+    def test_a_post_without_any_file_says_so_instead_of_failing(self):
+        berichten = self._berichten(self.client.post(self.url, follow=True))
+
+        self.assertTrue(
+            any("Geen bestanden gekozen" in b for b in berichten), berichten
+        )
+        self.assertEqual(list(self.share.iterdir()), [])
+        self.assertEqual(ImportedFile.objects.count(), 0)
+
+    def test_a_directory_in_the_posted_name_cannot_escape_the_share(self):
+        # The posted name becomes a path that is written to, so it may only ever
+        # be the last component of what the browser sent.
+        uren = factories.uren_file(self.bron)
+
+        self.client.post(
+            self.url,
+            {"bestanden": [self._upload(uren, f"../../{uren.name}")]},
+        )
+
+        self.assertTrue((self.share / uren.name).is_file())
+        self.assertFalse((self.share.parent / uren.name).exists())
+
+    def test_a_get_does_not_upload_anything(self):
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 405)
+        self.assertEqual(list(self.share.iterdir()), [])
+
+    def test_a_user_without_the_permission_cannot_use_it(self):
+        kijker = User.objects.create_user(
+            "kijker", "k@sbtt.nl", "geheim", is_staff=True
+        )
+        kijker.user_permissions.add(
+            Permission.objects.get(codename="view_matchmotorstatus")
+        )
+        self.client.force_login(kijker)
+        uren = factories.uren_file(self.bron)
+
+        # assertLogs only to keep Django's 403 traceback out of the test output.
+        with self.assertLogs("django.request", "WARNING"):
+            response = self.client.post(
+                self.url, {"bestanden": [self._upload(uren)]}
+            )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(list(self.share.iterdir()), [])
+        self.assertEqual(Uren.objects.count(), 0)
+
+    def test_a_logged_out_user_cannot_reach_it(self):
+        self.client.logout()
+        uren = factories.uren_file(self.bron)
+
+        response = self.client.post(self.url, {"bestanden": [self._upload(uren)]})
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(list(self.share.iterdir()), [])
         self.assertEqual(Uren.objects.count(), 0)

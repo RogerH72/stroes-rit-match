@@ -1,3 +1,6 @@
+from pathlib import Path, PurePosixPath
+
+from django.conf import settings
 from django.contrib import admin, messages
 from django.core.exceptions import PermissionDenied
 from django.http import HttpResponseRedirect
@@ -9,6 +12,7 @@ from django.views.decorators.http import require_POST
 from matching import reset
 from matching.forms import DataResetForm
 from matching.ingest.detection import scan_share
+from matching.ingest.filenames import classify_filename
 from matching.models import (
     BekendeLocatie,
     ImportedFile,
@@ -309,6 +313,13 @@ class MatchmotorStatusAdmin(admin.ModelAdmin):
                 self.admin_site.admin_view(self.bestanden_inlezen_view),
                 name="matching_bestanden_inlezen",
             ),
+            # The fallback next to it: same destination (the servermap), other
+            # way in (the browser) for when the share itself is not reachable.
+            path(
+                "bestanden-uploaden/",
+                self.admin_site.admin_view(self.bestanden_uploaden_view),
+                name="matching_bestanden_uploaden",
+            ),
             path(
                 "matching-nu-draaien/",
                 self.admin_site.admin_view(self.run_matching_view),
@@ -350,7 +361,159 @@ class MatchmotorStatusAdmin(admin.ModelAdmin):
 
         redirect_to = reverse("admin:matching_matchmotorstatus_changelist")
         result = scan_share(force=True)
+        self._meld_scanresultaat(request, result)
 
+        if not result.imported:
+            if not result.seen:
+                self.message_user(
+                    request,
+                    "Geen herkende bronbestanden gevonden op de servermap.",
+                    level=messages.WARNING,
+                )
+            elif not result.failed:
+                # Recognised files, nothing imported and nothing broken: they
+                # were all already verwerkt. Said plainly, because "niets
+                # gebeurd" on a share full of files otherwise reads as a
+                # malfunction. A failure speaks for itself through the error
+                # messages _meld_scanresultaat already put on the screen.
+                self.message_user(
+                    request,
+                    "Niets nieuws om in te lezen.",
+                    level=messages.WARNING,
+                )
+
+        return HttpResponseRedirect(redirect_to)
+
+    @method_decorator(require_POST)
+    def bestanden_uploaden_view(self, request):
+        """Put source files on the servermap through the browser, then read them in.
+
+        The fallback for the period before Stric has the network share working,
+        and for an occasional outage after that. It does not replace the
+        share-based path but feeds it: an uploaded file is written under its own
+        name into the very same inbox directory `scan_share()` scans, so from
+        the moment it lands there it is an ordinary source file with an ordinary
+        ImportedFile row. Nothing is cleaned up afterwards, for the same reason
+        nothing on the share ever is — the database alone records what has been
+        done (docs/architecture.md).
+
+        POST-only and gated on `matching.change_matchmotorstatus`, for the same
+        reasons as "Bestanden nu inlezen": this writes files and rows.
+
+        Uploading and importing are deliberately *one* action here, unlike on
+        the share. The stability margin exists to catch a file an export job is
+        still writing; a file that arrived complete over HTTP has nothing left
+        to wait for. Running the matching afterwards stays the separate,
+        deliberate step it is everywhere else.
+        """
+        if not request.user.has_perm("matching.change_matchmotorstatus"):
+            raise PermissionDenied
+
+        redirect_to = reverse("admin:matching_matchmotorstatus_changelist")
+
+        uploads = request.FILES.getlist("bestanden")
+        if not uploads:
+            self.message_user(
+                request,
+                "Geen bestanden gekozen om te uploaden.",
+                level=messages.WARNING,
+            )
+            return HttpResponseRedirect(redirect_to)
+
+        inbox = Path(settings.SERVERMAP_PATH)
+        try:
+            # The share is normally there already; this only covers a local or
+            # containerised inbox that has never been written to yet.
+            inbox.mkdir(parents=True, exist_ok=True)
+        except OSError as fout:
+            self.message_user(
+                request,
+                f"De servermap {inbox} is niet beschikbaar om naar te "
+                f"schrijven: {fout}",
+                level=messages.ERROR,
+            )
+            return HttpResponseRedirect(redirect_to)
+
+        geaccepteerd: list[str] = []
+        for upload in uploads:
+            naam, weigering = self._bewaar_upload(upload, inbox)
+            if weigering is None:
+                geaccepteerd.append(naam)
+            else:
+                # Per file, not per batch: one unusable file among four must not
+                # cost the other three, exactly as in scan_share().
+                self.message_user(
+                    request,
+                    f"Geweigerd: {naam} — {weigering}",
+                    level=messages.ERROR,
+                )
+
+        if not geaccepteerd:
+            # Nothing reached the servermap, so there is nothing new to scan
+            # for; scanning anyway would only add "niets nieuws" underneath the
+            # refusals, which reads as a second, unrelated complaint.
+            return HttpResponseRedirect(redirect_to)
+
+        self.message_user(
+            request,
+            f"Naar de servermap geüpload: {len(geaccepteerd)} bestand(en) — "
+            f"{', '.join(geaccepteerd)}.",
+            level=messages.SUCCESS,
+        )
+        self._meld_scanresultaat(request, scan_share(force=True))
+        return HttpResponseRedirect(redirect_to)
+
+    @staticmethod
+    def _bewaar_upload(upload, inbox: Path) -> tuple[str, str | None]:
+        """Write one uploaded file into the inbox; return its name and any refusal.
+
+        Both refusals are deliberate and per file. An unrecognised name would
+        land on the share as a file `scan_share()` silently ignores, leaving the
+        uploader thinking he had delivered it; and an existing name is never
+        overwritten, because the file already there may be the one that was
+        imported — replacing it would make its ImportedFile row describe
+        something other than what is on disk.
+        """
+        # Django's MultiPartParser already strips directories from the posted
+        # filename, but this name becomes a path that gets written to, so it
+        # gets the second lock too: only ever the last component, on either
+        # platform's separator.
+        naam = PurePosixPath(upload.name.replace("\\", "/")).name
+
+        if classify_filename(naam) is None:
+            return naam or upload.name, (
+                "niet herkend als bronbestand. Verwacht wordt een bestandsnaam "
+                "met Uren, Werkbonnen of Relaties erin (.xlsx), of Ritten "
+                "(.csv)."
+            )
+
+        doel = inbox / naam
+        try:
+            # "xb" rather than checking exists() and then writing: the check and
+            # the write are one step this way, so a file that turns up in
+            # between cannot be silently overwritten after all.
+            with doel.open("xb") as bestand:
+                for blok in upload.chunks():
+                    bestand.write(blok)
+        except FileExistsError:
+            return naam, "bestaat al op de servermap, niet opnieuw geüpload."
+        except OSError as fout:
+            # A half-written file would be picked up as a real source file on
+            # the next scan, so it must not be left lying there.
+            doel.unlink(missing_ok=True)
+            return naam, f"kon niet worden weggeschreven ({fout})."
+
+        return naam, None
+
+    def _meld_scanresultaat(self, request, result) -> None:
+        """Report one scan_share() pass: what went in, and what tripped over it.
+
+        Shared by both buttons that import — "Bestanden nu inlezen" and
+        "Bestanden uploaden" — so an import reads the same whichever way the
+        file got onto the servermap. What is *missing* from the share is not
+        reported here: an empty share means something different to each of the
+        two, so each says that in its own words.
+        """
         if result.imported:
             aantal_rijen = sum(result.imported.values())
             self.message_user(
@@ -361,22 +524,6 @@ class MatchmotorStatusAdmin(admin.ModelAdmin):
                 "aparte stap.",
                 level=messages.SUCCESS,
             )
-        elif not result.seen:
-            self.message_user(
-                request,
-                "Geen herkende bronbestanden gevonden op de servermap.",
-                level=messages.WARNING,
-            )
-        elif not result.failed:
-            # Recognised files, nothing imported and nothing broken: they were
-            # all already verwerkt. Said plainly, because "niets gebeurd" on a
-            # share full of files otherwise reads as a malfunction. A failure
-            # speaks for itself through the error messages below.
-            self.message_user(
-                request,
-                "Niets nieuws om in te lezen.",
-                level=messages.WARNING,
-            )
 
         for bestand, fout in result.failed.items():
             # One message per file: a run that imports three files and trips
@@ -386,8 +533,6 @@ class MatchmotorStatusAdmin(admin.ModelAdmin):
                 f"Mislukt: {bestand} — {fout}",
                 level=messages.ERROR,
             )
-
-        return HttpResponseRedirect(redirect_to)
 
     @method_decorator(require_POST)
     def run_matching_view(self, request):

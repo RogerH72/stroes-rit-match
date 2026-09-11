@@ -37,6 +37,17 @@ er een antwoord "ja" is, staat het vast en stopt de app met verder zoeken:
 2. **Komt dit adres overeen met een werkbon waar de monteur die dag zelf uren
    op heeft geboekt?** Zo ja, dan is dit die werkbon — het eigenlijke werk.
    Dit is de kern van de herkenning.
+
+   Alleen urenregels mét een werkbonnummer tellen hier mee. Uren die zonder
+   werkbonnummer geboekt worden — kantoor, verlof, reisuren, magazijnonderhoud
+   — horen bij geen enkele werkbon, dus kan een stop daar ook niet aan
+   toegewezen worden. Zo'n stop loopt gewoon door naar de volgende vragen
+   hieronder en komt bijvoorbeeld uit op "klant" of "onverklaard". Die uren
+   zelf raken niet zoek: ze staan in de tabel "Aansluiting per werkbon" op de
+   regel "Zonder werkbonnummer (indirect)". (Gecorrigeerd op 11-09-2026; tot
+   dan kon zo'n urenregel een stop ten onrechte aan "een werkbon" koppelen
+   zonder dat er een werkbonnummer bij hoorde, waardoor het dagtotaal en die
+   tabel over dezelfde dag konden verschillen.)
 3. **Zo niet: komt het overeen met het adres dat in de planning bij die
    werkbon staat?** Soms wijkt wat een monteur zelf intypt net iets af van
    wat er in het systeem staat gepland. Voor dat geval is er een extra

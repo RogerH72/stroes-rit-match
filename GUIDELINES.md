@@ -508,6 +508,18 @@ RouteVision-data komt voor de PoC uit een handmatige download, niet uit de API.
    `van`/`tot`). Geen modelwijziging, geen migratie. 424 tests groen (was 419),
    waarvan vijf nieuw. Zie `docs/decisions.md` en `docs/business-rules.md`.
 
+38. **Gebouwd (11-09-2026).** Bugfix in de matchmotor: `DagUren.load()`
+   indexeerde ook `Uren`-regels zonder werkbonnummer (kantoor, verlof,
+   reisuren, magazijnonderhoud), waardoor een stop op zo'n adres een W-blok
+   met een leeg werkbonnummer werd. Dat blok telt wél mee in het dagtotaal
+   maar niet in "Aansluiting per werkbon" (die groepeert op werkbonnummer),
+   zodat dezelfde dag twee verschillende totalen kon tonen; bovendien kon zo'n
+   regel de echte werkbon op hetzelfde adres verdringen. Alleen regels mét een
+   werkbonnummer komen nu nog in de matchindex; de stop valt anders door naar
+   de volgende stappen. Geen modelwijziging, geen migratie. 428 tests groen
+   (was 424), waarvan vier nieuw. Zie `docs/decisions.md`,
+   `docs/business-rules.md` en `voor-klant/hoe-werkt-de-matching.md`.
+
 **Vervallen:** de eerder voorziene live-PoC-fase met 1-2 monteurs bij de klant (~1
 week, in overleg met Wim) — het akkoord van 31-08-2026 betrof al de volledige
 offerte, niet alleen een PoC-stap. Zie `docs/decisions.md`.

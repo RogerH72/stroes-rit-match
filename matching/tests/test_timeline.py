@@ -219,6 +219,62 @@ class ClassificatieTests(TestCase):
         )
         self.assertEqual(stop.soort, Soort.WERKBON)
 
+    def test_an_indirect_urenregel_does_not_crowd_out_the_real_werkbon(self):
+        # Over half of the urenregels carry no werkbon number at all (Kantoor,
+        # Verlof, Reisuren, Magazijn onderhoud). The index keeps the first row
+        # per key, so an indirect row booked on the same address used to claim
+        # the key and leave the real werkbon unmatched — this one is created
+        # first on purpose, so it would win without the fix.
+        factories.urenregel(
+            "005", DAG, "",
+            adres=KLANT_ADRES, postcode="4196 HB", plaats="TRICHT",
+            opdrachtgever="Reisuren",
+        )
+        factories.urenregel(
+            "005", DAG, "WB260908",
+            adres=KLANT_ADRES, postcode="4196 HB", plaats="TRICHT",
+            opdrachtgever="Gijs van Velzen",
+        )
+        stop = self._stop(
+            self._day_with_one_stop(stop_adres=KLANT_ADRES, stop_plaats=KLANT_PLAATS)
+        )
+        self.assertEqual(stop.soort, Soort.WERKBON)
+        self.assertEqual(stop.werkbon, "WB260908")
+
+    def test_hours_without_a_werkbon_number_never_produce_a_werkbon_block(self):
+        # A W block with an empty werkbon number counts towards the day total but
+        # cannot appear in "Aansluiting per werkbon", which groups on that very
+        # number — so the two would disagree about the same day.
+        factories.urenregel(
+            "005", DAG, "",
+            adres=KLANT_ADRES, postcode="4196 HB", plaats="TRICHT",
+            opdrachtgever="Kantoor",
+        )
+        stop = self._stop(
+            self._day_with_one_stop(stop_adres=KLANT_ADRES, stop_plaats=KLANT_PLAATS)
+        )
+        self.assertNotEqual(stop.soort, Soort.WERKBON)
+        self.assertEqual(stop.soort, Soort.ONVERKLAARD)
+        self.assertEqual(stop.werkbon, "")
+
+    def test_such_a_stop_falls_through_to_the_koppeltabel(self):
+        # The point of not matching: the stop simply continues down the priority
+        # order, so a hand-linked address still gets the label the user gave it.
+        factories.urenregel(
+            "005", DAG, "",
+            adres=KLANT_ADRES, postcode="4196 HB", plaats="TRICHT",
+            opdrachtgever="Verlof",
+        )
+        factories.bekende_locatie(
+            LocatieType.STRAAT, "Lingedijk", Soort.KLANT, "Gijs van Velzen"
+        )
+        stop = self._stop(
+            self._day_with_one_stop(stop_adres=KLANT_ADRES, stop_plaats=KLANT_PLAATS)
+        )
+        self.assertEqual(stop.soort, Soort.KLANT)
+        self.assertEqual(stop.omschrijving, "Gijs van Velzen")
+        self.assertEqual(stop.werkbon, "")
+
     def test_hours_booked_at_the_depot_do_not_turn_depot_stops_into_werkbonnen(self):
         # The depot street is left out of the street index on purpose; without
         # that, every visit to the magazijn would match this row.

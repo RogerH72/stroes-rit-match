@@ -108,6 +108,14 @@ Gebouwd t/m roadmap-fase 3 (03-09-2026, commit `eea759c`, 143 tests groen — zi
   wel — precies zoals de PoC dit ook deed. Reistijd/Werktijd/Tijd blijven, ondanks
   dat ze sinds 03-09-2026 wél worden opgeslagen (zie `docs/decisions.md`),
   ongebruikt in de matchlogica: structureel onbetrouwbaar, dus geen matchbron.
+  **Alleen urenregels mét een werkbonnummer doen mee aan de werkbon-matching
+  (gecorrigeerd 11-09-2026, zie `docs/decisions.md`):** een `Uren`-regel zonder
+  werkbonnummer (kantoor, verlof, reisuren, magazijnonderhoud — ruim de helft
+  van de urenregels in de juni-data) komt niet in de matchindex. Zo'n regel
+  hoort bij geen enkele werkbon, dus kan een stop er ook niet aan toegewezen
+  worden; de stop valt door naar de volgende stappen (koppeltabel, thuis,
+  onverklaard). Dit maakt de code gelijk aan wat de aansluitingstabel hieronder
+  al als regel noemde ("die kunnen per definitie geen W-blok opleveren").
   Werkbonnen.xlsx wordt daarnaast nog steeds ingelezen voor de
   **volledigheidscontrole**: signaleren of er een werkbon bestaat zonder geboekte
   uren, op basis van de laatste/huidige Fase-status. Zie `docs/decisions.md`

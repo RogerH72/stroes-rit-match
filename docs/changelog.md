@@ -1205,3 +1205,28 @@ afdrukt ("vervallen, verwijderd") en in de samenvattingsregel meetelt.
 Geen modelwijziging en geen migratie. 424 tests groen (was 419), met vijf
 nieuwe tests: de twee scenario's uit de melding plus de drie grenzen
 (datumrange, andere monteur, dry run). Zie `docs/decisions.md` (11-09-2026).
+
+## 2026-09-11 — Urenregels zonder werkbonnummer matchen geen stops meer
+
+Bug: `DagUren.load()` indexeerde elke `Uren`-regel van de dag, ook de regels
+zonder werkbonnummer (kantoor, verlof, reisuren, magazijnonderhoud — ruim de
+helft van de urenregels in de juni-data). De classificatie maakte van elke
+match een SOORT W, zonder te kijken of er een werkbonnummer bij zat. Gevolg:
+(a) zo'n stop werd een W-blok met een leeg werkbonnummer, dat het dagtotaal
+"op locatie" wél meetelt maar "Aansluiting per werkbon" niet — die groepeert op
+werkbonnummer — zodat dezelfde dag twee verschillende totalen liet zien; en
+(b) omdat de index per sleutel de eerste regel houdt, kon een indirecte regel
+de echte werkbon op datzelfde adres verdringen.
+
+Opgelost door de regels zonder werkbonnummer niet meer te indexeren. Een stop
+die daardoor geen werkbonmatch meer vindt, loopt gewoon door de bestaande
+prioriteitsvolgorde heen en komt uit op de Werkbonnen-postcode, de koppeltabel
+(bijv. K), thuis of onverklaard. De uren zelf blijven zichtbaar op de regel
+"Zonder werkbonnummer (indirect)" van de aansluitingstabel, zoals altijd.
+
+Hiermee doet de matchmotor wat `docs/business-rules.md` al als regel noemde
+("die kunnen per definitie geen W-blok opleveren") en waar `weekoverzicht.py`
+al van uitging.
+
+Geen modelwijziging en geen migratie. 428 tests groen (was 424), met vier
+nieuwe tests. Zie `docs/decisions.md` (11-09-2026).

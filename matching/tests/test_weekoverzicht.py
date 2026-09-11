@@ -840,6 +840,34 @@ class AansluitingPerWerkbonTests(TestCase):
         self.assertEqual(dag.aansluiting_totaal.gedeclareerd, dag.gefactureerde_uren)
         self.assertEqual(dag.aansluiting_totaal.op_locatie, dag.uren_op_locatie)
 
+    def test_an_indirect_urenregel_on_a_stop_keeps_the_two_totals_in_step(self):
+        # Regression (F2): hours without a werkbon number used to be able to
+        # match a stop, turning it into a W block with an empty werkbon. The day
+        # figure counts every W block; this table groups on the werkbon number
+        # and so could not count that one — the same day then showed two
+        # different "op locatie" totals.
+        self._tweede_stop_vrijgeven()
+        factories.urenregel(
+            "005", MAANDAG, "",
+            adres=self.TWEEDE_KLANT[0], postcode="4191 AA",
+            plaats="GELDERMALSEN", aantal="1.00", opdrachtgever="Reisuren",
+        )
+        dag = self._dag()
+
+        self.assertEqual(dag.aansluiting_totaal.op_locatie, dag.uren_op_locatie)
+        # Only WB1000 stands on site; the freed-up second stop is not a werkbon.
+        self.assertEqual(dag.uren_op_locatie, Decimal("1.00"))
+        self.assertEqual(
+            [regel.blok.werkbon for regel in dag.regels
+             if regel.blok.soort == Soort.WERKBON],
+            ["WB1000"],
+        )
+        # The hours themselves are not lost: they sit on the indirect row, which
+        # is what that row exists for.
+        self.assertEqual(
+            self._regels(dag)[week.INDIRECT_LABEL].gedeclareerd, Decimal("1.00")
+        )
+
     def test_a_werkbon_row_shows_the_client_it_was_booked_for(self):
         # The reason for the column (docs/decisions.md, 08-09-2026): judging a
         # difference should not need a lookup elsewhere to see whose job it was.

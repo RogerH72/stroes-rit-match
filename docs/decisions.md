@@ -1693,3 +1693,50 @@ Doorgevoerd in: `matching/timeline/runner.py`,
 `matching/management/commands/run_matching.py`,
 `matching/tests/test_run_matching.py`, `docs/business-rules.md`,
 `docs/changelog.md`, `GUIDELINES.md` (punt 37).
+
+## 2026-09-11 — Urenregels zonder werkbonnummer blijven buiten de werkbon-matchindex (Current)
+
+Decision: `DagUren.load()` in `matching/timeline/engine.py` indexeert alleen nog
+`Uren`-regels die daadwerkelijk een werkbonnummer dragen. Een regel zonder
+werkbonnummer kan een stop dus niet meer aan een werkbon koppelen; die stop valt
+door naar de volgende stappen van de prioriteitsvolgorde (Werkbonnen-postcode,
+koppeltabel, thuis, onverklaard). Geen modelwijziging, geen migratie.
+
+Reasoning: ruim de helft van de urenregels in de juni-data is indirect —
+kantoor, verlof, reisuren, magazijnonderhoud — en die dragen geen
+werkbonnummer. Zo'n regel werd tot nu toe gewoon meegeïndexeerd, en een stop op
+hetzelfde adres kwam er dan als SOORT W uit, met een leeg werkbonnummer. Dat
+richtte twee soorten schade aan:
+
+1. **Het dagtotaal en "Aansluiting per werkbon" spraken elkaar tegen.** Het
+   dagcijfer "op locatie" telt álle W-blokken; de aansluitingstabel groepeert op
+   werkbonnummer en kon een W-blok zonder nummer dus niet meetellen. Dezelfde
+   dag liet daardoor twee verschillende totalen zien — precies het soort
+   inconsistentie dat het vertrouwen in de hele tabel ondermijnt.
+2. **De echte werkbon werd verdrongen.** De index houdt per sleutel de eerste
+   regel (`setdefault` op rijvolgorde), dus een indirecte regel op dezelfde
+   postcode of straat kon de plek innemen van de werkbon die daar wél geboekt
+   was. Het werk kwam dan met een leeg nummer in beeld in plaats van met het
+   juiste.
+
+Dit is geen nieuwe regel maar het gelijktrekken van code en al vastgelegde
+regel: `docs/business-rules.md` zei over de indirecte regel al "die kunnen per
+definitie geen W-blok opleveren", en `weekoverzicht.py` hanteerde die aanname
+ook (`AansluitingRegel` geeft de indirecte regel bewust geen `op_locatie`).
+Alleen de matchmotor deed niet mee.
+
+Bewust niet ook een tweede controle op de classificatieplek gezet: de index is
+de enige bron van die match, dus één plek afsluiten is genoeg en een extra
+`if` daar zou alleen suggereren dat het nog kon voorkomen. De aanname staat wel
+als comment op de gebruiksplek.
+
+Uitkomst: gebouwd. 428 tests groen (was 424), met vier nieuwe tests: drie in
+`ClassificatieTests` (de verdringing, geen W zonder nummer, en het doorvallen
+naar de koppeltabel) en één in `AansluitingPerWerkbonTests` die vastlegt dat
+het dagtotaal en de aansluitingstabel weer hetzelfde cijfer geven. Alle vier
+falen aantoonbaar op de oude code (de aansluitingstest met 1,00 tegen 2,00).
+
+Doorgevoerd in: `matching/timeline/engine.py`,
+`matching/tests/test_timeline.py`, `matching/tests/test_weekoverzicht.py`,
+`docs/business-rules.md`, `docs/changelog.md`, `GUIDELINES.md` (punt 38),
+`voor-klant/hoe-werkt-de-matching.md`.

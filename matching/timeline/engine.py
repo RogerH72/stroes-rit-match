@@ -148,6 +148,15 @@ class DagUren:
 
     Both indexes point at an Uren row, so a matched stop can carry that row's
     werkbon number and customer name into the Tijdblok.
+
+    Only rows that actually carry a werkbon number are indexed. Over half of the
+    urenregels in the June data are indirect — Kantoor, Verlof, Reisuren,
+    Magazijn onderhoud — and those have no werkbon number at all. Letting one of
+    them match a stop did two kinds of damage: the stop became a W block with an
+    empty werkbon, which the day total counts but "Aansluiting per werkbon"
+    cannot (it groups on the werkbon number), so the two disagreed about the same
+    day; and because the index keeps the first row per key, an indirect row on
+    the same postcode or street would crowd out the real werkbon booked there.
     """
 
     per_postcode: dict[str, Uren]
@@ -161,6 +170,13 @@ class DagUren:
         for regel in Uren.objects.filter(
             medewerker=monteur.medewerker_nummer, datum=datum
         ).order_by("row_number"):
+            # A stop can only be matched *to a werkbon*; a row without one has no
+            # werkbon to offer. The stop falls through to the later steps instead
+            # and ends up as K, L, C or O — the same reading "Aansluiting per
+            # werkbon" already gives these hours on its own indirect row.
+            if not regel.werkbon:
+                continue
+
             postcode = normalize.postcode(regel.postcode)
             if postcode:
                 per_postcode.setdefault(postcode, regel)
@@ -316,7 +332,9 @@ def _classify_stop(
     1. Depot first — the company's own address doubles as a customer address, so
        a depot stop must never be read as work there.
     2. Then the monteur's own booked hours (Uren.xlsx) — the actual matching: a
-       stop at an address he booked hours on that day is that werkbon (W).
+       stop at an address he booked hours *on a werkbon* that day is that werkbon
+       (W). Hours booked without a werkbon number never reach this step; see
+       DagUren.
     3. Then Werkbonnen.xlsx's own Postcode, as a fallback for when Uren.xlsx's
        address doesn't cover the stop — still W, just a second-best source
        (docs/decisions.md, 2026-09-03).
@@ -359,6 +377,8 @@ def _classify_stop(
         )
         return
 
+    # Every row in this index carries a werkbon number; DagUren.load() leaves the
+    # indirect ones out, so a match here is always a real werkbon.
     urenregel = uren.per_postcode.get(postcode) or uren.per_straat.get(straat)
     if urenregel:
         omschrijving = urenregel.project_opdrachtgever_naam or urenregel.taak_omschrijving

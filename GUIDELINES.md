@@ -544,6 +544,47 @@ RouteVision-data komt voor de PoC uit een handmatige download, niet uit de API.
    acht nieuw. Zie `docs/decisions.md`, `docs/ui-spec.md` en
    `docs/business-rules.md`.
 
+41. **Eerstvolgende stap (vastgelegd 11-09-2026).** Van de twee
+   code-auditrapporten (`codeaudit20260909.md` en de heraudit
+   `codeaudit20260911.md`) zijn vandaag alleen de drie "must fix"-punten
+   gebouwd (F1, F2, F8 — punten 37 t/m 39) plus de nulblokken-weergave
+   (punt 40). Alle overige bevindingen zijn **bewust geparkeerd**: niet
+   begonnen, niet vergeten, klaargezet als eerstvolgende werkblok. Geparkeerd
+   zijn F3 (verouderde matchresultaten naast nieuwe uren — eerst een
+   ontwerpbesluit nodig), F4 (stabiliteitsmarge haalt de 30 minuten niet,
+   off-by-one), F5 (ontbrekende kritieke importkolommen geven geen fout),
+   F7 (Excel-export kan tekst met `=` als formule laten lezen), F9 (upload
+   heeft een schrijfbare servermap nodig terwijl productie alleen-lezen mount
+   — besluit mét Stric) en F10 (opruimfout na mislukte upload kan de batch
+   breken), plus de tabel "overige bevindingen" en de productie-/
+   Docker-checklist. Aanbevolen volgorde: **F3 → F4/F5/F7 → F9/F10 →
+   productie-checklist**, tenzij prioriteiten verschuiven. Zie
+   `docs/decisions.md` (11-09-2026) voor de volledige lijst en de reden van
+   het parkeren, en `docs/functioneel-ontwerp.md` §9 voor de twee punten die
+   een besluit vragen.
+
+42. **Openstaand, wacht op Wim (vastgelegd 11-09-2026).** Uit Rogers eigen
+   visuele test van het weekoverzicht — niet uit de audits — kwam dat een
+   werkbon met geboekte uren kan ontbreken in `Werkbonnen.xlsx` en omgekeerd,
+   terwijl de ritdata die dag een bezoek aan het ándere adres toont. Concreet:
+   Rocco Stroes op 09-09-2026, WB261360 (uren, "Regie", Meteren) tegenover
+   WB261254 (werkbonregel, Culemborg) waar hij die dag drie keer fysiek was.
+   "Aansluiting per werkbon" toont dit correct als twee losse regels — de
+   functie werkt zoals bedoeld, dit is geen matchfout. Te vragen aan Wim: of
+   "Regie"-werkbonnen structureel buiten `Werkbonnen.xlsx` vallen, en waarom
+   hier op de ene werkbon geboekt is terwijl het bezoek bij de andere hoorde.
+   **Geen codewijziging gedaan of gepland**; pas na Wims antwoord is te bepalen
+   of hier iets uit volgt. Zie `docs/decisions.md` (11-09-2026) en
+   `docs/functioneel-ontwerp.md` §9, punt 3.
+
+43. **Huidig plan (11-09-2026, geen nieuw besluit).** Zodra de VM van Stric
+   beschikbaar is, installeert Roger de huidige build daarop zodat Wim hem
+   kan testen zoals hij is. Dat gaat vóór de geparkeerde should-improve-punten
+   en de productie-checklist uit punt 41. De drie nog niet definitieve
+   onderdelen van `DRAAIBOEK.md` (VM-gegevens, het `backup_db`-commando, §7
+   "eerste inrichting") blijven onveranderd open, precies zoals al vastgelegd
+   bij punt 26/27.
+
 **Vervallen:** de eerder voorziene live-PoC-fase met 1-2 monteurs bij de klant (~1
 week, in overleg met Wim) — het akkoord van 31-08-2026 betrof al de volledige
 offerte, niet alleen een PoC-stap. Zie `docs/decisions.md`.

@@ -546,6 +546,25 @@ Verzameld uit de secties hierboven, zodat ze niet uit het oog raken:
    bevestigen met Stric/RVS Solutions/RouteVision.
 2. Exacte drempelwaarden van de tolerantietabel per activiteit (§3b) — te bevestigen
    met de klant.
+3. **Werkbonnummer in `Uren.xlsx` vs. `Werkbonnen.xlsx`** (11-09-2026) — te
+   bevestigen met Wim. Een werkbon met geboekte uren kan ontbreken in
+   `Werkbonnen.xlsx` en omgekeerd, terwijl de ritdata die dag een bezoek aan het
+   ándere adres laat zien. Gevonden bij Rocco Stroes op 09-09-2026 (WB261360 met
+   uren maar zonder werkbonregel, WB261254 met werkbonregel maar zonder uren).
+   "Aansluiting per werkbon" toont dit correct als twee losse regels — dat is de
+   functie die werkt zoals bedoeld, geen matchfout. De vragen zijn (a) of
+   "Regie"-werkbonnen structureel buiten `Werkbonnen.xlsx` vallen en niet met een
+   bezoek op dezelfde dag hoeven samen te vallen, en (b) waarom hier op de ene
+   werkbon geboekt is terwijl het bezoek op het adres van de andere was. Geen
+   codewijziging gedaan of gepland; zie `docs/decisions.md` (11-09-2026).
+4. **Hoe verouderde matchresultaten gesignaleerd worden** (11-09-2026) — dit is
+   auditbevinding F3: nieuw ingelezen `Uren` verschijnen naast matchresultaten
+   die nog van vóór die import zijn. Geen pure bugfix maar een ontwerpvraag (wat
+   ziet de gebruiker, en wanneer), en daarmee het eerstvolgende werkpunt uit de
+   geparkeerde auditlijst. Dezelfde lijst bevat met F9 een tweede besluit dat
+   niet alleen van ons is: waar een upload terecht moet komen wanneer de
+   servermap in productie alleen-lezen gemount is — te bepalen mét Stric. Zie
+   `docs/decisions.md` (11-09-2026) voor de volledige geparkeerde lijst.
 
 _Opgelost op 2026-09-02: "monteur meegereden" (verfijnd 03-09-2026 tot een
 instelbare 3-standen toggle, zie §3b/§4 en `docs/decisions.md`), de databronnen voor

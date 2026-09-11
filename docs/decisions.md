@@ -1835,3 +1835,99 @@ Doorgevoerd in: `matching/weekoverzicht.py`, `matching/weekoverzicht_excel.py`,
 `matching/templates/matching/weekoverzicht.html`,
 `matching/tests/test_weekoverzicht.py`, `docs/ui-spec.md`,
 `docs/business-rules.md`, `docs/changelog.md`, `GUIDELINES.md` (punt 40).
+
+## 2026-09-11 — Overige auditbevindingen bewust geparkeerd (Current)
+
+Decision: van de twee code-auditrapporten (`codeaudit20260909.md` en de heraudit
+`codeaudit20260911.md`) zijn vandaag alleen de drie "must fix"-bevindingen
+gebouwd — F1, F2 en F8 — plus de losstaande weergavecorrectie voor
+tijdblokken van 0 minuten. Commits: `a34a5cf` (F1), `bb14cdd` (F2), `e47c6e9`
+(F8), `c83c9ad` (nulblokken). Alle overige bevindingen zijn besproken en
+**bewust geparkeerd**: niet begonnen, niet vergeten, en klaargezet als het
+eerstvolgende werkblok zodra hier weer aan gewerkt wordt.
+
+Reasoning: de drie must-fixes raakten alle drie de betrouwbaarheid van wat het
+scherm toont — vervallen dagen die bleven staan, een dagtotaal dat de
+aansluitingstabel tegensprak, en bestanden die langs hun stabiliteitsmarge
+werden getrokken. Die horen bij elkaar en zijn in één sessie af te ronden. De
+rest is óf geen pure bugfix maar een ontwerpvraag (F3, F9), óf raakt de
+productie-uitrol die nog niet aan de orde is. Ze in dezelfde sessie meenemen zou
+de vier afgeronde fixes vermengen met half afgemaakt werk.
+
+**Geparkeerd, in de door de audit aanbevolen volgorde:**
+
+- **F3** — nieuw ingelezen `Uren` worden getoond naast verouderde
+  matchresultaten. Geen pure bugfix: er moet eerst besloten worden *hoe* die
+  veroudering gesignaleerd wordt (zie `docs/functioneel-ontwerp.md` §9).
+- **F4** — de stabiliteitsmarge van 30 minuten wordt feitelijk niet gehaald:
+  een off-by-one in het aantal vereiste metingen.
+- **F5** — ontbrekende kritieke importkolommen (`Aantal`, `Bestuurder`,
+  `Aankomsttijd`) leveren geen importfout op.
+- **F7** — de Excel-export kan tekst die met `=` begint als formule laten
+  interpreteren.
+- **F9** — de uploadterugval heeft een schrijfbare servermap nodig, terwijl
+  productie diezelfde map alleen-lezen mount. Vraagt een besluit mét Stric over
+  waar een upload tijdens een echte share-storing terecht moet komen.
+- **F10** — een opruimfout na een mislukte upload kan ontsnappen en de rest van
+  de batch breken.
+
+**Daarnaast geparkeerd, lagere prioriteit** — de tabel "overige bevindingen":
+het label "Totaal (excl. reistijd)", overlappende/cumulatieve exports, de
+onbereikbare werkbon-volledigheidscontrole, de ontbrekende bronperiode,
+weekenduren zonder ritten, meerdere werkbonnen op één adres, en de opmaak van de
+Excel-totaalrij.
+
+**En de productie-/Docker-checklist:** HTTPS met secure cookies en een echte
+productie-`SECRET_KEY`, `backup_db` dat nog niet gebouwd is (zie ook
+`DRAAIBOEK.md`), de scheduler-gereedheid van `docker-compose`, `migrate` dat bij
+elke webstart automatisch draait terwijl `DRAAIBOEK.md` het als aparte handmatige
+stap beschrijft, `.dockerignore` dat `voorbeeld-data/` niet uitsluit, niet
+vastgezette dependency-versies, en het ontbreken van een concurrency-lock op de
+herberekening.
+
+Aanbevolen volgorde voor de volgende sessie, tenzij prioriteiten verschuiven:
+**F3 → F4/F5/F7 → F9/F10 → productie-checklist.**
+
+Doorgevoerd in: `GUIDELINES.md` (punt 41), `docs/functioneel-ontwerp.md` §9,
+`docs/changelog.md`.
+
+## 2026-09-11 — Openstaande vraag aan Wim: werkbonnummer in Uren vs. Werkbonnen (Open — wacht op Wim)
+
+Decision: nog géén besluit. Dit is een **openstaand punt dat op input van Wim
+wacht**, vastgelegd zodat het niet verdwijnt. Er is naar aanleiding hiervan geen
+code gewijzigd en er staat ook geen wijziging gepland.
+
+Aanleiding: Rogers eigen visuele test van het weekoverzicht (niet uit de
+auditrapporten), besproken op 11-09-2026. Concreet voorbeeld — monteur Rocco
+Stroes, 09-09-2026:
+
+- `Uren.xlsx` bevat werkbon **WB261360** (1,00 uur, taakcode "Regie",
+  opdrachtgever Maurice Severens, adres in Meteren). Dit werkbonnummer komt
+  nergens in `Werkbonnen.xlsx` voor.
+- `Werkbonnen.xlsx` bevat werkbon **WB261254** (Culemborg, Pieter-Jan Coumou,
+  warmtepomp boiler). Dit werkbonnummer komt nergens in `Uren.xlsx` voor.
+- RouteVision laat zien dat Rocco die dag drie keer fysiek op het
+  Culemborg-adres was (samen ± 1,32 decimale uren) en nooit in de buurt van
+  Meteren is geweest.
+
+Wat hier al goed gaat: "Aansluiting per werkbon" toont dit correct als twee
+losse, niet-aansluitende regels. Dat is bevestigd als **de functie die werkt
+zoals bedoeld**, niet als een fout in de matchlogica — precies het soort
+discrepantie waarvoor die tabel op 07-09-2026 is gebouwd (zie
+`docs/business-rules.md`).
+
+Twee vragen om aan Wim voor te leggen:
+
+1. Is het te verwachten dat werkbonnen van het type "Regie" structureel niet in
+   `Werkbonnen.xlsx` staan, en dat ze niet noodzakelijk met een bezoek op
+   diezelfde dag samenvallen?
+2. Waarom zijn er uren op WB261360 geboekt terwijl het feitelijke bezoek van die
+   dag op het adres van WB261254 plaatsvond — een boekingsfout, of is daar een
+   legitieme reden voor?
+
+Pas ná Wims antwoord is te bepalen of hier iets uit volgt voor de app. Zolang
+dat antwoord er niet is, is dit expliciet geen ontwerpbesluit om tegenaan te
+bouwen.
+
+Doorgevoerd in: `GUIDELINES.md` (punt 42), `docs/functioneel-ontwerp.md` §9,
+`docs/changelog.md`.

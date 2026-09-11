@@ -1279,3 +1279,33 @@ matching heeft er wel degelijk voor gedraaid.
 
 Geen modelwijziging en geen migratie. 439 tests groen (was 431), met acht
 nieuwe tests. Zie `docs/decisions.md` (11-09-2026).
+
+## 2026-09-11 — Bevindingen vastgelegd: geparkeerde auditpunten en een vraag voor Wim
+
+Alleen documentatie; geen code, geen tests, geen migratie.
+
+**Geparkeerde auditbevindingen.** Van de twee code-auditrapporten
+(`codeaudit20260909.md` en de heraudit `codeaudit20260911.md`) zijn vandaag de
+drie "must fix"-punten gebouwd en gepusht — F1 (`a34a5cf`), F2 (`bb14cdd`) en
+F8 (`e47c6e9`) — plus de losstaande weergavecorrectie voor tijdblokken van 0
+minuten (`c83c9ad`). De rest is besproken en bewust geparkeerd: F3, F4, F5, F7,
+F9 en F10, de tabel "overige bevindingen" en de productie-/Docker-checklist.
+Aanbevolen volgorde voor de volgende sessie: F3 → F4/F5/F7 → F9/F10 →
+productie-checklist. Vastgelegd zodat het klaarstaat in plaats van te
+verdwijnen; zie `docs/decisions.md` (11-09-2026) en `GUIDELINES.md` punt 41.
+
+**Openstaande vraag aan Wim.** Uit Rogers eigen visuele test van het
+weekoverzicht kwam dat een werkbon met geboekte uren kan ontbreken in
+`Werkbonnen.xlsx` en omgekeerd, terwijl de ritdata die dag een bezoek aan het
+andere adres laat zien (Rocco Stroes, 09-09-2026: WB261360 tegenover WB261254).
+"Aansluiting per werkbon" toont dit correct als twee losse regels — de functie
+werkt zoals bedoeld, geen matchfout. Twee vragen liggen bij Wim: vallen
+"Regie"-werkbonnen structureel buiten `Werkbonnen.xlsx`, en waarom is hier op de
+ene werkbon geboekt terwijl het bezoek bij de andere hoorde. Geen codewijziging
+gedaan of gepland. Zie `docs/decisions.md` (11-09-2026),
+`docs/functioneel-ontwerp.md` §9 punt 3 en `GUIDELINES.md` punt 42.
+
+**Plan rond de VM.** Zodra de VM van Stric er is, wordt de huidige build daarop
+geïnstalleerd zodat Wim hem kan testen zoals hij is — vóór de geparkeerde
+punten hierboven. De drie nog niet definitieve onderdelen van `DRAAIBOEK.md`
+blijven open zoals al vastgelegd. Geen nieuw besluit, alleen de huidige stand.

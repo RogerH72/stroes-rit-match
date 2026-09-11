@@ -1,6 +1,6 @@
 # GUIDELINES — Stroes-Rit-Match (RMW)
 
-_Last updated: 2026-09-09_
+_Last updated: 2026-09-11_
 
 ## Project identity
 
@@ -495,6 +495,18 @@ RouteVision-data komt voor de PoC uit een handmatige download, niet uit de API.
    enige manier om data in de app te krijgen. Alleen de opmaak wijzigde; de
    view is niet aangeraakt. 419 tests groen (was 411). Commits `cad4165` en
    `4c273f2`. Zie `docs/decisions.md` en `docs/functioneel-ontwerp.md` §4.
+
+37. **Gebouwd (11-09-2026).** Bugfix in de matchmotor: een expliciete
+   herberekening (`--force`, of de knop "Matching nu draaien") liet dagen die
+   geen resultaat meer opleveren met hun oude `Tijdblok`-rijen staan, terwijl
+   de run als geslaagd werd gerapporteerd. Bestaande rijen werden namelijk
+   alleen in `_store()` verwijderd, en `_store()` draait alleen voor een dag
+   die opnieuw is opgebouwd — dus nooit voor een dag die juist vervalt (een
+   losgekoppelde junior, een dag waarvan de ritten uit de import verdwenen).
+   `_verwijder_vervallen()` in `matching/timeline/runner.py` ruimt die dagen nu
+   op, strikt binnen de gevraagde selectie (dezelfde monteur, dezelfde
+   `van`/`tot`). Geen modelwijziging, geen migratie. 424 tests groen (was 419),
+   waarvan vijf nieuw. Zie `docs/decisions.md` en `docs/business-rules.md`.
 
 **Vervallen:** de eerder voorziene live-PoC-fase met 1-2 monteurs bij de klant (~1
 week, in overleg met Wim) — het akkoord van 31-08-2026 betrof al de volledige

@@ -1651,3 +1651,45 @@ koppelingen, Monteurs, Tolerantietabel). Commits `cad4165` en `4c273f2`.
 
 Doorgevoerd in: `docs/business-rules.md`, `docs/functioneel-ontwerp.md` §4,
 `docs/changelog.md`, `GUIDELINES.md` (punt 36).
+
+## 2026-09-11 — Een herberekening ruimt vervallen dagen op binnen de eigen selectie (Current)
+
+Decision: `run_matching(..., force=True)` — de "Matching nu draaien"-knop en
+`python manage.py run_matching --force` — verwijdert voortaan ook de opgeslagen
+`Tijdblok`-rijen van dagen die géén resultaat meer opleveren, binnen precies de
+selectie die de run gevraagd kreeg (dezelfde monteur, dezelfde `--van`/`--tot`).
+Geen modelwijziging, geen migratie: dit is logica in `matching/timeline/runner.py`.
+
+Reasoning: de matchmotor verwijderde bestaande rijen alleen in `_store()`, en
+`_store()` wordt uitsluitend aangeroepen voor een dag die daadwerkelijk opnieuw
+is opgebouwd. Een dag wordt alleen opgebouwd als er nog ritdata achter zit. De
+dagen die juist *vervallen* zijn — een junior die van zijn vaste meerijder is
+losgekoppeld, een dag waarvan de ritten door een gecorrigeerde import zijn
+verdwenen — waren dus precies de dagen die niemand meer aanraakte. Ze bleven met
+hun oude tijdblokken in het weekoverzicht en het uitzonderingenscherm staan,
+terwijl de run zichzelf als geslaagd rapporteerde. Dat is de gevaarlijkste vorm
+van fout: de gebruiker heeft zijn koppeling gecorrigeerd, de app zegt "gelukt",
+en het scherm laat nog steeds de oude werkelijkheid zien.
+
+De opruiming hangt bewust aan `force` en niet aan elke run. Zonder `--force`
+laat de matchmotor bestaande dagen juist met rust (dat is de hele betekenis van
+de vlag); een run die dagen overslaat mag ze ook niet weggooien. `--force` is al
+de stap die je draait ná een wijziging in een koppeltabel — precies het moment
+waarop een dag kan vervallen.
+
+De selectie is de grens, en is in de code met dezelfde argumenten uitgedrukt als
+de run zelf: een herberekening voor monteur X raakt nooit monteur Y, een
+herberekening over een datumrange raakt nooit een dag erbuiten. Een onbegrensde
+`--force` ruimt wél alles vervallen op — dat is wat "reken alles opnieuw door"
+betekent. Een dry run meldt de vervallen dagen en verwijdert niets.
+
+Uitkomst: gebouwd. 424 tests groen (was 419), met vijf nieuwe tests in
+`matching/tests/test_run_matching.py`: de twee scenario's uit het probleem (de
+losgekoppelde junior, de dag zonder ritten) plus de drie grenzen (datumrange,
+andere monteur, dry run). Beide scenario-tests falen aantoonbaar op de oude
+code (6 != 0 resp. 3 != 0).
+
+Doorgevoerd in: `matching/timeline/runner.py`,
+`matching/management/commands/run_matching.py`,
+`matching/tests/test_run_matching.py`, `docs/business-rules.md`,
+`docs/changelog.md`, `GUIDELINES.md` (punt 37).

@@ -13,7 +13,14 @@ from io import StringIO
 from django.core.management import CommandError, call_command
 from django.test import TestCase
 
-from matching.models import Instelling, MeegeredenKoppeling, MeegeredenModus, Soort, Tijdblok
+from matching.models import (
+    Instelling,
+    MeegeredenKoppeling,
+    MeegeredenModus,
+    Rit,
+    Soort,
+    Tijdblok,
+)
 from matching.tests import factories
 from matching.timeline.runner import run_matching
 
@@ -118,6 +125,75 @@ class RunMatchingTests(TestCase):
         self.assertEqual([dag.datum for dag in result.dagen], [DAG, VOLGENDE_DAG])
         self.assertTrue(all(dag.meegereden for dag in result.dagen))
         self.assertEqual(Tijdblok.objects.filter(monteur=junior).count(), 6)
+
+    def test_force_removes_the_days_of_an_uncoupled_junior(self):
+        # Regression: the junior's days exist only because of the koppeling. Once
+        # it is gone he has no driver code left, so the run never visits those
+        # days again — and before this fix their blocks simply stayed behind
+        # while the run reported success.
+        junior = factories.monteur("Junior", "009", vaste_meerijder=self.monteur)
+        run_matching(medewerker_nummer="009")
+        self.assertEqual(Tijdblok.objects.filter(monteur=junior).count(), 6)
+
+        junior.vaste_meerijder = None
+        junior.save()
+        result = run_matching(medewerker_nummer="009", force=True)
+
+        self.assertEqual(Tijdblok.objects.filter(monteur=junior).count(), 0)
+        self.assertEqual(
+            result.opgeruimd, [(junior, DAG), (junior, VOLGENDE_DAG)]
+        )
+        # Only the junior's derived days go: the senior they came from is not
+        # part of this selection.
+        self.assertEqual(Tijdblok.objects.filter(monteur=self.monteur).count(), 0)
+        run_matching()
+        self.assertEqual(Tijdblok.objects.filter(monteur=self.monteur).count(), 6)
+
+    def test_force_removes_a_day_whose_ritten_are_gone(self):
+        # Regression: a corrected rit-import can leave a day without any rides.
+        # build_day() then returns None, so the day is skipped rather than
+        # rebuilt, and its old blocks used to survive the recomputation.
+        run_matching()
+        self.assertEqual(Tijdblok.objects.filter(datum=DAG).count(), 3)
+
+        Rit.objects.filter(vertrekdatum=DAG).delete()
+        result = run_matching(force=True)
+
+        self.assertEqual(Tijdblok.objects.filter(datum=DAG).count(), 0)
+        self.assertEqual(result.opgeruimd, [(self.monteur, DAG)])
+        # The other day of the same monteur is untouched.
+        self.assertEqual(Tijdblok.objects.filter(datum=VOLGENDE_DAG).count(), 3)
+
+    def test_force_within_a_date_range_leaves_days_outside_it_alone(self):
+        run_matching()
+        Rit.objects.all().delete()
+
+        result = run_matching(van=VOLGENDE_DAG, tot=VOLGENDE_DAG, force=True)
+
+        self.assertEqual(result.opgeruimd, [(self.monteur, VOLGENDE_DAG)])
+        self.assertEqual(Tijdblok.objects.filter(datum=VOLGENDE_DAG).count(), 0)
+        self.assertEqual(Tijdblok.objects.filter(datum=DAG).count(), 3)
+
+    def test_force_leaves_another_monteur_alone(self):
+        andere = factories.monteur("M1", "001", "M1")
+        _werkdag("M1", DAG)
+        run_matching()
+        Rit.objects.all().delete()
+
+        result = run_matching(medewerker_nummer="005", force=True)
+
+        self.assertEqual({monteur for monteur, _ in result.opgeruimd}, {self.monteur})
+        self.assertEqual(Tijdblok.objects.filter(monteur=self.monteur).count(), 0)
+        self.assertEqual(Tijdblok.objects.filter(monteur=andere).count(), 3)
+
+    def test_a_dry_run_reports_vervallen_days_without_deleting_them(self):
+        run_matching()
+        Rit.objects.filter(vertrekdatum=DAG).delete()
+
+        result = run_matching(force=True, dry_run=True)
+
+        self.assertEqual(result.opgeruimd, [(self.monteur, DAG)])
+        self.assertEqual(Tijdblok.objects.filter(datum=DAG).count(), 3)
 
     def test_a_junior_gets_the_days_of_a_period_koppeling(self):
         Instelling.objects.update_or_create(

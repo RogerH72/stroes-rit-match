@@ -148,6 +148,18 @@ Gebouwd t/m roadmap-fase 3 (03-09-2026, commit `eea759c`, 143 tests groen — zi
   SBTT-personeel dit zelf kan triggeren nadat ze een koppeltabel hebben
   aangepast. Draait synchroon (geen achtergrondtaken-systeem — onnodig op deze
   schaal, één klant, ruim onder een seconde).
+- **Een herberekening ruimt vervallen dagen op binnen zijn eigen selectie
+  (gebouwd 11-09-2026, zie `docs/decisions.md`):** een expliciete herberekening
+  (de knop "Matching nu draaien", of `run_matching --force`) verwijdert niet
+  alleen de dagen die hij opnieuw opbouwt, maar ook de al opgeslagen dagen die
+  géén resultaat meer opleveren — een junior die van zijn meerijderkoppeling is
+  losgekoppeld, of een dag waarvan de ritten door een gecorrigeerde import zijn
+  verdwenen. Zonder deze opruiming bleven die dagen met hun oude tijdblokken in
+  het weekoverzicht en het uitzonderingenscherm staan terwijl de run "gelukt"
+  meldde. De grens is de gevraagde selectie: een herberekening voor één monteur
+  raakt geen andere monteur, en een herberekening over een datumrange raakt geen
+  dag erbuiten. Een run zonder `--force` verwijdert niets — die laat bestaande
+  dagen juist met rust — en een `--dry-run` meldt ze alleen.
 - **Geen overlappende meegereden-periodes voor dezelfde junior (gebouwd
   03-09-2026, fase 4):** een junior monteur kan niet tegelijk aan twee
   senioren gekoppeld zijn in `MeegeredenKoppeling`. Beide grenzen tellen mee

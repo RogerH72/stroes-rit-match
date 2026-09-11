@@ -2,7 +2,8 @@
 
 Unlike check_imports this is not on a schedule: a stored timeline is what the
 uitzonderingen- and weekoverzicht-screens build on, so it never changes by
-itself. Run it after a fresh import, or after changing a koppeltabel:
+itself. Run it after a fresh import, or after changing a koppeltabel. With
+--force the selection is also cleared of days that no longer produce a result:
 
     python manage.py run_matching
     python manage.py run_matching --monteur 005 --van 2026-08-03 --tot 2026-08-07
@@ -53,7 +54,8 @@ class Command(BaseCommand):
             "--force",
             action="store_true",
             help="Overschrijf dagen die al berekend zijn (verwijderen en opnieuw "
-            "opbouwen). Nodig na een wijziging in een koppeltabel.",
+            "opbouwen) en verwijder binnen de selectie de dagen die geen "
+            "resultaat meer opleveren. Nodig na een wijziging in een koppeltabel.",
         )
         parser.add_argument(
             "--dry-run",
@@ -87,6 +89,8 @@ class Command(BaseCommand):
             )
         for monteur in result.zonder_ritten:
             self.stdout.write(f"  {monteur.naam}: geen ritdata in deze selectie")
+        for monteur, datum in result.opgeruimd:
+            self.stdout.write(f"  {datum}  {monteur.naam}: vervallen, verwijderd")
 
         summary = (
             f"{len(result.dagen)} dag(en) berekend, "
@@ -94,6 +98,8 @@ class Command(BaseCommand):
         )
         if result.overgeslagen:
             summary += f", {len(result.overgeslagen)} overgeslagen"
+        if result.opgeruimd:
+            summary += f", {len(result.opgeruimd)} vervallen dag(en) verwijderd"
         self.stdout.write(self.style.SUCCESS(summary))
 
     def _bron(self, dag) -> str:

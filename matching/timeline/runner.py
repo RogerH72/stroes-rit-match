@@ -8,6 +8,13 @@ on, so a day that already has one is left alone unless `--force` is given, in
 which case that day is deleted and inserted again — the same idempotent
 delete-and-reinsert `check_imports --reprocess` uses for a re-imported file.
 
+A forced run also clears days that no longer produce a result at all, which
+delete-and-reinsert per rebuilt day cannot do: a junior whose meegereden-
+koppeling was removed, or a day whose rides disappeared in a corrected import,
+is simply never visited again and would keep its now-void blocks forever while
+the run reports success. See `_verwijder_vervallen()` for how that stays inside
+the selection the run was asked for.
+
 Callers should use `run_matching_and_record_status()` rather than
 `run_matching()` directly, so the MatchmotorStatus row the admin shows keeps up
 with reality.
@@ -38,6 +45,9 @@ class MatchResult:
     dagen: list[DagTijdlijn] = field(default_factory=list)
     overgeslagen: list[tuple[Monteur, dt.date]] = field(default_factory=list)
     zonder_ritten: list[Monteur] = field(default_factory=list)
+    #: Days that had a stored result but no longer produce one, cleared by a
+    #: forced run (or, on a dry run, only reported).
+    opgeruimd: list[tuple[Monteur, dt.date]] = field(default_factory=list)
 
     @property
     def aantal_blokken(self) -> int:
@@ -57,6 +67,9 @@ def run_matching(
     Without `medewerker_nummer` every active monteur is processed; without
     `van`/`tot` every date that has ride data for him — including dates he only
     has through a meegereden-koppeling, since those are days he worked too.
+
+    With `force` the run owns the whole selection rather than only the days it
+    happens to rebuild: what it does not rebuild, it clears.
     """
     result = MatchResult(dry_run=dry_run)
     koppeltabellen = Koppeltabellen.load()
@@ -65,8 +78,8 @@ def run_matching(
         dagen = _dates_for(monteur, van, tot)
         if not dagen:
             result.zonder_ritten.append(monteur)
-            continue
 
+        herbouwd: set[dt.date] = set()
         for datum in dagen:
             bronmonteur = resolve_bronmonteur(monteur, datum)
             tijdlijn = build_day(
@@ -85,7 +98,14 @@ def run_matching(
 
             if not dry_run:
                 _store(tijdlijn)
+            herbouwd.add(datum)
             result.dagen.append(tijdlijn)
+
+        if force:
+            for datum in _verwijder_vervallen(
+                monteur, van, tot, herbouwd, dry_run=dry_run
+            ):
+                result.opgeruimd.append((monteur, datum))
 
     return result
 
@@ -130,6 +150,40 @@ def run_matching_and_record_status(**kwargs) -> MatchResult:
     status.foutmelding = ""
     status.save()
     return result
+
+
+def _verwijder_vervallen(
+    monteur: Monteur,
+    van: dt.date | None,
+    tot: dt.date | None,
+    herbouwd: set[dt.date],
+    *,
+    dry_run: bool,
+) -> list[dt.date]:
+    """Clear this monteur's stored days that the run did not rebuild.
+
+    `_store()` can only refresh a day that was rebuilt, and a day is only
+    rebuilt when there is still ride data behind it. So the days that go *away*
+    — the junior who was uncoupled from his senior, the day whose rides a
+    corrected import removed — are exactly the ones nothing else touches. They
+    are deleted here instead.
+
+    The selection is the boundary, deliberately expressed with the same monteur
+    and the same `van`/`tot` the run was given: a run for one monteur never
+    reaches another, and a run over a date range never reaches a day outside it.
+    An unbounded run does clear everything stale, which is what asking to
+    recompute everything means.
+    """
+    blokken = Tijdblok.objects.filter(monteur=monteur)
+    if van is not None:
+        blokken = blokken.filter(datum__gte=van)
+    if tot is not None:
+        blokken = blokken.filter(datum__lte=tot)
+
+    vervallen = sorted(set(blokken.values_list("datum", flat=True)) - herbouwd)
+    if vervallen and not dry_run:
+        blokken.filter(datum__in=vervallen).delete()
+    return vervallen
 
 
 @transaction.atomic

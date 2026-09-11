@@ -131,7 +131,10 @@ uitzonderingen-eenklik-scherm), niet de tabellen zelf._
   herberekend zijn, en een eventuele foutmelding. Wordt bijgewerkt door zowel
   het `run_matching`-commando als de "Matching nu draaien"-knop in het
   beheerscherm — een `--dry-run` telt bewust niet mee, want die schrijft niets
-  weg.
+  weg. `dagen_verwerkt` telt de herbouwde dagen; de dagen die een geforceerde
+  run juist *verwijdert* omdat ze vervallen zijn (11-09-2026, zie
+  `docs/business-rules.md`) staan daar bewust niet bij — het is een teller van
+  berekend werk, niet van aangeraakte rijen.
 
 **Geen aparte tabel, wel een berekening:** de volledigheidscontrole
 (Werkbonnen.xlsx-check, zie `docs/business-rules.md`) heeft geen eigen tabel nodig —

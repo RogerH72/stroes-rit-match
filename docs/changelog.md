@@ -1182,3 +1182,26 @@ een template-wijziging; de view is niet aangeraakt.
 
 419 tests groen (was 411). Commits `cad4165` en `4c273f2`. Zie
 `docs/decisions.md` (09-09-2026).
+
+## 2026-09-11 — Herberekening verwijdert vervallen dagen
+
+Bug: bij een expliciete herberekening (`--force`, of de knop "Matching nu
+draaien") bleven dagen die geen resultaat meer opleveren met hun oude
+`Tijdblok`-rijen staan, terwijl de run als geslaagd werd gerapporteerd. Oorzaak:
+bestaande rijen werden alleen in `_store()` verwijderd, en `_store()` draait
+alleen voor een dag die opnieuw is opgebouwd — wat alleen gebeurt als er nog
+ritdata achter die dag zit. Een junior die van zijn vaste meerijder werd
+losgekoppeld, of een dag waarvan de ritten door een gecorrigeerde import waren
+verdwenen, werd daardoor simpelweg nooit meer bezocht.
+
+Opgelost met `_verwijder_vervallen()` in `matching/timeline/runner.py`: na de
+dagen van één monteur te hebben doorlopen, verwijdert een geforceerde run diens
+opgeslagen dagen die deze run niet heeft herbouwd. De grens is de selectie zelf,
+uitgedrukt met dezelfde monteur en dezelfde `van`/`tot` als de run — monteur Y
+en dagen buiten de range worden niet aangeraakt. Een dry run meldt ze alleen.
+`MatchResult` heeft er een veld `opgeruimd` voor, dat het commando per dag
+afdrukt ("vervallen, verwijderd") en in de samenvattingsregel meetelt.
+
+Geen modelwijziging en geen migratie. 424 tests groen (was 419), met vijf
+nieuwe tests: de twee scenario's uit de melding plus de drie grenzen
+(datumrange, andere monteur, dry run). Zie `docs/decisions.md` (11-09-2026).

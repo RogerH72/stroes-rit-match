@@ -162,7 +162,10 @@ def _dag(blad: Worksheet, dag: DagOverzicht, *, start: int) -> int:
         _cel(blad, regel, kolom, naam, bold=True, vulling=GRIJS, rand=True)
     regel += 1
 
-    for rij in dag.regels:
+    # zichtbare_regels, not regels: the same zero-minute blocks the page leaves
+    # out, so the export is a copy of the screen rather than a second reading of
+    # the day (docs/decisions.md, 11-09-2026).
+    for rij in dag.zichtbare_regels:
         achtergrond = LICHTGRIJS if rij.is_reistijd else None
         _cel(blad, regel, 1, rij.start.strftime("%H:%M"), centreren=True, vulling=achtergrond, rand=True)
         _cel(blad, regel, 2, rij.eind.strftime("%H:%M"), centreren=True, vulling=achtergrond, rand=True)

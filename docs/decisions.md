@@ -1790,3 +1790,48 @@ uploadroute die niet ongemerkt meeneemt.
 Doorgevoerd in: `matching/ingest/detection.py`, `matching/admin.py`,
 `matching/tests/test_matchmotor_status.py`, `docs/business-rules.md`,
 `docs/functioneel-ontwerp.md`, `docs/changelog.md`, `GUIDELINES.md` (punt 39).
+
+## 2026-09-11 — Tijdblokken van 0 minuten worden niet in het weekoverzicht getoond (Current)
+
+Decision: een `Tijdblok` waarvan de starttijd gelijk is aan de eindtijd krijgt
+geen regel in de dagtabel — niet op het scherm en niet in de Excel-export,
+ongeacht de SOORT. De rij blijft gewoon in de database staan. Uitsluitend een
+weergavefilter: `DagOverzicht.zichtbare_regels` is nieuw en wordt alleen door de
+tabel gelezen; elke berekening blijft over `regels` lopen. Geen modelwijziging,
+geen migratie.
+
+Reasoning: zulke blokken ontstaan echt. De matchmotor laat een onverklaarde stop
+onder de minuut vallen (`gap >= 1` in de O/?-tak), maar een stop op een herkend
+adres — depot, werkbon, koppeltabel, thuis — wordt altijd toegevoegd, ook bij
+nul minuten, en een rit waarvan vertrek en aankomst op dezelfde minuut vallen
+levert een R-blok van nul op. Als regel zegt zo'n rij alleen dat er iets gebeurde
+dat geen tijd kostte. Dat helpt een lezer niet en het duwt de regels die er wél
+toe doen van het scherm.
+
+Waarom een aparte property en niet gewoon minder rijen in `regels`: die lijst is
+óók de rekenbasis. De optellingen zouden er niet van veranderen — nul telt bij
+elke som voor nul — maar de aansluitingstabel leidt haar *set* werkbonregels af
+uit diezelfde lijst. Een W-blok van nul minuten noemt nog steeds een
+werkbonnummer, en dat nummer uit `regels` filteren zou die werkbon uit
+"Aansluiting per werkbon" laten verdwijnen zodra er ook geen uren op geboekt
+waren. Een regel verbergen mag geen werkbon uit de vergelijking halen. Daarom
+zit het filter vóór de tabel en niet vóór de som.
+
+Een dag waarvan álle blokken nul minuten duren blijft een dag: de
+`DagOverzicht` wordt aangemaakt vóór het filter. Anders zou hij bij de
+"ontbrekende dagen" belanden, wat iets anders — en onwaars — beweert, namelijk
+dat de matching voor die dag niet gedraaid heeft. Hij toont een lege tabel met
+een dagtotaal van 0:00; dat is het eerlijke antwoord.
+
+Uitkomst: gebouwd. 439 tests groen (was 431), met acht nieuwe tests in
+`NulminutenBlokkenTests`: de rijen verdwijnen uit `zichtbare_regels`, van de
+pagina en uit de Excel-export; geen enkel cijfer verschuift (het hele
+dagmomentopname-vergelijk, plus de aansluitingsregel van de bestaande werkbon);
+de optelling over verborgen en getoonde regels geeft hetzelfde; een verborgen
+werkbon houdt zijn aansluitingsregel; en een dag van louter nulblokken rendert
+schoon op beide kanalen.
+
+Doorgevoerd in: `matching/weekoverzicht.py`, `matching/weekoverzicht_excel.py`,
+`matching/templates/matching/weekoverzicht.html`,
+`matching/tests/test_weekoverzicht.py`, `docs/ui-spec.md`,
+`docs/business-rules.md`, `docs/changelog.md`, `GUIDELINES.md` (punt 40).

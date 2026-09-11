@@ -532,6 +532,18 @@ RouteVision-data komt voor de PoC uit een handmatige download, niet uit de API.
    Geen modelwijziging, geen migratie. 431 tests groen (was 428), waarvan
    drie nieuw. Zie `docs/decisions.md` en `docs/functioneel-ontwerp.md` §4.
 
+40. **Gebouwd (11-09-2026).** Tijdblokken van 0 minuten (start == eind) krijgen
+   geen regel meer in de dagtabel van het weekoverzicht, op het scherm noch in
+   de Excel-export. Nieuw is `DagOverzicht.zichtbare_regels`, die alleen de
+   tabel en de export lezen; `regels` blijft ongefilterd omdat dat de
+   rekenbasis is — een W-blok van nul minuten noemt nog steeds een
+   werkbonnummer, en dat uit `regels` filteren zou die werkbon uit "Aansluiting
+   per werkbon" laten verdwijnen. Er verschuift dus geen enkel cijfer. Een dag
+   van louter nulblokken blijft een gewone dag met een lege tabel en dagtotaal
+   0:00. Geen modelwijziging, geen migratie. 439 tests groen (was 431), waarvan
+   acht nieuw. Zie `docs/decisions.md`, `docs/ui-spec.md` en
+   `docs/business-rules.md`.
+
 **Vervallen:** de eerder voorziene live-PoC-fase met 1-2 monteurs bij de klant (~1
 week, in overleg met Wim) — het akkoord van 31-08-2026 betrof al de volledige
 offerte, niet alleen een PoC-stap. Zie `docs/decisions.md`.

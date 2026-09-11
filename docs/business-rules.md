@@ -183,6 +183,16 @@ Gebouwd t/m roadmap-fase 3 (03-09-2026, commit `eea759c`, 143 tests groen — zi
 **Weergaveregels van het weekoverzicht (gebouwd 05-09-2026, roadmap-fase 6,
 240 tests groen):**
 
+- **Blokken van 0 minuten worden niet getoond** (11-09-2026) — een tijdblok met
+  start == eind krijgt geen regel in de dagtabel, op het scherm noch in de
+  Excel-export, ongeacht de SOORT. Uitsluitend weergave: de rij blijft in de
+  database en elke optelling hieronder loopt onveranderd over álle blokken, want
+  nul telt voor nul. Het filter zit bewust vóór de tabel en niet vóór de som: een
+  W-blok van nul minuten noemt nog steeds een werkbonnummer, en dat uit de
+  rekenbasis halen zou die werkbon uit de aansluitingstabel laten verdwijnen. Een
+  dag waarvan alle blokken nul duren blijft een gewone dag met een lege tabel en
+  dagtotaal 0:00 — geen "ontbrekende dag", want de matching heeft er wel voor
+  gedraaid. Zie `docs/decisions.md` en `docs/ui-spec.md`.
 - **Aansluiting per werkbon** (07-09-2026) — onder elk dagoverzicht staat een
   tabel met één regel per werkbon die die dag voorkomt: de vereniging van de
   werkbonnen in `Uren.xlsx` en die van de SOORT=W-tijdblokken, niet het snijvlak.

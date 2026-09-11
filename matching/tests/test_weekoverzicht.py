@@ -474,6 +474,234 @@ class WeekoverzichtExcelTests(TestCase):
         self.assertEqual(antwoord.status_code, 302)
 
 
+class NulminutenBlokkenTests(TestCase):
+    """Blocks of zero minutes are hidden from the day table (11-09-2026).
+
+    A stop of start == eind is a real result of the reconstruction and stays in
+    the database, but as a row it says only that something happened and took no
+    time. The filter is display-only: `regels` still holds every block, so every
+    total and every aansluiting row is computed over all of them.
+    """
+
+    def setUp(self):
+        self.monteur = factories.monteur("Jesse", "005", "M5")
+        factories.bekende_locatie(
+            LocatieType.POSTCODE, "4104 AC", Soort.LOCATIE, "Magazijn", is_depot=True
+        )
+        _werkdag("M5", MAANDAG)
+        factories.urenregel(
+            "005", MAANDAG, "WB260908", adres=KLANT[0], postcode="4196 HB",
+            aantal="2.50",
+        )
+        run_matching()
+
+        gebruiker = User.objects.create_user("wim", password="geheim")
+        self.client.force_login(gebruiker)
+
+    def _dag(self):
+        return week.bouw_weekoverzicht(self.monteur, *WEEK).dagen[0]
+
+    def _nulblok(self, soort, *, omschrijving, werkbon="", uur=12):
+        """One block that begins and ends at the same moment."""
+        moment = dt.datetime.combine(MAANDAG, dt.time(uur, 0), dt.timezone.utc)
+        return Tijdblok.objects.create(
+            monteur=self.monteur,
+            datum=MAANDAG,
+            volgorde=100 + uur,
+            soort=soort,
+            start_tijd=moment,
+            eind_tijd=moment,
+            duur_minuten=0,
+            omschrijving=omschrijving,
+            werkbon=werkbon,
+        )
+
+    def _twee_nulblokken(self):
+        """Two zero-minute blocks of different SOORT, one of them a werkbon."""
+        self._nulblok(Soort.LOCATIE, omschrijving="Magazijn (nul)", uur=12)
+        self._nulblok(
+            Soort.WERKBON, omschrijving="WB999999 · nul", werkbon="WB999999", uur=13
+        )
+
+    def _momentopname(self, dag):
+        """Every figure the day shows, so two days can be compared as a whole.
+
+        The per-werkbon rows are deliberately not in here, only their total. A W
+        block of zero minutes names a werkbon the day did not have before, so
+        adding one adds a 0,00/0,00 row — that is the new data speaking, not the
+        filter. The test below checks the existing werkbon's row separately, and
+        test_a_hidden_werkbon_keeps_its_aansluiting_row covers the new one.
+        """
+        return {
+            "totalen": [(t.code, t.minuten) for t in dag.totalen],
+            "totaal_minuten": dag.totaal_minuten,
+            "totaal": dag.totaal,
+            "gefactureerde_uren": dag.gefactureerde_uren,
+            "uren_op_locatie": dag.uren_op_locatie,
+            "verschil": dag.verschil,
+            "prive_uren": dag.prive_uren,
+            "klant_minuten": dag.klant_minuten,
+            "aansluiting_totaal": (
+                dag.aansluiting_totaal.op_locatie,
+                dag.aansluiting_totaal.gedeclareerd,
+            ),
+        }
+
+    def test_a_zero_minute_block_is_left_out_of_the_day_table(self):
+        self._twee_nulblokken()
+        dag = self._dag()
+
+        # Present in the data the day is computed from...
+        self.assertEqual(len(dag.regels), 7)
+        # ...and absent from the rows that get drawn.
+        self.assertEqual(len(dag.zichtbare_regels), 5)
+        self.assertTrue(
+            all(r.blok.duur_minuten > 0 for r in dag.zichtbare_regels)
+        )
+
+    def test_the_page_does_not_show_them(self):
+        self._twee_nulblokken()
+
+        pagina = self.client.get(reverse("weekoverzicht"), {"week": "2026-W32"})
+
+        self.assertEqual(pagina.status_code, 200)
+        inhoud = pagina.content.decode()
+        # The descriptions are what a day-table row would carry; the bare werkbon
+        # number is not checked here, because it legitimately still appears in
+        # the aansluiting table underneath.
+        self.assertNotIn("Magazijn (nul)", inhoud)
+        self.assertNotIn("WB999999 · nul", inhoud)
+        self.assertIn("Onverklaarde stop", inhoud)  # the real rows are still there
+
+    def test_the_excel_export_does_not_show_them_either(self):
+        # The export is a copy of the screen, not a second reading of the day.
+        self._twee_nulblokken()
+
+        werkboek = openpyxl.load_workbook(
+            io.BytesIO(bouw_werkboek(week.bouw_weekoverzicht(self.monteur, *WEEK)))
+        )
+        blad = werkboek[werkboek.sheetnames[0]]
+        cellen = [
+            str(cel.value)
+            for rij in blad.iter_rows()
+            for cel in rij
+            if cel.value is not None
+        ]
+
+        self.assertNotIn("Magazijn (nul)", cellen)
+        self.assertNotIn("WB999999 · nul", cellen)
+        self.assertIn("Onverklaarde stop", cellen)
+
+    def test_not_a_single_figure_moves(self):
+        """The whole point: hiding rows may not change any number.
+
+        The same day is measured twice — once without the zero-minute blocks in
+        the database at all, once with them — and every figure has to come back
+        identical, because a block of zero minutes adds zero to every sum.
+        """
+        dag_zonder = self._dag()
+        zonder = self._momentopname(dag_zonder)
+        werkbon_zonder = {r.label: r for r in dag_zonder.aansluiting}["WB260908"]
+
+        self._twee_nulblokken()
+        dag_met = self._dag()
+        met = self._momentopname(dag_met)
+        werkbon_met = {r.label: r for r in dag_met.aansluiting}["WB260908"]
+
+        self.assertEqual(met, zonder)
+        # And the row of the werkbon that was already there did not shift either.
+        self.assertEqual(werkbon_met.op_locatie, werkbon_zonder.op_locatie)
+        self.assertEqual(werkbon_met.gedeclareerd, werkbon_zonder.gedeclareerd)
+        self.assertEqual(werkbon_met.verschil, werkbon_zonder.verschil)
+
+    def test_the_totals_are_computed_over_the_unfiltered_rows(self):
+        """The filter sits in front of the table, not in front of the sums.
+
+        Stated directly rather than only through equal outcomes: totalling the
+        hidden rows and the shown rows gives the same per-SOORT figures, which is
+        what makes it safe for the table to leave rows out.
+        """
+        self._twee_nulblokken()
+        dag = self._dag()
+
+        self.assertNotEqual(len(dag.regels), len(dag.zichtbare_regels))
+        # Compared as the screen shows them — every code in the fixed order —
+        # rather than as raw dicts: a SOORT whose only block was hidden drops out
+        # of the dict but still renders as 0:00, which is the same statement.
+        self.assertEqual(
+            [
+                (t.code, t.minuten)
+                for t in week._soort_totalen(week._minuten_per_soort(dag.regels))
+            ],
+            [
+                (t.code, t.minuten)
+                for t in week._soort_totalen(
+                    week._minuten_per_soort(dag.zichtbare_regels)
+                )
+            ],
+        )
+        self.assertEqual(
+            sum(r.blok.duur_minuten for r in dag.regels),
+            sum(r.blok.duur_minuten for r in dag.zichtbare_regels),
+        )
+
+    def test_a_hidden_werkbon_keeps_its_aansluiting_row(self):
+        """Hiding a row must not remove a werkbon from the reconciliation.
+
+        A W block of zero minutes still names a werkbon. Filtering it out of
+        `regels` rather than only out of the table would drop that werkbon from
+        "Aansluiting per werkbon" whenever no hours were booked on it either —
+        turning a display choice into a missing line of the comparison.
+        """
+        self._nulblok(
+            Soort.WERKBON, omschrijving="WB999999 · nul", werkbon="WB999999"
+        )
+        dag = self._dag()
+
+        regel = {r.label: r for r in dag.aansluiting}["WB999999"]
+        self.assertEqual(regel.op_locatie, Decimal("0.00"))
+        self.assertEqual(regel.gedeclareerd, Decimal("0.00"))
+
+    def test_a_day_of_nothing_but_zero_minute_blocks_still_renders(self):
+        # The table then has no rows at all. It must come out as an empty table,
+        # not as an error and not as a day that went missing: the matching did
+        # run for this day, and a day total of 0:00 is the honest answer.
+        Tijdblok.objects.all().delete()
+        self._twee_nulblokken()
+
+        pagina = self.client.get(reverse("weekoverzicht"), {"week": "2026-W32"})
+
+        self.assertEqual(pagina.status_code, 200)
+        inhoud = pagina.content.decode()
+        self.assertIn("Maandag 3 augustus", inhoud)
+        self.assertNotIn("Magazijn (nul)", inhoud)
+
+        dag = self._dag()
+        self.assertEqual(dag.zichtbare_regels, [])
+        self.assertEqual(dag.totaal_minuten, 0)
+        self.assertEqual(dag.totaal, "0:00")
+
+    def test_such_a_day_also_exports_cleanly(self):
+        Tijdblok.objects.all().delete()
+        self._twee_nulblokken()
+
+        antwoord = self.client.get(
+            reverse("weekoverzicht_excel"), {"week": "2026-W32"}
+        )
+
+        self.assertEqual(antwoord.status_code, 200)
+        werkboek = openpyxl.load_workbook(io.BytesIO(antwoord.content))
+        blad = werkboek[werkboek.sheetnames[0]]
+        cellen = [
+            str(cel.value)
+            for rij in blad.iter_rows()
+            for cel in rij
+            if cel.value is not None
+        ]
+        self.assertTrue(any("Maandag 03-08-2026" in c for c in cellen), cellen)
+        self.assertNotIn("Magazijn (nul)", cellen)
+
+
 class LegeInrichtingTests(TestCase):
     """The state before anything is set up: no monteurs at all."""
 

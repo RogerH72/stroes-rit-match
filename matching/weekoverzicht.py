@@ -259,6 +259,25 @@ class DagOverzicht:
     gefactureerde_uren: Decimal = Decimal("0.00")
 
     @property
+    def zichtbare_regels(self) -> list[WeekRegel]:
+        """The rows of the day table: everything except the zero-minute blocks.
+
+        A block of start == eind is a real row in the database and stays there —
+        it is what the reconstruction found — but on screen it says that a stop
+        or a ride happened and took no time, which tells a reader nothing while
+        pushing the rows that do matter off the page.
+
+        Display only, and deliberately *not* applied to `regels`: every total on
+        this class is a sum over `regels`, and the aansluiting table derives its
+        set of werkbon rows from them too. A zero-minute block adds nothing to
+        any sum, but a W block of zero minutes still names a werkbon, and
+        filtering it out of `regels` would make that werkbon's row disappear from
+        "Aansluiting per werkbon" whenever no hours were booked on it either.
+        Hiding a row must not remove a werkbon from the reconciliation.
+        """
+        return [regel for regel in self.regels if regel.blok.duur_minuten > 0]
+
+    @property
     def totalen(self) -> list[SoortTotaal]:
         return _soort_totalen(_minuten_per_soort(self.regels))
 
@@ -500,6 +519,9 @@ def bouw_weekoverzicht(monteur: Monteur, jaar: int, week: int) -> WeekOverzicht:
     working days that do not are reported separately, so an incomplete week can
     never pass for a complete one (the week total is the number a planner
     compares against a contract, so it has to say what it is missing).
+
+    Every block is kept here, zero-minute ones included; which of them reach the
+    day table is `DagOverzicht.zichtbare_regels`.
     """
     maandag = dt.date.fromisocalendar(jaar, week, 1)
     zondag = maandag + dt.timedelta(days=6)

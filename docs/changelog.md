@@ -1254,3 +1254,28 @@ inbox — daar is die knop voor. Een nieuwe test legt dat vast.
 
 Geen modelwijziging en geen migratie. 431 tests groen (was 428), met drie
 nieuwe tests. Zie `docs/decisions.md` (11-09-2026).
+
+## 2026-09-11 — Tijdblokken van 0 minuten niet meer in het weekoverzicht
+
+Een `Tijdblok` met start == eind krijgt geen regel meer in de dagtabel, op het
+scherm noch in de Excel-export, ongeacht de SOORT. Zulke blokken ontstaan echt:
+de matchmotor laat een onverklaarde stop onder de minuut vallen, maar een stop
+op een herkend adres (depot, werkbon, koppeltabel, thuis) wordt ook bij nul
+minuten toegevoegd, en een rit die binnen dezelfde minuut begint en eindigt
+levert een R-blok van nul op.
+
+Nieuw is `DagOverzicht.zichtbare_regels`, die alleen door de tabel en de export
+gelezen wordt. `regels` blijft ongefilterd, want dat is de rekenbasis: de
+SOORT-totalen, "Totaal (excl. reistijd)" en de aansluitingstabel lopen daar
+allemaal over. Een nulblok telt bij elke som voor nul, dus er verschuift geen
+cijfer — maar een W-blok van nul minuten noemt wél een werkbonnummer, en dat
+uit `regels` filteren zou die werkbon uit "Aansluiting per werkbon" laten
+verdwijnen zodra er ook geen uren op geboekt waren. Het filter zit daarom vóór
+de tabel, niet vóór de som.
+
+Een dag waarvan alle blokken nul minuten duren blijft een gewone dag met een
+lege tabel en een dagtotaal van 0:00 — niet een "ontbrekende dag", want de
+matching heeft er wel degelijk voor gedraaid.
+
+Geen modelwijziging en geen migratie. 439 tests groen (was 431), met acht
+nieuwe tests. Zie `docs/decisions.md` (11-09-2026).

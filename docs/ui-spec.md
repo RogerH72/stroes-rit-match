@@ -68,6 +68,15 @@ laad-gedoe.
   achtergrond, geen schaduw of alleen een zeer lichte schaduw — vlakke, rustige
   vormtaal.
 - **Primaire actie**: oranje knop/link, zoals SBTT's eigen "Bekijk ons aanbod".
+- **Blokken van 0 minuten worden niet getoond** (vastgelegd 11-09-2026, zie
+  `docs/decisions.md`): een tijdblok waarvan de starttijd gelijk is aan de
+  eindtijd krijgt geen regel in de dagtabel, op het scherm noch in de
+  Excel-export, ongeacht de SOORT. Zo'n regel zegt alleen dat er iets gebeurde
+  dat geen tijd kostte, en verdringt de regels die er wél toe doen. Puur
+  weergave: de rij blijft in de database staan en elke optelling (SOORT-totalen,
+  "Totaal (excl. reistijd)", "Aansluiting per werkbon") loopt onveranderd over
+  álle blokken. Een dag waarvan alle blokken nul duren toont een lege tabel met
+  dagtotaal 0:00 — hij verdwijnt niet en wordt geen "ontbrekende dag".
 - **Logo**: het bestaande RMW-logo (`D:\STROES\ChatGPT Image 31 aug 2026,
   18_09_13.png`) wordt als beeldmerk gebruikt zoals het is — de kleuren in dat logo
   zelf zijn niet de bron voor dit kleurenschema (zie hierboven).

@@ -270,7 +270,12 @@ comparison is shown per day as well as per week.
               </tr>
             </thead>
             <tbody>
-              {% for regel in dag.regels %}
+              {% comment %}
+              zichtbare_regels, niet regels: blokken van 0 minuten staan wel in
+              de database en tellen mee in elke optelling, maar zeggen in de
+              tabel niets (docs/decisions.md, 11-09-2026).
+              {% endcomment %}
+              {% for regel in dag.zichtbare_regels %}
                 <tr{% if regel.is_reistijd %} class="reistijd"{% endif %}>
                   <td class="tijd">{{ regel.start|date:"H:i" }}</td>
                   <td class="tijd">{{ regel.eind|date:"H:i" }}</td>

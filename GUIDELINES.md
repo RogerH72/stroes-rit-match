@@ -520,6 +520,18 @@ RouteVision-data komt voor de PoC uit een handmatige download, niet uit de API.
    (was 424), waarvan vier nieuw. Zie `docs/decisions.md`,
    `docs/business-rules.md` en `voor-klant/hoe-werkt-de-matching.md`.
 
+39. **Gebouwd (11-09-2026).** Bugfix op de uploadknop: die sloot af met
+   `scan_share(force=True)`, dat de hele inbox forceert in plaats van alleen
+   de zojuist geüploade bestanden. Een bestand dat daar al lag — bijv. een
+   export die nog geschreven werd — werd zo langs de stabiliteitscontrole van
+   30 minuten getrokken en na één meting als verwerkt afgestempeld. De view
+   gebruikt nu `import_named_files()`, die exact de weggeschreven
+   bestandsnamen door dezelfde per-bestand-importlaag haalt; de rest van de
+   inbox blijft onaangeroerd op zijn eigen pollingschema. "Bestanden nu
+   inlezen" forceert bewust nog steeds de hele inbox en is niet gewijzigd.
+   Geen modelwijziging, geen migratie. 431 tests groen (was 428), waarvan
+   drie nieuw. Zie `docs/decisions.md` en `docs/functioneel-ontwerp.md` §4.
+
 **Vervallen:** de eerder voorziene live-PoC-fase met 1-2 monteurs bij de klant (~1
 week, in overleg met Wim) — het akkoord van 31-08-2026 betrof al de volledige
 offerte, niet alleen een PoC-stap. Zie `docs/decisions.md`.

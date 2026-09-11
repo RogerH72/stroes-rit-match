@@ -11,7 +11,7 @@ from django.views.decorators.http import require_POST
 
 from matching import reset
 from matching.forms import DataResetForm
-from matching.ingest.detection import scan_share
+from matching.ingest.detection import import_named_files, scan_share
 from matching.ingest.filenames import classify_filename
 from matching.models import (
     BekendeLocatie,
@@ -420,6 +420,10 @@ class MatchmotorStatusAdmin(admin.ModelAdmin):
         still writing; a file that arrived complete over HTTP has nothing left
         to wait for. Running the matching afterwards stays the separate,
         deliberate step it is everywhere else.
+
+        That last argument holds for the uploaded files and for nothing else, so
+        only they are imported — see the `import_named_files()` call at the end.
+        "Bestanden nu inlezen" is the button that does force the whole inbox.
         """
         if not request.user.has_perm("matching.change_matchmotorstatus"):
             raise PermissionDenied
@@ -475,7 +479,11 @@ class MatchmotorStatusAdmin(admin.ModelAdmin):
             f"{', '.join(geaccepteerd)}.",
             level=messages.SUCCESS,
         )
-        self._meld_scanresultaat(request, scan_share(force=True))
+        # Only the names this request just wrote, never the whole inbox: a
+        # scan_share(force=True) here would drag every other file in with them,
+        # past the stability margin that is the only thing standing between the
+        # app and a half-written export (docs/decisions.md, 11-09-2026).
+        self._meld_scanresultaat(request, import_named_files(geaccepteerd))
         return HttpResponseRedirect(redirect_to)
 
     @staticmethod
@@ -521,13 +529,16 @@ class MatchmotorStatusAdmin(admin.ModelAdmin):
         return naam, None
 
     def _meld_scanresultaat(self, request, result) -> None:
-        """Report one scan_share() pass: what went in, and what tripped over it.
+        """Report one import pass: what went in, and what tripped over it.
 
         Shared by both buttons that import — "Bestanden nu inlezen" and
         "Bestanden uploaden" — so an import reads the same whichever way the
-        file got onto the servermap. What is *missing* from the share is not
-        reported here: an empty share means something different to each of the
-        two, so each says that in its own words.
+        file got onto the servermap, even though the two now hand in different
+        passes (a full `scan_share()` against the upload's own
+        `import_named_files()`). Both produce a ScanResult, which is all this
+        needs. What is *missing* from the share is not reported here: an empty
+        share means something different to each of the two, so each says that in
+        its own words.
         """
         if result.imported:
             aantal_rijen = sum(result.imported.values())

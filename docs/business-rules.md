@@ -42,7 +42,12 @@ Gebouwd t/m roadmap-fase 3 (03-09-2026, commit `eea759c`, 143 tests groen — zi
 - **"Bestanden uploaden"** (gebouwd 09-09-2026) — vierde knop op hetzelfde
   scherm, onder de andere drie. Terugval voor zolang de netwerkshare niet
   werkt: de gekozen bestanden worden onder hun eigen naam in diezelfde
-  servermap gezet en meteen ingelezen met `scan_share(force=True)`. Een naam
+  servermap gezet en meteen ingelezen. **Alleen de zojuist geüploade bestanden
+  worden ingelezen** (`import_named_files()`, gecorrigeerd 11-09-2026, zie
+  `docs/decisions.md`): de stabiliteitsmarge overslaan is te verdedigen voor een
+  bestand dat compleet over HTTP is binnengekomen, maar niet voor wat er verder
+  toevallig in de inbox ligt. Dat blijft ongemoeid en houdt zijn eigen
+  pollingschema. Een naam
   die daar al staat wordt geweigerd en nooit overschreven; een naam die
   `classify_filename()` niet herkent wordt eveneens geweigerd. Beide
   weigeringen gelden per bestand — de rest van de batch gaat door. Geen

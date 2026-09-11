@@ -25,6 +25,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from matching.admin import MatchmotorStatusAdmin
+from matching.ingest.detection import scan_share
 from matching.models import (
     ImportedFile,
     ImportStatus,
@@ -324,6 +325,32 @@ class BestandenInlezenButtonTests(TestCase):
 
         self.assertEqual(Uren.objects.count(), 2)
 
+    def test_it_force_scans_the_whole_inbox_on_purpose(self):
+        """The counterpart of the upload's narrowing (11-09-2026, F8).
+
+        Only the upload endpoint was narrowed to its own files. This button is
+        someone deliberately asking for everything on the servermap now, so it
+        keeps forcing every recognised file there past the margin — pinned down
+        here so a later change to the upload path cannot quietly take this one
+        with it.
+        """
+        uren = factories.uren_file(self.share)
+        ritten = factories.ritten_file(self.share)
+
+        with override_settings(POLL_INTERVAL_MINUTES=5, STABILITY_MINUTES=30):
+            self.client.post(self.url)
+
+        self.assertEqual(Uren.objects.count(), 2)
+        self.assertEqual(Rit.objects.count(), 2)
+        self.assertEqual(
+            sorted(
+                ImportedFile.objects.filter(
+                    status=ImportStatus.VERWERKT
+                ).values_list("filename", flat=True)
+            ),
+            sorted([uren.name, ritten.name]),
+        )
+
     def test_it_reports_what_it_read_in(self):
         factories.uren_file(self.share)
 
@@ -537,6 +564,49 @@ class BestandenUploadenButtonTests(TestCase):
             self.client.post(self.url, {"bestanden": [self._upload(uren)]})
 
         self.assertEqual(Uren.objects.count(), 2)
+
+    def test_an_unrelated_file_in_the_inbox_keeps_its_stability_margin(self):
+        # Regression (F8): the view used to finish with scan_share(force=True),
+        # which forces *everything* in the inbox. A Werkbonnen export still being
+        # written by Syntess would then be read after a single observation,
+        # because someone happened to upload an unrelated Ritten file. The margin
+        # is skipped for the upload — that file is complete by definition — and
+        # for nothing else.
+        vreemd = factories.uren_file(self.share)
+        ritten = factories.ritten_file(self.bron)
+
+        with override_settings(POLL_INTERVAL_MINUTES=5, STABILITY_MINUTES=30):
+            self.client.post(self.url, {"bestanden": [self._upload(ritten)]})
+
+        # The uploaded file went in.
+        self.assertEqual(Rit.objects.count(), 2)
+        self.assertEqual(
+            ImportedFile.objects.get(filename=ritten.name).status,
+            ImportStatus.VERWERKT,
+        )
+        # The one that was already there was not read, and not even measured:
+        # it stays on its own polling schedule, exactly as it was.
+        self.assertEqual(Uren.objects.count(), 0)
+        self.assertFalse(ImportedFile.objects.filter(filename=vreemd.name).exists())
+
+    def test_a_file_already_waiting_out_its_margin_is_not_pushed_through(self):
+        # The same rule for a file that has a row already: one measurement in,
+        # five short of stable. The upload must not finish its wait for it.
+        wachtend = factories.uren_file(self.share)
+        ritten = factories.ritten_file(self.bron)
+        with override_settings(POLL_INTERVAL_MINUTES=5, STABILITY_MINUTES=30):
+            scan_share()
+            self.assertEqual(
+                ImportedFile.objects.get(filename=wachtend.name).status,
+                ImportStatus.WACHTEND,
+            )
+
+            self.client.post(self.url, {"bestanden": [self._upload(ritten)]})
+
+        regel = ImportedFile.objects.get(filename=wachtend.name)
+        self.assertEqual(regel.status, ImportStatus.WACHTEND)
+        self.assertIsNone(regel.processed_at)
+        self.assertEqual(Uren.objects.count(), 0)
 
     def test_a_name_that_is_already_on_the_share_is_refused_and_not_overwritten(self):
         # The file already there may be the one that was imported; replacing it

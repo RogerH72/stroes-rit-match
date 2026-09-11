@@ -16,6 +16,7 @@ there is no "processed" folder — the database alone records what has been done
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -99,6 +100,56 @@ def scan_share(
 
         result.seen.append(entry.name)
         _handle_file(entry, source_kind, result, force, reprocess, dry_run)
+
+    return result
+
+
+def import_named_files(
+    filenames: Sequence[str], *, path: Path | None = None
+) -> ScanResult:
+    """Process exactly these files on the share, leaving every other one alone.
+
+    The counterpart of `scan_share()` for the upload form. An HTTP upload is
+    complete the moment it has been written, so these files have nothing left to
+    wait for and are imported at once — but that argument holds only for them.
+    `scan_share(force=True)` would force the whole inbox along with them,
+    including a file an export program is still writing, which is exactly what
+    the stability margin exists to prevent (docs/decisions.md, 11-09-2026).
+
+    Everything else in the inbox is not measured, not recorded and not imported
+    here: it keeps its own ImportedFile row untouched and stays on the normal
+    polling schedule.
+
+    `reprocess` is deliberately absent. A name that is already on the share is
+    refused by the upload itself, so a file reaching this point is new.
+    """
+    share = Path(path) if path is not None else Path(settings.SERVERMAP_PATH)
+    result = ScanResult(required_consecutive=required_polls())
+
+    if not share.is_dir():
+        logger.warning("Server share %s is not available; nothing to import.", share)
+        return result
+
+    for filename in filenames:
+        # Only ever a bare name inside the share: the caller already reduced the
+        # posted filename to its last component, and this one turns into a path
+        # that gets read, so it does not get to point anywhere else.
+        entry = share / Path(filename).name
+        if not entry.is_file():
+            # It was written a moment ago, so this means something removed it in
+            # between — worth reporting rather than passing over in silence.
+            result.failed[entry.name] = "niet meer op de servermap gevonden."
+            continue
+
+        source_kind = classify_filename(entry.name)
+        if source_kind is None:
+            result.ignored.append(entry.name)
+            continue
+
+        result.seen.append(entry.name)
+        _handle_file(
+            entry, source_kind, result, force=True, reprocess=False, dry_run=False
+        )
 
     return result
 

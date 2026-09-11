@@ -246,9 +246,20 @@ De geüploade bestanden komen onder hun eigen naam in diezelfde servermap
 (`SERVERMAP_PATH` / `RMW_INBOX_DIR`) te staan, niet in een aparte uploadmap:
 vanaf dat moment zijn het gewone bronbestanden met een gewone
 `ImportedFile`-rij, en er wordt achteraf niets opgeruimd. Direct na het
-wegschrijven draait `scan_share(force=True)` — uploaden en inlezen zijn hier
-bewust één handeling, want een bestand dat compleet over HTTP binnenkomt heeft
-geen stabiliteitsmarge nodig. De matching draait ook hier niet automatisch mee.
+wegschrijven worden ze ingelezen — uploaden en inlezen zijn hier bewust één
+handeling, want een bestand dat compleet over HTTP binnenkomt heeft geen
+stabiliteitsmarge nodig. De matching draait ook hier niet automatisch mee.
+
+**Alleen de zojuist geüploade bestanden (gecorrigeerd 11-09-2026).** Tot dan
+draaide hier `scan_share(force=True)`, dat de hele inbox forceert. Een ander
+bestand dat daar toevallig al lag — van de share, of een vorige, nog niet
+afgeronde export — werd dan meegesleept langs de stabiliteitsmarge die daar
+juist voor bedoeld is. Nu gaat alleen de lijst met daadwerkelijk weggeschreven
+bestandsnamen door `import_named_files()`, dezelfde per-bestand-importlaag die
+`scan_share()` ook gebruikt. De rest van de inbox wordt niet gemeten, niet
+bijgewerkt en niet ingelezen. **"Bestanden nu inlezen" forceert nog steeds wél
+de hele inbox** — dat is precies waar die knop voor is. Zie
+`docs/decisions.md` (11-09-2026).
 
 Twee weigeringen, per bestand zodat één onbruikbaar bestand de rest van de
 batch niet kost: een naam die al op de servermap staat wordt geweigerd en

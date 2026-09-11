@@ -1740,3 +1740,53 @@ Doorgevoerd in: `matching/timeline/engine.py`,
 `matching/tests/test_timeline.py`, `matching/tests/test_weekoverzicht.py`,
 `docs/business-rules.md`, `docs/changelog.md`, `GUIDELINES.md` (punt 38),
 `voor-klant/hoe-werkt-de-matching.md`.
+
+## 2026-09-11 — De uploadknop leest alleen de zojuist geüploade bestanden in (Current)
+
+Decision: `bestanden_uploaden_view` sluit niet langer af met
+`scan_share(force=True)`, maar met `import_named_files(geaccepteerd)` — een
+nieuwe functie in `matching/ingest/detection.py` die exact de meegegeven
+bestandsnamen door dezelfde per-bestand-importlaag (`_handle_file`) haalt die
+`scan_share()` ook gebruikt. De rest van de inbox wordt niet gemeten, niet
+bijgewerkt en niet ingelezen. **"Bestanden nu inlezen" verandert niet** en
+forceert nog steeds de hele inbox. Geen modelwijziging, geen migratie.
+
+Reasoning: het argument om de stabiliteitsmarge over te slaan was altijd: een
+bestand dat compleet over HTTP is binnengekomen heeft niets meer om op te
+wachten. Dat klopt — maar het geldt alléén voor de bestanden van die upload.
+`scan_share(force=True)` forceert de hele map, dus elk ander bestand dat daar
+toevallig lag werd meegesleept: een Werkbonnen-export die Syntess nog aan het
+schrijven was, of een halve download van de share, werd na één enkele meting
+als verwerkt afgestempeld. Precies datgene waar de marge van 30 minuten voor
+bestaat, en het viel niet op omdat de upload zelf gewoon slaagde.
+
+De grens is nu de lijst met bestandsnamen die `_bewaar_upload()` daadwerkelijk
+heeft weggeschreven. Alles wat niet in die lijst staat, houdt zijn eigen
+`ImportedFile`-rij ongewijzigd en blijft op het normale pollingschema — de
+uploadhandeling laat er geen spoor op achter.
+
+Waarom een eigen functie en niet een extra parameter op `scan_share()`: de twee
+doen iets wezenlijk anders. `scan_share()` *scant* een map en ontdekt wat er
+ligt; deze krijgt te horen welke bestanden het betreft en hoeft niets te
+ontdekken. Ze delen wat ze moeten delen — `_handle_file()`, dus dezelfde
+meting, dezelfde `ImportedFile`-boekhouding, dezelfde foutafhandeling per
+bestand — en leveren allebei een `ScanResult`, zodat `_meld_scanresultaat()`
+ongewijzigd voor allebei blijft werken.
+
+`reprocess` ontbreekt bewust in de nieuwe functie: een naam die al op de
+servermap staat wordt door de upload zelf geweigerd, dus een bestand dat hier
+aankomt is nieuw. Een bestand dat tussen wegschrijven en inlezen verdwijnt
+wordt als mislukking gemeld in plaats van stilzwijgend overgeslagen.
+
+Uitkomst: gebouwd. 431 tests groen (was 428). Twee nieuwe regressietests op de
+uploadknop: een bestand dat al in de inbox lag en nog geen enkele meting had
+doorstaan blijft na een upload van een ander bestand onaangeroerd (geen
+`ImportedFile`-rij, niets ingelezen), en een bestand dat al wachtend was blijft
+wachtend. Beide falen aantoonbaar op de oude code (het vreemde bestand kwam er
+als `verwerkt` uit). Eén nieuwe test op "Bestanden nu inlezen" legt vast dat
+die knop wél de hele inbox blijft forceren, zodat een latere wijziging aan de
+uploadroute die niet ongemerkt meeneemt.
+
+Doorgevoerd in: `matching/ingest/detection.py`, `matching/admin.py`,
+`matching/tests/test_matchmotor_status.py`, `docs/business-rules.md`,
+`docs/functioneel-ontwerp.md`, `docs/changelog.md`, `GUIDELINES.md` (punt 39).

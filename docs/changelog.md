@@ -1230,3 +1230,27 @@ al van uitging.
 
 Geen modelwijziging en geen migratie. 428 tests groen (was 424), met vier
 nieuwe tests. Zie `docs/decisions.md` (11-09-2026).
+
+## 2026-09-11 — Uploadknop verwerkt alleen de zojuist geüploade bestanden
+
+Bug: `bestanden_uploaden_view` sloot af met `scan_share(force=True)`, dat de
+hele inbox forceert in plaats van alleen de bestanden van deze upload. Een
+ander bestand dat daar al lag — van de netwerkshare, of een vorige, nog niet
+afgeronde export — werd daardoor meegesleept langs de stabiliteitscontrole van
+30 minuten en na één enkele meting als verwerkt afgestempeld, terwijl het nooit
+onderdeel van de upload was.
+
+Opgelost met `import_named_files()` in `matching/ingest/detection.py`: die
+haalt exact de meegegeven bestandsnamen door `_handle_file()`, dezelfde
+per-bestand-importlaag die `scan_share()` gebruikt — dus dezelfde meting,
+dezelfde `ImportedFile`-boekhouding en dezelfde foutafhandeling per bestand, en
+opnieuw een `ScanResult` zodat `_meld_scanresultaat()` ongewijzigd voor beide
+knoppen blijft werken. De marge overslaan is verdedigbaar voor een bestand dat
+compleet over HTTP binnenkwam, en voor niets anders; de rest van de inbox blijft
+onaangeroerd op zijn eigen pollingschema.
+
+**"Bestanden nu inlezen" is niet gewijzigd** en forceert nog steeds de hele
+inbox — daar is die knop voor. Een nieuwe test legt dat vast.
+
+Geen modelwijziging en geen migratie. 431 tests groen (was 428), met drie
+nieuwe tests. Zie `docs/decisions.md` (11-09-2026).
